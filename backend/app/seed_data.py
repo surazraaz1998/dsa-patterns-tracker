@@ -12,25 +12,67 @@ from app.models import Pattern, Problem
 TWO_POINTER_NOTE_MD = """
 ## Two Pointer Pattern
 
-**Core idea:** use two indices moving through an array/string/linked list based on a
-condition, instead of nested loops — turns O(n^2) scans into O(n).
+**Core idea:** instead of nested loops (O(n^2)), use two indices that move through an
+array, string, or linked list based on a condition. Both pointers move forward
+(mostly), so the whole structure gets scanned in O(n) instead of O(n^2).
 
-### Opposite Direction (Converging)
-`left` starts at 0, `right` at n-1, they move toward each other.
-Used for: sorted-array pair sums, palindrome checks, container/area problems.
+**Precondition that unlocks this pattern:** the array/string is already sorted, or the
+problem has a structural property (palindrome, linked list, partitioning) that lets you
+reason about both ends — or both speeds — at once.
 
-### Same Direction (Slow-Fast)
-Both start near 0; one moves every step, the other moves conditionally.
-Used for: in-place compaction (dedupe, move zeroes), the backbone of Sliding Window.
+---
 
-### Fast-Slow on Linked Lists
-Same idea, different speeds (1 step vs 2 steps) — cycle detection, finding the middle node.
+### 1. Opposite Direction (Converging Pointers)
+`left` starts at index 0, `right` starts at index n-1. They move toward each other,
+one step at a time, until they meet or cross.
 
-### Decision framework
-1. Sorted (or sortable without losing info)? -> opposite-direction.
-2. Compacting/overwriting in place while scanning once? -> same-direction.
-3. Linked list, need cycle/middle? -> fast-slow.
-4. Looking for a subarray/substring meeting a condition? -> Sliding Window (related, not identical).
+**Used for:** sorted-array pair sums (Two Sum II), palindrome checks, container/area
+problems (Container With Most Water), reversing in place.
+
+**How to decide which pointer to move:** look at the current pair. If the pair "isn't
+good enough yet" in one direction (sum too small, wall too short, etc.), move the
+pointer that can fix that — usually `left++` to increase, or `right--` to decrease.
+
+---
+
+### 2. Same Direction (Slow-Fast / Sliding Pointers)
+Both pointers start at or near index 0. `fast` moves every single step, scanning
+forward. `slow` only moves when a specific condition is met — it marks the boundary
+of "the part of the array we've already finalized."
+
+**Used for:** in-place compaction (Remove Duplicates, Move Zeroes). This is also the
+backbone of the Sliding Window pattern, which extends this idea to variable-size
+windows instead of single pointers.
+
+**Mental model:** `slow` is the next write position. `fast` is the scanner deciding
+what's worth writing there.
+
+---
+
+### 3. Fast-Slow on Linked Lists (Floyd's Algorithm)
+A special case of same-direction, but the two pointers move at *different speeds* —
+`slow` moves 1 node at a time, `fast` moves 2 nodes at a time.
+
+**Used for:** cycle detection (does this linked list loop back on itself?), finding the
+middle node in a single pass.
+
+**Why it works:** if there's a cycle, the faster pointer will eventually lap the slower
+one and they'll land on the same node. If there's no cycle, `fast` simply reaches the
+end first.
+
+---
+
+### Decision Framework — ask these in order
+1. **Is the array sorted** (or can it be sorted without losing needed info)? -> use
+   opposite-direction pointers.
+2. **Am I comparing or overwriting elements in place while scanning once?** -> use
+   same-direction pointers.
+3. **Is it a linked list, and do I need cycle detection or the middle node?** -> use
+   fast-slow pointers.
+4. **Am I looking for a *subarray or substring* that satisfies some condition** (a
+   target sum, a max distinct-character count, etc.)? -> that's Sliding Window, a
+   close cousin of two-pointer, not the same thing — don't force plain two-pointer
+   onto a windowing problem.
 """.strip()
 
 PATTERN = {

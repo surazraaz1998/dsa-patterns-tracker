@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
 
 type Problem = {
     title: string;
@@ -110,7 +111,7 @@ function App() {
                             <p>{selectedPattern.description}</p>
                             <div className="markdown-card">
                                 <h3>Revision Notes</h3>
-                                <pre>{selectedPattern.revision_note_md}</pre>
+                                <ReactMarkdown>{selectedPattern.revision_note_md}</ReactMarkdown>
                             </div>
                             <div className="tiers">
                                 {Object.entries(selectedPattern.problems_by_tier).map(([tier, problems]) => (
