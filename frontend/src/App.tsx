@@ -30,7 +30,7 @@ type PatternDetail = {
     problems_by_tier: Record<string, Problem[]>;
 };
 
-const API_BASE_URL = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+const API_BASE_URL = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL?.replace(/\/$/, '') || (import.meta.env.PROD ? 'https://dsa-patterns-tracker-backend.onrender.com' : 'http://localhost:8000');
 const LINKEDIN_URL = 'https://www.linkedin.com/in/surazraaz1998/';
 const INSTAGRAM_URL = 'https://www.instagram.com/__r.a.a.j/';
 
