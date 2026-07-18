@@ -13,11 +13,17 @@ logger = logging.getLogger("dsa_patterns_tracker")
 
 app = FastAPI(title="DSA Patterns Tracker API")
 
-# Allow the local React dev server (and later, your Vercel domain) to call this API.
-# Update allow_origins with your real Vercel URL once deployed.
+# Allow the local development frontend and deployed Vercel frontend to call this API.
+allowed_origins = [
+    "http://localhost:5173",
+    "https://frontend-liard-iota-97.vercel.app",
+    "https://*.vercel.app",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app$",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

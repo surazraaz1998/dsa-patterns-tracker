@@ -21,7 +21,7 @@ type PatternDetail = {
     problems_by_tier: Record<string, Problem[]>;
 };
 
-const API_BASE_URL = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
 
 function App() {
     const [patterns, setPatterns] = useState<PatternSummary[]>([]);
