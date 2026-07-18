@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Node / React
+node_modules/
+frontend/dist/
+frontend/.vercel/
+
+# Env files — never commit real secrets
+.env
+.env.local
+backend/.env
+
+# OS
+.DS_Store
