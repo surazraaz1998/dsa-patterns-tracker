@@ -1,4 +1,8 @@
 {
+  "version": 2,
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "outputDirectory": "dist",
   "headers": [
     {
       "source": "/index.html",
