@@ -23,6 +23,8 @@ type PatternDetail = {
 };
 
 const API_BASE_URL = (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL?.replace(/\/$/, '') || 'http://localhost:8000';
+const LINKEDIN_URL = 'https://www.linkedin.com/in/surazraaz1998/';
+const INSTAGRAM_URL = 'https://www.instagram.com/__r.a.a.j/';
 
 function App() {
     const [patterns, setPatterns] = useState<PatternSummary[]>([]);
@@ -136,6 +138,18 @@ function App() {
                     )}
                 </section>
             </main>
+
+            <footer className="site-footer">
+                <p>© 2026 Built By Suraj for focused DSA practice.</p>
+                <div className="social-links">
+                    <a href={LINKEDIN_URL} target="_blank" rel="noopener noreferrer">
+                        LinkedIn
+                    </a>
+                    <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
+                        Instagram
+                    </a>
+                </div>
+            </footer>
         </div>
     );
 }
