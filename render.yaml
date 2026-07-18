@@ -1,0 +1,21 @@
+services:
+  - type: web
+    name: dsa-patterns-tracker-backend
+    env: docker
+    plan: free
+    region: oregon
+    healthCheckPath: /
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: dsa-patterns-tracker-db
+          property: connectionString
+
+databases:
+  - name: dsa-patterns-tracker-db
+    databaseName: dsa_tracker
+    user: dsa_tracker
+    plan: free

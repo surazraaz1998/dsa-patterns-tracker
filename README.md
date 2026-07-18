@@ -1,52 +1,68 @@
 # DSA Patterns Tracker
 
-Learn DSA through patterns, track your progress. Starts with Two Pointer.
+A simple, polished way to study DSA patterns and work through curated practice problems. Version 1 focuses on the Two Pointer pattern and gives you a clean overview of the core ideas, problem tiers, and LeetCode links.
 
-## Stack
-- Frontend: React (Vite + TypeScript) → deployed on Vercel
-- Backend: FastAPI (Python) → deployed on Render (Docker)
-- Database: Postgres → Neon (free tier)
+## What this app does
+- Shows a list of DSA patterns
+- Explains the revision notes for each pattern
+- Lists problems grouped by tier
+- Links each problem directly to LeetCode
+- Uses a FastAPI backend with seeded data for a smooth first version
 
-## Local Development
+## Tech stack
+- Frontend: React + Vite + TypeScript
+- Backend: FastAPI + SQLAlchemy + PostgreSQL
+- Local orchestration: Docker Compose
 
-### Backend + DB (via Docker)
+## Quick start
+
+### 1) Start the backend and database
 ```bash
 docker compose up --build
 ```
 This starts:
-- Postgres on `localhost:5432` (user: `dev`, password: `dev`, db: `dsa_tracker`)
-- FastAPI on `localhost:8000` (auto-reloads on code changes)
+- PostgreSQL on `localhost:5432`
+- FastAPI on `http://localhost:8000`
 
-Check it's alive:
+You can verify the API with:
 ```bash
 curl http://localhost:8000/
 # {"status": "ok"}
 ```
 
-### Frontend
+### 2) Start the frontend
 ```bash
 cd frontend
 npm install
 npm run dev
 ```
-Runs on `localhost:5173` by default (Vite's default port).
+Open `http://localhost:5173` in your browser.
 
-## Project Structure
-```
+## Project structure
+```text
 dsa-patterns-tracker/
-├── frontend/          # React + TypeScript
-├── backend/           # FastAPI
-│   ├── app/
-│   │   ├── main.py    # app entrypoint
-│   │   ├── models.py  # SQLAlchemy models (next step)
-│   │   ├── db.py       # DB session/engine setup (next step)
-│   │   └── routes/     # API route modules (next step)
-│   └── seed_data.py    # loads pattern/problem content into DB (next step)
-└── docker-compose.yml # local dev orchestration
+├── backend/            # FastAPI app, DB models, seeded data
+│   └── app/
+├── frontend/           # React + Vite UI
+├── docker-compose.yml  # Local Postgres + backend setup
+└── README.md           # Project overview and setup guide
 ```
 
-## Deployment (once ready)
-- Backend → Render, connected to this GitHub repo, builds from `backend/Dockerfile`. Set `DATABASE_URL` env var in Render's dashboard to your Neon connection string.
-- Frontend → Vercel, connected to this repo, root directory set to `frontend/`. Set API base URL as an env var pointing to your Render backend URL.
+## Environment variables
+- Frontend:
+  - `VITE_API_BASE_URL=http://localhost:8000`
+- Backend:
+  - `DATABASE_URL=postgresql://dev:dev@localhost:5432/dsa_tracker`
 
-No custom domain needed to launch — `*.vercel.app` and `*.onrender.com` URLs work fine.
+## Testing
+```bash
+cd backend
+python3 -m pytest -q
+```
+
+## Deployment notes
+- Deploy the frontend on Vercel with the root directory set to `frontend/`
+- Set `VITE_API_BASE_URL` in Vercel to your deployed backend URL
+- Deploy the backend separately (for example on Render) and point the frontend to it
+
+This version is intentionally focused and lightweight so it can be expanded later with progress tracking, user accounts, and more patterns.
