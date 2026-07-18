@@ -12,6 +12,10 @@
         "moduleResolution": "Bundler",
         "allowImportingTsExtensions": false,
         "resolveJsonModule": true,
+        "types": [
+            "react",
+            "react-dom"
+        ],
         "isolatedModules": true,
         "noEmit": true,
         "jsx": "react-jsx",

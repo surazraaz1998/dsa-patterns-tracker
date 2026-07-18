@@ -1,11 +1,11 @@
 {
-  "name": "dsa-patterns-tracker",
-  "private": true,
-  "version": "1.0.0",
-  "scripts": {
-    "build": "npm --prefix frontend ci && npm --prefix frontend run build && rm -rf dist && cp -R frontend/dist dist"
-  },
-  "engines": {
-    "node": "20.x"
-  }
+    "name": "dsa-patterns-tracker",
+    "private": true,
+    "version": "1.0.0",
+    "scripts": {
+        "build": "npm --prefix frontend ci && npm --prefix frontend run build && rm -rf dist && cp -R frontend/dist dist"
+    },
+    "engines": {
+        "node": "20.x"
+    }
 }

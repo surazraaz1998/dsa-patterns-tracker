@@ -22,43 +22,88 @@ a {
 
 .app-shell {
     min-height: 100vh;
-    padding: 2rem;
+    padding: 1rem;
+    background: radial-gradient(circle at top left, rgba(96, 165, 250, 0.16), transparent 30%);
 }
 
 .hero {
-    max-width: 1100px;
+    max-width: 1180px;
     margin: 0 auto 1.5rem;
-    padding: 2rem;
-    border-radius: 24px;
-    background: rgba(15, 23, 42, 0.8);
-    box-shadow: 0 20px 60px rgba(2, 6, 23, 0.35);
+    padding: 1.6rem;
+    border-radius: 28px;
+    background: linear-gradient(135deg, rgba(15, 23, 42, 0.94), rgba(17, 24, 39, 0.82));
+    box-shadow: 0 24px 70px rgba(2, 6, 23, 0.35);
+    border: 1px solid rgba(148, 163, 184, 0.2);
+    backdrop-filter: blur(16px);
+}
+
+.hero-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1.5rem;
+}
+
+.hero-text {
+    flex: 1;
 }
 
 .eyebrow {
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.55rem;
     color: #93c5fd;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
     text-transform: uppercase;
-    letter-spacing: 0.2em;
+    letter-spacing: 0.22em;
+    font-weight: 700;
 }
 
 .hero h1 {
-    margin: 0 0 0.75rem;
-    font-size: clamp(2rem, 3vw, 2.8rem);
+    margin: 0 0 0.8rem;
+    font-size: clamp(2rem, 3.2vw, 3rem);
+    line-height: 1.1;
 }
 
 .hero-copy {
     margin: 0;
-    max-width: 680px;
+    max-width: 700px;
     color: #cbd5e1;
+    font-size: 1rem;
+}
+
+.hero-stats {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(90px, 1fr));
+    gap: 0.75rem;
+    min-width: min(360px, 100%);
+}
+
+.hero-stats div {
+    padding: 0.85rem;
+    border-radius: 16px;
+    background: rgba(30, 41, 59, 0.75);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.hero-stats strong {
+    color: #f8fafc;
+    font-size: 1rem;
+}
+
+.hero-stats span {
+    color: #93c5fd;
+    font-size: 0.85rem;
 }
 
 .content-grid {
     display: grid;
     grid-template-columns: minmax(280px, 320px) 1fr;
     gap: 1.5rem;
-    max-width: 1100px;
+    max-width: 1180px;
     margin: 0 auto;
+    align-items: start;
 }
 
 .sidebar,
@@ -67,6 +112,57 @@ a {
     border-radius: 24px;
     padding: 1.25rem;
     box-shadow: 0 20px 60px rgba(2, 6, 23, 0.25);
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    min-height: 0;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+}
+
+.sidebar-caption {
+    font-size: 0.8rem;
+    color: #93c5fd;
+}
+
+.scrollable-list,
+.detail-scroll-area {
+    overflow-y: auto;
+    padding-right: 0.35rem;
+    scrollbar-gutter: stable;
+}
+
+.scrollable-list {
+    max-height: calc(100vh - 260px);
+}
+
+.detail-panel {
+    display: flex;
+    flex-direction: column;
+}
+
+.detail-scroll-area {
+    max-height: calc(100vh - 220px);
+}
+
+.scrollable-list::-webkit-scrollbar,
+.detail-scroll-area::-webkit-scrollbar {
+    width: 8px;
+}
+
+.scrollable-list::-webkit-scrollbar-thumb,
+.detail-scroll-area::-webkit-scrollbar-thumb {
+    background: rgba(148, 163, 184, 0.28);
+    border-radius: 999px;
 }
 
 .pattern-list {
@@ -81,7 +177,7 @@ a {
     width: 100%;
     text-align: left;
     border: 1px solid rgba(147, 197, 253, 0.15);
-    background: rgba(30, 41, 59, 0.8);
+    background: linear-gradient(145deg, rgba(30, 41, 59, 0.92), rgba(15, 23, 42, 0.9));
     color: inherit;
     border-radius: 16px;
     padding: 0.95rem;
@@ -89,6 +185,13 @@ a {
     display: flex;
     flex-direction: column;
     gap: 0.35rem;
+    transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.pattern-card:hover {
+    transform: translateY(-1px);
+    border-color: rgba(96, 165, 250, 0.4);
+    box-shadow: 0 10px 24px rgba(2, 6, 23, 0.2);
 }
 
 .pattern-card.active {
@@ -104,8 +207,17 @@ a {
     color: #cbd5e1;
 }
 
-.detail-panel h2 {
-    margin-top: 0;
+.detail-header {
+    margin-bottom: 1rem;
+}
+
+.detail-header h2 {
+    margin: 0 0 0.35rem;
+}
+
+.detail-header p {
+    margin: 0;
+    color: #cbd5e1;
 }
 
 .markdown-card,
@@ -212,6 +324,11 @@ a {
 
 .error {
     color: #fda4af;
+}
+
+.empty-state {
+    color: #cbd5e1;
+    padding: 1rem 0;
 }
 
 .site-footer {
