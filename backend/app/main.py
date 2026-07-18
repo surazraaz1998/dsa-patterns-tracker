@@ -40,7 +40,7 @@ def startup_event() -> None:
         seed()
         logger.info("Database initialized successfully")
     except Exception as exc:  # pragma: no cover - defensive startup handling
-        logger.warning("Skipping database initialization: %s", exc)
+        logger.warning("Database initialization skipped: %s", exc)
 
 
 @app.get("/health")

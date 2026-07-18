@@ -5,7 +5,12 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://dev:dev@localhost:5432/dsa_tracker")
 
-engine = create_engine(DATABASE_URL)
+engine_kwargs = {"pool_pre_ping": True}
+if DATABASE_URL.startswith("postgresql") and "://" in DATABASE_URL:
+    if "render.com" in DATABASE_URL or "neon.tech" in DATABASE_URL:
+        engine_kwargs["connect_args"] = {"sslmode": "require"}
+
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
