@@ -1,10 +1,18 @@
 import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 
+type ProblemGuide = {
+    hints: string[];
+    explanation: string;
+    python: string;
+    javascript: string;
+};
+
 type Problem = {
     title: string;
     leetcode_url: string;
     leetcode_number: number | null;
+    guide?: ProblemGuide;
 };
 
 type PatternSummary = {
@@ -31,6 +39,7 @@ function App() {
     const [selectedPattern, setSelectedPattern] = useState<PatternDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [expandedPanels, setExpandedPanels] = useState<Record<string, 'hints' | 'answer' | null>>({});
 
     useEffect(() => {
         const loadPatterns = async () => {
@@ -66,6 +75,13 @@ function App() {
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Unexpected error');
         }
+    };
+
+    const togglePanel = (problemKey: string, panel: 'hints' | 'answer') => {
+        setExpandedPanels((current) => ({
+            ...current,
+            [problemKey]: current[problemKey] === panel ? null : panel,
+        }));
     };
 
     return (
@@ -119,15 +135,64 @@ function App() {
                                 {Object.entries(selectedPattern.problems_by_tier).map(([tier, problems]) => (
                                     <div key={tier} className="tier-card">
                                         <h3>Tier {tier}</h3>
-                                        <ul>
-                                            {problems.map((problem) => (
-                                                <li key={`${problem.title}-${problem.leetcode_number}`}>
-                                                    <a href={problem.leetcode_url} target="_blank" rel="noreferrer">
-                                                        {problem.title}
-                                                    </a>
-                                                    {problem.leetcode_number ? ` · #${problem.leetcode_number}` : ''}
-                                                </li>
-                                            ))}
+                                        <ul className="problem-list">
+                                            {problems.map((problem) => {
+                                                const problemKey = `${problem.title}-${problem.leetcode_number ?? 'na'}`;
+                                                const guide = problem.guide ?? {
+                                                    hints: ['Read the problem statement carefully and identify the core pattern.'],
+                                                    explanation: 'Use a structured approach to break the problem into smaller steps before coding the solution.',
+                                                    python: '# Add a Python solution here',
+                                                    javascript: '// Add a JavaScript solution here',
+                                                };
+                                                const isHintsOpen = expandedPanels[problemKey] === 'hints';
+                                                const isAnswerOpen = expandedPanels[problemKey] === 'answer';
+
+                                                return (
+                                                    <li key={problemKey} className="problem-item">
+                                                        <div className="problem-header-row">
+                                                            <a href={problem.leetcode_url} target="_blank" rel="noreferrer">
+                                                                {problem.title}
+                                                            </a>
+                                                            <div className="problem-actions">
+                                                                <button
+                                                                    type="button"
+                                                                    className="secondary-btn"
+                                                                    onClick={() => togglePanel(problemKey, 'hints')}
+                                                                >
+                                                                    {isHintsOpen ? 'Hide Hints' : 'Show Hints'}
+                                                                </button>
+                                                                <button
+                                                                    type="button"
+                                                                    className="secondary-btn"
+                                                                    onClick={() => togglePanel(problemKey, 'answer')}
+                                                                >
+                                                                    {isAnswerOpen ? 'Hide Answer' : 'Show Answer'}
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                        {isHintsOpen && (
+                                                            <div className="problem-panel">
+                                                                <h4>Hints</h4>
+                                                                <ul>
+                                                                    {guide.hints.map((hint) => (
+                                                                        <li key={hint}>{hint}</li>
+                                                                    ))}
+                                                                </ul>
+                                                            </div>
+                                                        )}
+                                                        {isAnswerOpen && (
+                                                            <div className="problem-panel">
+                                                                <h4>How to solve it</h4>
+                                                                <ReactMarkdown>{guide.explanation}</ReactMarkdown>
+                                                                <h5>Python</h5>
+                                                                <ReactMarkdown>{`\`\`\`python\n${guide.python}\n\`\`\``}</ReactMarkdown>
+                                                                <h5>JavaScript</h5>
+                                                                <ReactMarkdown>{`\`\`\`javascript\n${guide.javascript}\n\`\`\``}</ReactMarkdown>
+                                                            </div>
+                                                        )}
+                                                    </li>
+                                                );
+                                            })}
                                         </ul>
                                     </div>
                                 ))}

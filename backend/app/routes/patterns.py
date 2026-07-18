@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import Pattern
-from app.seed_data import PATTERN, PROBLEMS
+from app.seed_data import PATTERN, PROBLEM_GUIDES, PROBLEMS
 
 logger = logging.getLogger("dsa_patterns_tracker")
 
@@ -29,6 +29,15 @@ def _build_pattern_detail(pattern: Pattern) -> dict:
                 "title": problem.title,
                 "leetcode_url": problem.leetcode_url,
                 "leetcode_number": problem.leetcode_number,
+                "guide": PROBLEM_GUIDES.get(
+                    problem.title,
+                    {
+                        "hints": ["Read the problem statement carefully and identify the core pattern."],
+                        "explanation": "Use a structured approach to break the problem into smaller steps before coding the solution.",
+                        "python": "# Add a Python solution here",
+                        "javascript": "// Add a JavaScript solution here",
+                    },
+                ),
             }
         )
 
@@ -60,6 +69,15 @@ def _fallback_pattern_detail_payload() -> dict:
                 "title": title,
                 "leetcode_url": f"https://leetcode.com/problems/{slug}/",
                 "leetcode_number": number,
+                "guide": PROBLEM_GUIDES.get(
+                    title,
+                    {
+                        "hints": ["Read the problem statement carefully and identify the core pattern."],
+                        "explanation": "Use a structured approach to break the problem into smaller steps before coding the solution.",
+                        "python": "# Add a Python solution here",
+                        "javascript": "// Add a JavaScript solution here",
+                    },
+                ),
             }
         )
 
