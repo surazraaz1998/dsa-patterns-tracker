@@ -16,7 +16,7 @@ app = FastAPI(title="DSA Patterns Tracker API")
 # Allow the local development frontend and deployed Vercel frontend to call this API.
 allowed_origins = [
     "http://localhost:5173",
-    "https://frontend-liard-iota-97.vercel.app",
+    "https://dsa-pattern-practice.vercel.app",
     "https://*.vercel.app",
 ]
 
