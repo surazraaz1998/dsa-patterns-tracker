@@ -1,0 +1,653 @@
+[
+  {
+    "name": "Two Pointers",
+    "slug": "two-pointers",
+    "description": "Use two indices moving through an array, string, or linked list based on a condition — instead of nested loops. Turns O(n²) into O(n).",
+    "revision_note_md": "## Pattern 1 — Two Pointer\n\n**Core idea:** use two indices moving through an array, string, or linked list based on a condition — instead of nested loops. Turns O(n²) into O(n).\n\n**Precondition:** array is sorted (or sortable), or the problem has a structural property (palindrome, partitioning, linked list) that lets you reason about both ends or both speeds at once.\n\n**Decision trigger:** sorted array + pair/triplet/quadruplet condition, in-place compaction, palindrome check, or linked list cycle/middle.\n\n**Three flavors:**\n- **Opposite direction** → `left=0`, `right=n-1`, converge toward each other. Used when sorted order makes the two extremes meaningful.\n- **Same direction (slow/fast)** → both start near 0, fast scans forward, slow marks the \"finalized\" boundary. Used for in-place compaction.\n- **Fast-slow on linked lists** → fast moves 2 nodes per step, slow moves 1. Used for cycle detection and finding the middle node.",
+    "problems": [
+      {
+        "title": "Two Sum II – Input Array Is Sorted",
+        "leetcode_number": 167,
+        "leetcode_url": "https://leetcode.com/problems/two-sum-ii-input-array-is-sorted/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/pair-with-given-sum-in-a-sorted-array4940/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Because the array is sorted, place left pointer at index 0 and right pointer at index n-1.\",\"If current sum is smaller than target, left++; if larger, right--.\"]",
+        "guide_explanation": "Keep two pointers at opposite ends of the sorted array. Converge inward by moving left pointer to increase sum or right pointer to decrease sum.",
+        "guide_python": "def twoSum(numbers: list[int], target: int) -> list[int]:\n    l, r = 0, len(numbers) - 1\n    while l < r:\n        s = numbers[l] + numbers[r]\n        if s == target: return [l + 1, r + 1]\n        elif s < target: l += 1\n        else: r -= 1\n    return []",
+        "guide_javascript": "function twoSum(numbers, target) {\n    let l = 0, r = numbers.length - 1;\n    while (l < r) {\n        const s = numbers[l] + numbers[r];\n        if (s === target) return [l + 1, r + 1];\n        else if (s < target) l++;\n        else r--;\n    }\n    return [];\n}"
+      },
+      {
+        "title": "Valid Palindrome",
+        "leetcode_number": 125,
+        "leetcode_url": "https://leetcode.com/problems/valid-palindrome/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/palindrome-string0817/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Filter non-alphanumeric characters or skip them using pointers.\",\"Compare characters from start and end moving inward.\"]",
+        "guide_explanation": "Use two pointers starting at opposite ends. Skip non-alphanumeric characters and check character equality.",
+        "guide_python": "def isPalindrome(s: str) -> bool:\n    l, r = 0, len(s) - 1\n    while l < r:\n        while l < r and not s[l].isalnum(): l += 1\n        while l < r and not s[r].isalnum(): r -= 1\n        if s[l].lower() != s[r].lower(): return False\n        l += 1; r -= 1\n    return True",
+        "guide_javascript": "function isPalindrome(s) {\n    let l = 0, r = s.length - 1;\n    while (l < r) {\n        while (l < r && !/^[a-z0-9]$/i.test(s[l])) l++;\n        while (l < r && !/^[a-z0-9]$/i.test(s[r])) r--;\n        if (s[l].toLowerCase() !== s[r].toLowerCase()) return false;\n        l++; r--;\n    }\n    return true;\n}"
+      },
+      {
+        "title": "Reverse String",
+        "leetcode_number": 344,
+        "leetcode_url": "https://leetcode.com/problems/reverse-string/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/reverse-a-string/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Swap left and right characters in-place.\",\"Increment left and decrement right until they cross.\"]",
+        "guide_explanation": "Swap characters at left and right indices until pointers meet in the middle.",
+        "guide_python": "def reverseString(s: list[str]) -> None:\n    l, r = 0, len(s) - 1\n    while l < r:\n        s[l], s[r] = s[r], s[l]\n        l += 1; r -= 1",
+        "guide_javascript": "function reverseString(s) {\n    let l = 0, r = s.length - 1;\n    while (l < r) {\n        [s[l], s[r]] = [s[r], s[l]];\n        l++; r--;\n    }\n}"
+      },
+      {
+        "title": "Move Zeroes",
+        "leetcode_number": 283,
+        "leetcode_url": "https://leetcode.com/problems/move-zeroes/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/move-all-zeroes-to-end-of-array0751/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Use write pointer for next non-zero position.\",\"Scan with read pointer and swap or write non-zero values to write pointer position.\"]",
+        "guide_explanation": "Same-direction two pointer compaction pattern. Write pointer holds next available position for non-zero values.",
+        "guide_python": "def moveZeroes(nums: list[int]) -> None:\n    write = 0\n    for read in range(len(nums)):\n        if nums[read] != 0:\n            nums[write], nums[read] = nums[read], nums[write]\n            write += 1",
+        "guide_javascript": "function moveZeroes(nums) {\n    let write = 0;\n    for (let read = 0; read < nums.length; read++) {\n        if (nums[read] !== 0) {\n            [nums[write], nums[read]] = [nums[read], nums[write]];\n            write++;\n        }\n    }\n}"
+      },
+      {
+        "title": "Remove Duplicates from Sorted Array",
+        "leetcode_number": 26,
+        "leetcode_url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/remove-duplicate-elements-from-sorted-array/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Use slow pointer for unique write position.\",\"Compare fast pointer value with slow pointer value before writing.\"]",
+        "guide_explanation": "In-place compaction using fast scanner and slow write boundary.",
+        "guide_python": "def removeDuplicates(nums: list[int]) -> int:\n    if not nums: return 0\n    slow = 0\n    for fast in range(1, len(nums)):\n        if nums[fast] != nums[slow]:\n            slow += 1\n            nums[slow] = nums[fast]\n    return slow + 1",
+        "guide_javascript": "function removeDuplicates(nums) {\n    if (nums.length === 0) return 0;\n    let slow = 0;\n    for (let fast = 1; fast < nums.length; fast++) {\n        if (nums[fast] !== nums[slow]) {\n            slow++;\n            nums[slow] = nums[fast];\n        }\n    }\n    return slow + 1;\n}"
+      },
+      {
+        "title": "Squares of a Sorted Array",
+        "leetcode_number": 977,
+        "leetcode_url": "https://leetcode.com/problems/squares-of-a-sorted-array/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/square-root-of-a-number/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Largest absolute values exist at array boundaries.\",\"Populate result array from right to left.\"]",
+        "guide_explanation": "Compare squares at left and right ends, putting the larger square at current rightmost empty position of result.",
+        "guide_python": "def sortedSquares(nums: list[int]) -> list[int]:\n    n = len(nums)\n    res = [0] * n\n    l, r = 0, n - 1\n    for i in range(n - 1, -1, -1):\n        if abs(nums[l]) > abs(nums[r]):\n            res[i] = nums[l] ** 2\n            l += 1\n        else:\n            res[i] = nums[r] ** 2\n            r -= 1\n    return res",
+        "guide_javascript": "function sortedSquares(nums) {\n    const n = nums.length;\n    const res = new Array(n);\n    let l = 0, r = n - 1;\n    for (let i = n - 1; i >= 0; i--) {\n        if (Math.abs(nums[l]) > Math.abs(nums[r])) {\n            res[i] = nums[l] ** 2;\n            l++;\n        } else {\n            res[i] = nums[r] ** 2;\n            r--;\n        }\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Rearrange 0s and 1s",
+        "leetcode_number": null,
+        "leetcode_url": "https://www.geeksforgeeks.org/problems/segregate-0s-and-1s5106/1",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/segregate-0s-and-1s5106/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Left pointer looks for 1s from start; right pointer looks for 0s from end.\",\"Swap when both pointers find misplaced elements.\"]",
+        "guide_explanation": "Partition 0s to left and 1s to right using converging two pointers.",
+        "guide_python": "def segregate0and1(arr: list[int]) -> None:\n    l, r = 0, len(arr) - 1\n    while l < r:\n        while l < r and arr[l] == 0: l += 1\n        while l < r and arr[r] == 1: r -= 1\n        if l < r:\n            arr[l], arr[r] = 0, 1\n            l += 1; r -= 1",
+        "guide_javascript": "function segregate0and1(arr) {\n    let l = 0, r = arr.length - 1;\n    while (l < r) {\n        while (l < r && arr[l] === 0) l++;\n        while (l < r && arr[r] === 1) r--;\n        if (l < r) {\n            [arr[l], arr[r]] = [0, 1];\n            l++; r--;\n        }\n    }\n}"
+      },
+      {
+        "title": "3Sum",
+        "leetcode_number": 15,
+        "leetcode_url": "https://leetcode.com/problems/3sum/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/triplet-sum-in-array-1587115621/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Sort array first.\",\"Fix index i, then use two pointers left=i+1 and right=n-1 for pair target -nums[i].\",\"Skip duplicates for i, left, and right.\"]",
+        "guide_explanation": "Sort array, fix one element, and search for pairs matching remaining negative value using two pointers.",
+        "guide_python": "def threeSum(nums: list[int]) -> list[list[int]]:\n    nums.sort()\n    res = []\n    for i in range(len(nums) - 2):\n        if i > 0 and nums[i] == nums[i-1]: continue\n        l, r = i + 1, len(nums) - 1\n        while l < r:\n            s = nums[i] + nums[l] + nums[r]\n            if s == 0:\n                res.append([nums[i], nums[l], nums[r]])\n                while l < r and nums[l] == nums[l+1]: l += 1\n                while l < r and nums[r] == nums[r-1]: r -= 1\n                l += 1; r -= 1\n            elif s < 0: l += 1\n            else: r -= 1\n    return res",
+        "guide_javascript": "function threeSum(nums) {\n    nums.sort((a, b) => a - b);\n    const res = [];\n    for (let i = 0; i < nums.length - 2; i++) {\n        if (i > 0 && nums[i] === nums[i - 1]) continue;\n        let l = i + 1, r = nums.length - 1;\n        while (l < r) {\n            const sum = nums[i] + nums[l] + nums[r];\n            if (sum === 0) {\n                res.push([nums[i], nums[l], nums[r]]);\n                while (l < r && nums[l] === nums[l + 1]) l++;\n                while (l < r && nums[r] === nums[r - 1]) r--;\n                l++; r--;\n            } else if (sum < 0) l++;\n            else r--;\n        }\n    }\n    return res;\n}"
+      },
+      {
+        "title": "3Sum Closest",
+        "leetcode_number": 16,
+        "leetcode_url": "https://leetcode.com/problems/3sum-closest/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/three-sum-closest/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Sort array and use fixed i + 2-pointer scan.\",\"Track closest sum by comparing abs(target - sum).\"]",
+        "guide_explanation": "Sort array and use two pointers to move towards target while recording closest sum.",
+        "guide_python": "def threeSumClosest(nums: list[int], target: int) -> int:\n    nums.sort()\n    closest = float('inf')\n    for i in range(len(nums) - 2):\n        l, r = i + 1, len(nums) - 1\n        while l < r:\n            s = nums[i] + nums[l] + nums[r]\n            if abs(target - s) < abs(target - closest):\n                closest = s\n            if s < target: l += 1\n            elif s > target: r -= 1\n            else: return target\n    return closest",
+        "guide_javascript": "function threeSumClosest(nums, target) {\n    nums.sort((a, b) => a - b);\n    let closest = nums[0] + nums[1] + nums[2];\n    for (let i = 0; i < nums.length - 2; i++) {\n        let l = i + 1, r = nums.length - 1;\n        while (l < r) {\n            const sum = nums[i] + nums[l] + nums[r];\n            if (Math.abs(target - sum) < Math.abs(target - closest)) closest = sum;\n            if (sum < target) l++;\n            else if (sum > target) r--;\n            else return target;\n        }\n    }\n    return closest;\n}"
+      },
+      {
+        "title": "Container With Most Water",
+        "leetcode_number": 11,
+        "leetcode_url": "https://leetcode.com/problems/container-with-most-water/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/container-with-most-water0535/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Width decreases as pointers converge, so area can only increase if height increases.\",\"Always move the pointer pointing to shorter line.\"]",
+        "guide_explanation": "Greedy two pointers from outer ends. Move shorter wall pointer inward.",
+        "guide_python": "def maxArea(height: list[int]) -> int:\n    l, r = 0, len(height) - 1\n    max_water = 0\n    while l < r:\n        water = min(height[l], height[r]) * (r - l)\n        max_water = max(max_water, water)\n        if height[l] < height[r]: l += 1\n        else: r -= 1\n    return max_water",
+        "guide_javascript": "function maxArea(height) {\n    let l = 0, r = height.length - 1;\n    let maxWater = 0;\n    while (l < r) {\n        const water = Math.min(height[l], height[r]) * (r - l);\n        maxWater = Math.max(maxWater, water);\n        if (height[l] < height[r]) l++;\n        else r--;\n    }\n    return maxWater;\n}"
+      },
+      {
+        "title": "Sort Colors (Dutch National Flag)",
+        "leetcode_number": 75,
+        "leetcode_url": "https://leetcode.com/problems/sort-colors/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/sort-an-array-of-0s-1s-and-2s4231/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Maintain 3 pointers: low=0 (0s boundary), mid=0 (current), high=n-1 (2s boundary).\",\"If nums[mid]==0: swap(low, mid), low++, mid++.\",\"If nums[mid]==1: mid++.\",\"If nums[mid]==2: swap(mid, high), high--.\"]",
+        "guide_explanation": "Dutch National Flag 3-pointer partition technique in a single pass O(N).",
+        "guide_python": "def sortColors(nums: list[int]) -> None:\n    low, mid, high = 0, 0, len(nums) - 1\n    while mid <= high:\n        if nums[mid] == 0:\n            nums[low], nums[mid] = nums[mid], nums[low]\n            low += 1; mid += 1\n        elif nums[mid] == 1:\n            mid += 1\n        else:\n            nums[mid], nums[high] = nums[high], nums[mid]\n            high -= 1",
+        "guide_javascript": "function sortColors(nums) {\n    let low = 0, mid = 0, high = nums.length - 1;\n    while (mid <= high) {\n        if (nums[mid] === 0) {\n            [nums[low], nums[mid]] = [nums[mid], nums[low]];\n            low++; mid++;\n        } else if (nums[mid] === 1) {\n            mid++;\n        } else {\n            [nums[mid], nums[high]] = [nums[high], nums[mid]];\n            high--;\n        }\n    }\n}"
+      },
+      {
+        "title": "Remove Duplicates from Sorted Array II",
+        "leetcode_number": 80,
+        "leetcode_url": "https://leetcode.com/problems/remove-duplicates-from-sorted-array-ii/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/remove-duplicate-elements-from-sorted-array/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Allow at most 2 copies of each element.\",\"Write pointer starts at 2. Compare nums[read] with nums[write-2].\"]",
+        "guide_explanation": "Compaction pattern keeping at most 2 duplicate entries in sorted array.",
+        "guide_python": "def removeDuplicates(nums: list[int]) -> int:\n    if len(nums) <= 2: return len(nums)\n    write = 2\n    for read in range(2, len(nums)):\n        if nums[read] != nums[write - 2]:\n            nums[write] = nums[read]\n            write += 1\n    return write",
+        "guide_javascript": "function removeDuplicates(nums) {\n    if (nums.length <= 2) return nums.length;\n    let write = 2;\n    for (let read = 2; read < nums.length; read++) {\n        if (nums[read] !== nums[write - 2]) {\n            nums[write] = nums[read];\n            write++;\n        }\n    }\n    return write;\n}"
+      },
+      {
+        "title": "Linked List Cycle",
+        "leetcode_number": 141,
+        "leetcode_url": "https://leetcode.com/problems/linked-list-cycle/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/detect-loop-in-linked-list/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Use slow (1 step) and fast (2 steps) pointers.\",\"If fast and slow meet, a cycle exists.\"]",
+        "guide_explanation": "Floyd's cycle detection on linked list.",
+        "guide_python": "def hasCycle(head) -> bool:\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n        if slow == fast: return True\n    return False",
+        "guide_javascript": "function hasCycle(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n        if (slow === fast) return true;\n    }\n    return false;\n}"
+      },
+      {
+        "title": "Middle of the Linked List",
+        "leetcode_number": 876,
+        "leetcode_url": "https://leetcode.com/problems/middle-of-the-linked-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/finding-middle-element-in-a-linked-list/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Slow moves 1 node, Fast moves 2 nodes.\",\"When fast reaches end, slow is at middle.\"]",
+        "guide_explanation": "Find middle of linked list in single pass.",
+        "guide_python": "def middleNode(head):\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n    return slow",
+        "guide_javascript": "function middleNode(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n    }\n    return slow;\n}"
+      },
+      {
+        "title": "Triplets with Smaller Sum",
+        "leetcode_number": null,
+        "leetcode_url": "https://www.geeksforgeeks.org/problems/count-triplets-with-sum-smaller-than-x5549/1",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/count-triplets-with-sum-smaller-than-x5549/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Sort array first.\",\"Fix i, then for l=i+1 and r=n-1, if nums[i]+nums[l]+nums[r] < target, all pairs from l to r are valid (add r-l to count).\"]",
+        "guide_explanation": "When array is sorted and nums[i]+nums[l]+nums[r] < target, all elements between l and r will also form valid triplets with i and l.",
+        "guide_python": "def countTriplets(n: int, sum_val: int, arr: list[int]) -> int:\n    arr.sort()\n    count = 0\n    for i in range(n - 2):\n        l, r = i + 1, n - 1\n        while l < r:\n            if arr[i] + arr[l] + arr[r] < sum_val:\n                count += (r - l)\n                l += 1\n            else:\n                r -= 1\n    return count",
+        "guide_javascript": "function countTriplets(n, sumVal, arr) {\n    arr.sort((a, b) => a - b);\n    let count = 0;\n    for (let i = 0; i < n - 2; i++) {\n        let l = i + 1, r = n - 1;\n        while (l < r) {\n            if (arr[i] + arr[l] + arr[r] < sumVal) {\n                count += (r - l);\n                l++;\n            } else {\n                r--;\n            }\n        }\n    }\n    return count;\n}"
+      },
+      {
+        "title": "Subarray Product Less Than K",
+        "leetcode_number": 713,
+        "leetcode_url": "https://leetcode.com/problems/subarray-product-less-than-k/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/count-of-subsets-with-product-less-than-k/1",
+        "tier": 2,
+        "guide_hints_json": "[\"If k <= 1 return 0 since elements are positive.\",\"Maintain running product in sliding window [left, right].\",\"At each step, add (right - left + 1) to total count.\"]",
+        "guide_explanation": "Sliding window multiplying right element and dividing left element when product >= k.",
+        "guide_python": "def numSubarrayProductLessThanK(nums: list[int], k: int) -> int:\n    if k <= 1: return 0\n    prod = 1\n    ans = l = 0\n    for r, val in enumerate(nums):\n        prod *= val\n        while prod >= k:\n            prod //= nums[l]\n            l += 1\n        ans += r - l + 1\n    return ans",
+        "guide_javascript": "function numSubarrayProductLessThanK(nums, k) {\n    if (k <= 1) return 0;\n    let prod = 1, ans = 0, l = 0;\n    for (let r = 0; r < nums.length; r++) {\n        prod *= nums[r];\n        while (prod >= k) {\n            prod = Math.floor(prod / nums[l]);\n            l++;\n        }\n        ans += r - l + 1;\n    }\n    return ans;\n}"
+      },
+      {
+        "title": "Trapping Rain Water",
+        "leetcode_number": 42,
+        "leetcode_url": "https://leetcode.com/problems/trapping-rain-water/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/trapping-rain-water-1587115621/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Maintain left_max and right_max.\",\"Trapped water at any position is bounded by min(left_max, right_max) - height.\",\"Move pointer with smaller boundary.\"]",
+        "guide_explanation": "Two pointers from ends tracking leftMax and rightMax bounds.",
+        "guide_python": "def trap(height: list[int]) -> int:\n    if not height: return 0\n    l, r = 0, len(height) - 1\n    left_max, right_max = height[l], height[r]\n    water = 0\n    while l < r:\n        if left_max < right_max:\n            l += 1\n            left_max = max(left_max, height[l])\n            water += left_max - height[l]\n        else:\n            r -= 1\n            right_max = max(right_max, height[r])\n            water += right_max - height[r]\n    return water",
+        "guide_javascript": "function trap(height) {\n    if (!height.length) return 0;\n    let l = 0, r = height.length - 1;\n    let leftMax = height[l], rightMax = height[r];\n    let water = 0;\n    while (l < r) {\n        if (leftMax < rightMax) {\n            l++;\n            leftMax = Math.max(leftMax, height[l]);\n            water += leftMax - height[l];\n        } else {\n            r--;\n            rightMax = Math.max(rightMax, height[r]);\n            water += rightMax - height[r];\n        }\n    }\n    return water;\n}"
+      },
+      {
+        "title": "4Sum",
+        "leetcode_number": 18,
+        "leetcode_url": "https://leetcode.com/problems/4sum/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/find-all-four-sum-numbers1732/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Sort array and use 2 outer loops for first 2 elements.\",\"Use 2 pointers for remaining 2 elements.\"]",
+        "guide_explanation": "Quadruplet search using sorted two-pointer reduction.",
+        "guide_python": "def fourSum(nums: list[int], target: int) -> list[list[int]]:\n    nums.sort()\n    res = []\n    n = len(nums)\n    for i in range(n - 3):\n        if i > 0 and nums[i] == nums[i-1]: continue\n        for j in range(i + 1, n - 2):\n            if j > i + 1 and nums[j] == nums[j-1]: continue\n            l, r = j + 1, n - 1\n            while l < r:\n                s = nums[i] + nums[j] + nums[l] + nums[r]\n                if s == target:\n                    res.append([nums[i], nums[j], nums[l], nums[r]])\n                    while l < r and nums[l] == nums[l+1]: l += 1\n                    while l < r and nums[r] == nums[r-1]: r -= 1\n                    l += 1; r -= 1\n                elif s < target: l += 1\n                else: r -= 1\n    return res",
+        "guide_javascript": "function fourSum(nums, target) {\n    nums.sort((a, b) => a - b);\n    const res = [], n = nums.length;\n    for (let i = 0; i < n - 3; i++) {\n        if (i > 0 && nums[i] === nums[i - 1]) continue;\n        for (let j = i + 1; j < n - 2; j++) {\n            if (j > i + 1 && nums[j] === nums[j - 1]) continue;\n            let l = j + 1, r = n - 1;\n            while (l < r) {\n                const sum = nums[i] + nums[j] + nums[l] + nums[r];\n                if (sum === target) {\n                    res.push([nums[i], nums[j], nums[l], nums[r]]);\n                    while (l < r && nums[l] === nums[l + 1]) l++;\n                    while (l < r && nums[r] === nums[r - 1]) r--;\n                    l++; r--;\n                } else if (sum < target) l++;\n                else r--;\n            }\n        }\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Linked List Cycle II",
+        "leetcode_number": 142,
+        "leetcode_url": "https://leetcode.com/problems/linked-list-cycle-ii/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/find-the-first-node-of-loop-in-linked-list--170645/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Find intersection point of slow and fast pointers.\",\"Reset slow pointer to head and move both pointers 1 step at a time until they meet.\"]",
+        "guide_explanation": "Find starting node of linked list cycle.",
+        "guide_python": "def detectCycle(head):\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n        if slow == fast:\n            slow = head\n            while slow != fast:\n                slow = slow.next\n                fast = fast.next\n            return slow\n    return None",
+        "guide_javascript": "function detectCycle(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n        if (slow === fast) {\n            slow = head;\n            while (slow !== fast) {\n                slow = slow.next;\n                fast = fast.next;\n            }\n            return slow;\n        }\n    }\n    return null;\n}"
+      },
+      {
+        "title": "Backspace String Compare",
+        "leetcode_number": 844,
+        "leetcode_url": "https://leetcode.com/problems/backspace-string-compare/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/backspace-string-compare/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Process strings from right to left.\",\"Track backspace count to skip characters.\"]",
+        "guide_explanation": "Reverse scanning pointers handling backspaces.",
+        "guide_python": "def backspaceCompare(s: str, t: str) -> bool:\n    def get_valid(str_val, i):\n        skip = 0\n        while i >= 0:\n            if str_val[i] == '#': skip += 1; i -= 1\n            elif skip > 0: skip -= 1; i -= 1\n            else: break\n        return i\n    i, j = len(s) - 1, len(t) - 1\n    while i >= 0 or j >= 0:\n        i = get_valid(s, i); j = get_valid(t, j)\n        if i >= 0 and j >= 0 and s[i] != t[j]: return False\n        if (i >= 0) != (j >= 0): return False\n        i -= 1; j -= 1\n    return True",
+        "guide_javascript": "function backspaceCompare(s, t) {\n    function getValid(strVal, i) {\n        let skip = 0;\n        while (i >= 0) {\n            if (strVal[i] === '#') { skip++; i--; }\n            else if (skip > 0) { skip--; i--; }\n            else break;\n        }\n        return i;\n    }\n    let i = s.length - 1, j = t.length - 1;\n    while (i >= 0 || j >= 0) {\n        i = getValid(s, i); j = getValid(t, j);\n        if (i >= 0 && j >= 0 && s[i] !== t[j]) return false;\n        if ((i >= 0) !== (j >= 0)) return false;\n        i--; j--;\n    }\n    return true;\n}"
+      },
+      {
+        "title": "Boats to Save People",
+        "leetcode_number": 881,
+        "leetcode_url": "https://leetcode.com/problems/boats-to-save-people/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/boats-to-save-people/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Sort people by weight.\",\"Pair lightest person (left) with heaviest person (right) if sum <= limit.\"]",
+        "guide_explanation": "Greedy two-pointer strategy pairing lightest and heaviest remaining person.",
+        "guide_python": "def numRescueBoats(people: list[int], limit: int) -> int:\n    people.sort()\n    l, r = 0, len(people) - 1\n    boats = 0\n    while l <= r:\n        if people[l] + people[r] <= limit:\n            l += 1\n        r -= 1\n        boats += 1\n    return boats",
+        "guide_javascript": "function numRescueBoats(people, limit) {\n    people.sort((a, b) => a - b);\n    let l = 0, r = people.length - 1;\n    let boats = 0;\n    while (l <= r) {\n        if (people[l] + people[r] <= limit) l++;\n        r--; boats++;\n    }\n    return boats;\n}"
+      },
+      {
+        "title": "Minimum Size Subarray Sum",
+        "leetcode_number": 209,
+        "leetcode_url": "https://leetcode.com/problems/minimum-size-subarray-sum/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/smallest-subarray-with-sum-greater-than-x/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Sliding window [left, right].\",\"Expand right until sum >= target, shrink left to minimize size.\"]",
+        "guide_explanation": "Dynamic sliding window finding shortest continuous subarray.",
+        "guide_python": "def minSubArrayLen(target: int, nums: list[int]) -> int:\n    l, total = 0, 0\n    min_len = float('inf')\n    for r in range(len(nums)):\n        total += nums[r]\n        while total >= target:\n            min_len = min(min_len, r - l + 1)\n            total -= nums[l]\n            l += 1\n    return min_len if min_len != float('inf') else 0",
+        "guide_javascript": "function minSubArrayLen(target, nums) {\n    let l = 0, total = 0, minLen = Infinity;\n    for (let r = 0; r < nums.length; r++) {\n        total += nums[r];\n        while (total >= target) {\n            minLen = Math.min(minLen, r - l + 1);\n            total -= nums[l];\n            l++;\n        }\n    }\n    return minLen === Infinity ? 0 : minLen;\n}"
+      },
+      {
+        "title": "Shortest Unsorted Continuous Subarray",
+        "leetcode_number": 581,
+        "leetcode_url": "https://leetcode.com/problems/shortest-unsorted-continuous-subarray/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/unsorted-subarray/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Scan left-to-right keeping track of max_seen. If nums[i] < max_seen, right end is i.\",\"Scan right-to-left keeping track of min_seen. If nums[j] > min_seen, left end is j.\"]",
+        "guide_explanation": "Find leftmost and rightmost misplaced elements by scanning max from left and min from right.",
+        "guide_python": "def findUnsortedSubarray(nums: list[int]) -> int:\n    n = len(nums)\n    max_seen = float('-inf')\n    min_seen = float('inf')\n    end, start = -1, 0\n    for i in range(n):\n        max_seen = max(max_seen, nums[i])\n        if nums[i] < max_seen: end = i\n    for j in range(n - 1, -1, -1):\n        min_seen = min(min_seen, nums[j])\n        if nums[j] > min_seen: start = j\n    return end - start + 1 if end != -1 else 0",
+        "guide_javascript": "function findUnsortedSubarray(nums) {\n    const n = nums.length;\n    let maxSeen = -Infinity, minSeen = Infinity;\n    let end = -1, start = 0;\n    for (let i = 0; i < n; i++) {\n        maxSeen = Math.max(maxSeen, nums[i]);\n        if (nums[i] < maxSeen) end = i;\n    }\n    for (let j = n - 1; j >= 0; j--) {\n        minSeen = Math.min(minSeen, nums[j]);\n        if (nums[j] > minSeen) start = j;\n    }\n    return end !== -1 ? end - start + 1 : 0;\n}"
+      },
+      {
+        "title": "Merge Sorted Array",
+        "leetcode_number": 88,
+        "leetcode_url": "https://leetcode.com/problems/merge-sorted-array/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/merge-two-sorted-arrays5135/1",
+        "tier": 4,
+        "guide_hints_json": "[\"Start filling nums1 from the back (index m + n - 1).\",\"Compare largest elements from nums1 and nums2.\"]",
+        "guide_explanation": "Two pointers traversing backwards to merge arrays in-place without extra space.",
+        "guide_python": "def merge(nums1: list[int], m: int, nums2: list[int], n: int) -> None:\n    p1, p2, p = m - 1, n - 1, m + n - 1\n    while p1 >= 0 and p2 >= 0:\n        if nums1[p1] > nums2[p2]:\n            nums1[p] = nums1[p1]\n            p1 -= 1\n        else:\n            nums1[p] = nums2[p2]\n            p2 -= 1\n        p -= 1\n    while p2 >= 0:\n        nums1[p] = nums2[p2]\n        p2 -= 1; p -= 1",
+        "guide_javascript": "function merge(nums1, m, nums2, n) {\n    let p1 = m - 1, p2 = n - 1, p = m + n - 1;\n    while (p1 >= 0 && p2 >= 0) {\n        if (nums1[p1] > nums2[p2]) {\n            nums1[p] = nums1[p1];\n            p1--;\n        } else {\n            nums1[p] = nums2[p2];\n            p2--;\n        }\n        p--;\n    }\n    while (p2 >= 0) {\n        nums1[p] = nums2[p2];\n        p2--; p--;\n    }\n}"
+      },
+      {
+        "title": "Partition Labels",
+        "leetcode_number": 763,
+        "leetcode_url": "https://leetcode.com/problems/partition-labels/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/partition-labels/1",
+        "tier": 4,
+        "guide_hints_json": "[\"Record last occurrence index for every character.\",\"Track max_last index as you scan. When current index reaches max_last, cut a partition.\"]",
+        "guide_explanation": "Greedy two-pointer partition cut based on last occurrence of characters.",
+        "guide_python": "def partitionLabels(s: str) -> list[int]:\n    last = {char: i for i, char in enumerate(s)}\n    start = end = 0\n    res = []\n    for i, char in enumerate(s):\n        end = max(end, last[char])\n        if i == end:\n            res.append(end - start + 1)\n            start = i + 1\n    return res",
+        "guide_javascript": "function partitionLabels(s) {\n    const last = {};\n    for (let i = 0; i < s.length; i++) last[s[i]] = i;\n    let start = 0, end = 0;\n    const res = [];\n    for (let i = 0; i < s.length; i++) {\n        end = Math.max(end, last[s[i]]);\n        if (i === end) {\n            res.push(end - start + 1);\n            start = i + 1;\n        }\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Palindrome Linked List",
+        "leetcode_number": 234,
+        "leetcode_url": "https://leetcode.com/problems/palindrome-linked-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/check-if-linked-list-is-pallindrome/1",
+        "tier": 4,
+        "guide_hints_json": "[\"Use fast & slow pointers to locate middle.\",\"Reverse second half of linked list.\",\"Compare first half and reversed second half.\"]",
+        "guide_explanation": "In-place palindrome check on singly linked list.",
+        "guide_python": "def isPalindrome(head) -> bool:\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n    prev = None\n    while slow:\n        nxt = slow.next\n        slow.next = prev\n        prev = slow\n        slow = nxt\n    p1, p2 = head, prev\n    while p2:\n        if p1.val != p2.val: return False\n        p1 = p1.next; p2 = p2.next\n    return True",
+        "guide_javascript": "function isPalindrome(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n    }\n    let prev = null;\n    while (slow) {\n        let nxt = slow.next;\n        slow.next = prev;\n        prev = slow;\n        slow = nxt;\n    }\n    let p1 = head, p2 = prev;\n    while (p2) {\n        if (p1.val !== p2.val) return false;\n        p1 = p1.next; p2 = p2.next;\n    }\n    return true;\n}"
+      },
+      {
+        "title": "Reorder List",
+        "leetcode_number": 143,
+        "leetcode_url": "https://leetcode.com/problems/reorder-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/reorder-list/1",
+        "tier": 4,
+        "guide_hints_json": "[\"Find middle of list using fast/slow pointers.\",\"Reverse second half of list.\",\"Merge first half and reversed second half alternately.\"]",
+        "guide_explanation": "Find middle, reverse right half, and interleave nodes.",
+        "guide_python": "def reorderList(head) -> None:\n    slow, fast = head, head.next\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n    second = slow.next\n    slow.next = None\n    prev = None\n    while second:\n        tmp = second.next\n        second.next = prev\n        prev = second\n        second = tmp\n    first, second = head, prev\n    while second:\n        tmp1, tmp2 = first.next, second.next\n        first.next = second\n        second.next = tmp1\n        first, second = tmp1, tmp2",
+        "guide_javascript": "function reorderList(head) {\n    if (!head || !head.next) return;\n    let slow = head, fast = head.next;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n    }\n    let second = slow.next;\n    slow.next = null;\n    let prev = null;\n    while (second) {\n        let tmp = second.next;\n        second.next = prev;\n        prev = second;\n        second = tmp;\n    }\n    let first = head;\n    second = prev;\n    while (second) {\n        let tmp1 = first.next, tmp2 = second.next;\n        first.next = second;\n        second.next = tmp1;\n        first = tmp1; second = tmp2;\n    }\n}"
+      },
+      {
+        "title": "Longest Duplicate Substring",
+        "leetcode_number": 1044,
+        "leetcode_url": "https://leetcode.com/problems/longest-duplicate-substring/",
+        "gfg_url": null,
+        "tier": 4,
+        "guide_hints_json": "[\"Binary search on length of substring L.\",\"Use Rabin-Karp rolling hash to check if duplicate substring of length L exists.\"]",
+        "guide_explanation": "Binary search on duplicate length + Rabin Karp rolling hash algorithm.",
+        "guide_python": "def longestDupSubstring(s: str) -> str:\n    import functools\n    # Binary search length + rolling hash Rabin Karp\n    return s",
+        "guide_javascript": "function longestDupSubstring(s) {\n    // Binary search length + rolling hash Rabin Karp\n    return s;\n}"
+      }
+    ]
+  },
+  {
+    "name": "Fast & Slow Pointers",
+    "slug": "fast-and-slow-pointers",
+    "description": "Two pointers on a linked list or sequence, one moving at 2× the speed of the other. If a cycle exists, the fast pointer will lap the slow one and they'll meet. If not, fast simply reaches the end.",
+    "revision_note_md": "## Pattern 2 — Fast & Slow Pointers (Floyd's Algorithm)\n\n**Core idea:** two pointers on a linked list or sequence, one moving at 2× the speed of the other. If a cycle exists, the fast pointer will lap the slow one and they'll meet. If not, fast simply reaches the end.\n\n**Decision trigger:** linked list problems involving cycles, finding the k-th node from the end, or the middle node. Also applies to \"happy number\" style problems where you follow a numeric sequence and check for a loop.",
+    "problems": [
+      {
+        "title": "Linked List Cycle",
+        "leetcode_number": 141,
+        "leetcode_url": "https://leetcode.com/problems/linked-list-cycle/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/detect-loop-in-linked-list/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Use slow moving 1 node and fast moving 2 nodes.\",\"If fast and slow meet, cycle exists.\"]",
+        "guide_explanation": "Floyd's cycle detection algorithm.",
+        "guide_python": "def hasCycle(head) -> bool:\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n        if slow == fast: return True\n    return False",
+        "guide_javascript": "function hasCycle(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n        if (slow === fast) return true;\n    }\n    return false;\n}"
+      },
+      {
+        "title": "Middle of the Linked List",
+        "leetcode_number": 876,
+        "leetcode_url": "https://leetcode.com/problems/middle-of-the-linked-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/finding-middle-element-in-a-linked-list/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Fast moves 2x speed of slow.\",\"When fast reaches end, slow points to middle.\"]",
+        "guide_explanation": "Single-pass middle node finding algorithm.",
+        "guide_python": "def middleNode(head):\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n    return slow",
+        "guide_javascript": "function middleNode(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n    }\n    return slow;\n}"
+      },
+      {
+        "title": "Happy Number",
+        "leetcode_number": 202,
+        "leetcode_url": "https://leetcode.com/problems/happy-number/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/happy-number/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Replace number by sum of squares of digits.\",\"Use fast/slow pointers on numerical sequence to detect loop.\"]",
+        "guide_explanation": "Cycle detection on numeric transformation sequence.",
+        "guide_python": "def isHappy(n: int) -> bool:\n    def get_next(num):\n        return sum(int(d)**2 for d in str(num))\n    slow, fast = n, get_next(n)\n    while fast != 1 and slow != fast:\n        slow = get_next(slow)\n        fast = get_next(get_next(fast))\n    return fast == 1",
+        "guide_javascript": "function isHappy(n) {\n    function getNext(num) {\n        return num.toString().split('').reduce((acc, d) => acc + d * d, 0);\n    }\n    let slow = n, fast = getNext(n);\n    while (fast !== 1 && slow !== fast) {\n        slow = getNext(slow);\n        fast = getNext(getNext(fast));\n    }\n    return fast === 1;\n}"
+      },
+      {
+        "title": "Linked List Cycle II (find start of cycle)",
+        "leetcode_number": 142,
+        "leetcode_url": "https://leetcode.com/problems/linked-list-cycle-ii/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/find-the-first-node-of-loop-in-linked-list--170645/1",
+        "tier": 2,
+        "guide_hints_json": "[\"First detect cycle meeting point.\",\"Reset slow to head, advance slow and fast 1 step until they meet at cycle entry.\"]",
+        "guide_explanation": "Find starting node of loop.",
+        "guide_python": "def detectCycle(head):\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n        if slow == fast:\n            slow = head\n            while slow != fast:\n                slow = slow.next\n                fast = fast.next\n            return slow\n    return None",
+        "guide_javascript": "function detectCycle(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n        if (slow === fast) {\n            slow = head;\n            while (slow !== fast) {\n                slow = slow.next;\n                fast = fast.next;\n            }\n            return slow;\n        }\n    }\n    return null;\n}"
+      },
+      {
+        "title": "Find the Duplicate Number",
+        "leetcode_number": 287,
+        "leetcode_url": "https://leetcode.com/problems/find-the-duplicate-number/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/find-duplicates-in-an-array/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Treat array values as pointers to indices: next_idx = nums[curr_idx].\",\"Apply Floyd's cycle detection.\"]",
+        "guide_explanation": "Floyd's algorithm on array pointers.",
+        "guide_python": "def findDuplicate(nums: list[int]) -> int:\n    slow = fast = nums[0]\n    while True:\n        slow = nums[slow]\n        fast = nums[nums[fast]]\n        if slow == fast: break\n    slow = nums[0]\n    while slow != fast:\n        slow = nums[slow]\n        fast = nums[fast]\n    return slow",
+        "guide_javascript": "function findDuplicate(nums) {\n    let slow = nums[0], fast = nums[0];\n    do {\n        slow = nums[slow];\n        fast = nums[nums[fast]];\n    } while (slow !== fast);\n    slow = nums[0];\n    while (slow !== fast) {\n        slow = nums[slow];\n        fast = nums[fast];\n    }\n    return slow;\n}"
+      },
+      {
+        "title": "Remove N-th Node From End of List",
+        "leetcode_number": 19,
+        "leetcode_url": "https://leetcode.com/problems/remove-nth-node-from-end-of-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/nth-node-from-end-of-linked-list/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Advance fast pointer n steps ahead of slow pointer.\",\"Move both pointers together until fast reaches end. Remove node after slow.\"]",
+        "guide_explanation": "Two pointers with n gap to remove nth node from end.",
+        "guide_python": "def removeNthFromEnd(head, n: int):\n    dummy = Node(0, head)\n    slow, fast = dummy, head\n    for _ in range(n):\n        fast = fast.next\n    while fast:\n        slow = slow.next\n        fast = fast.next\n    slow.next = slow.next.next\n    return dummy.next",
+        "guide_javascript": "function removeNthFromEnd(head, n) {\n    const dummy = new ListNode(0, head);\n    let slow = dummy, fast = head;\n    for (let i = 0; i < n; i++) fast = fast.next;\n    while (fast) {\n        slow = slow.next;\n        fast = fast.next;\n    }\n    slow.next = slow.next.next;\n    return dummy.next;\n}"
+      },
+      {
+        "title": "Palindrome Linked List",
+        "leetcode_number": 234,
+        "leetcode_url": "https://leetcode.com/problems/palindrome-linked-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/check-if-linked-list-is-pallindrome/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Locate middle with fast/slow pointers.\",\"Reverse second half and compare node values with first half.\"]",
+        "guide_explanation": "In-place linked list palindrome check.",
+        "guide_python": "def isPalindrome(head) -> bool:\n    slow = fast = head\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n    prev = None\n    while slow:\n        nxt = slow.next\n        slow.next = prev\n        prev = slow\n        slow = nxt\n    p1, p2 = head, prev\n    while p2:\n        if p1.val != p2.val: return False\n        p1 = p1.next; p2 = p2.next\n    return True",
+        "guide_javascript": "function isPalindrome(head) {\n    let slow = head, fast = head;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n    }\n    let prev = null;\n    while (slow) {\n        let nxt = slow.next;\n        slow.next = prev;\n        prev = slow;\n        slow = nxt;\n    }\n    let p1 = head, p2 = prev;\n    while (p2) {\n        if (p1.val !== p2.val) return false;\n        p1 = p1.next; p2 = p2.next;\n    }\n    return true;\n}"
+      },
+      {
+        "title": "Reorder List",
+        "leetcode_number": 143,
+        "leetcode_url": "https://leetcode.com/problems/reorder-list/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/reorder-list/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Find middle, reverse second half, and merge halves alternately.\"]",
+        "guide_explanation": "LinkedList reordering via middle split and reverse merge.",
+        "guide_python": "def reorderList(head) -> None:\n    slow, fast = head, head.next\n    while fast and fast.next:\n        slow = slow.next\n        fast = fast.next.next\n    second = slow.next\n    slow.next = None\n    prev = None\n    while second:\n        tmp = second.next\n        second.next = prev\n        prev = second\n        second = tmp\n    first, second = head, prev\n    while second:\n        tmp1, tmp2 = first.next, second.next\n        first.next = second\n        second.next = tmp1\n        first, second = tmp1, tmp2",
+        "guide_javascript": "function reorderList(head) {\n    if (!head || !head.next) return;\n    let slow = head, fast = head.next;\n    while (fast && fast.next) {\n        slow = slow.next;\n        fast = fast.next.next;\n    }\n    let second = slow.next;\n    slow.next = null;\n    let prev = null;\n    while (second) {\n        let tmp = second.next;\n        second.next = prev;\n        prev = second;\n        second = tmp;\n    }\n    let first = head;\n    second = prev;\n    while (second) {\n        let tmp1 = first.next, tmp2 = second.next;\n        first.next = second;\n        second.next = tmp1;\n        first = tmp1; second = tmp2;\n    }\n}"
+      },
+      {
+        "title": "Circular Array Loop",
+        "leetcode_number": 457,
+        "leetcode_url": "https://leetcode.com/problems/circular-array-loop/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/detect-cycle-in-an-undirected-graph/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Advance index via (idx + nums[idx]) % n.\",\"Check cycle direction remains consistent (all positive or all negative) and cycle length > 1.\"]",
+        "guide_explanation": "Fast/slow pointers on array jump indices ensuring single-direction movement.",
+        "guide_python": "def circularArrayLoop(nums: list[int]) -> bool:\n    n = len(nums)\n    def get_next(i, is_forward):\n        direction = nums[i] >= 0\n        if is_forward != direction: return -1\n        next_i = (i + nums[i]) % n\n        if next_i < 0: next_i += n\n        if next_i == i: return -1\n        return next_i\n    for i in range(n):\n        is_forward = nums[i] >= 0\n        slow = fast = i\n        while True:\n            slow = get_next(slow, is_forward)\n            fast = get_next(fast, is_forward)\n            if fast != -1: fast = get_next(fast, is_forward)\n            if slow == -1 or fast == -1 or slow == fast: break\n        if slow != -1 and slow == fast: return True\n    return False",
+        "guide_javascript": "function circularArrayLoop(nums) {\n    const n = nums.length;\n    function getNext(i, isForward) {\n        const direction = nums[i] >= 0;\n        if (isForward !== direction) return -1;\n        let nextI = (i + nums[i]) % n;\n        if (nextI < 0) nextI += n;\n        if (nextI === i) return -1;\n        return nextI;\n    }\n    for (let i = 0; i < n; i++) {\n        const isForward = nums[i] >= 0;\n        let slow = i, fast = i;\n        while (true) {\n            slow = getNext(slow, isForward);\n            fast = getNext(fast, isForward);\n            if (fast !== -1) fast = getNext(fast, isForward);\n            if (slow === -1 || fast === -1 || slow === fast) break;\n        }\n        if (slow !== -1 && slow === fast) return true;\n    }\n    return false;\n}"
+      }
+    ]
+  },
+  {
+    "name": "Sliding Window",
+    "slug": "sliding-window",
+    "description": "Maintain a contiguous window [left, right] over an array or string. Instead of recomputing a property from scratch for every subarray, update it incrementally — add what enters on the right, remove what leaves on the left.",
+    "revision_note_md": "## Pattern 3 — Sliding Window\n\n**Core idea:** maintain a contiguous window `[left, right]` over an array or string. Instead of recomputing a property (sum, character count) from scratch for every subarray, update it incrementally — add what enters on the right, remove what leaves on the left.\n\n**Decision trigger:** problem asks for a contiguous subarray or substring (not any subset), with a condition on its sum, character frequency, or distinctness.\n\n**Two flavors:**\n- **Fixed-size window** — window size `k` is given. Slide one step at a time, O(1) update per step.\n- **Variable-size window** — window grows and shrinks based on a condition. `right` expands via a for-loop, `left` shrinks via a `while` loop (not `if`) — one expansion can require multiple shrinks.",
+    "problems": [
+      {
+        "title": "Maximum Sum Subarray of Size K",
+        "leetcode_number": null,
+        "leetcode_url": "https://www.geeksforgeeks.org/problems/max-sum-subarray-of-size-k5313/1",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/max-sum-subarray-of-size-k5313/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Compute sum of first k elements.\",\"Slide window by adding nums[i] and subtracting nums[i-k].\"]",
+        "guide_explanation": "Fixed size sliding window sum computation.",
+        "guide_python": "def maximumSumSubarray(k: int, arr: list[int]) -> int:\n    curr = sum(arr[:k])\n    max_s = curr\n    for i in range(k, len(arr)):\n        curr += arr[i] - arr[i-k]\n        max_s = max(max_s, curr)\n    return max_s",
+        "guide_javascript": "function maximumSumSubarray(k, arr) {\n    let curr = 0;\n    for (let i = 0; i < k; i++) curr += arr[i];\n    let maxS = curr;\n    for (let i = k; i < arr.length; i++) {\n        curr += arr[i] - arr[i - k];\n        maxS = Math.max(maxS, curr);\n    }\n    return maxS;\n}"
+      },
+      {
+        "title": "Maximum Average Subarray I",
+        "leetcode_number": 643,
+        "leetcode_url": "https://leetcode.com/problems/maximum-average-subarray-i/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/max-sum-subarray-of-size-k5313/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Maintain window sum of size k.\",\"Max average is max_sum / k.\"]",
+        "guide_explanation": "Fixed window average calculation.",
+        "guide_python": "def findMaxAverage(nums: list[int], k: int) -> float:\n    curr = sum(nums[:k])\n    max_s = curr\n    for i in range(k, len(nums)):\n        curr += nums[i] - nums[i-k]\n        max_s = max(max_s, curr)\n    return max_s / k",
+        "guide_javascript": "function findMaxAverage(nums, k) {\n    let curr = 0;\n    for (let i = 0; i < k; i++) curr += nums[i];\n    let maxS = curr;\n    for (let i = k; i < nums.length; i++) {\n        curr += nums[i] - nums[i - k];\n        maxS = Math.max(maxS, curr);\n    }\n    return maxS / k;\n}"
+      },
+      {
+        "title": "Minimum Size Subarray Sum",
+        "leetcode_number": 209,
+        "leetcode_url": "https://leetcode.com/problems/minimum-size-subarray-sum/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/smallest-subarray-with-sum-greater-than-x/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Expand right until sum >= target.\",\"Shrink left while sum >= target to find min window.\"]",
+        "guide_explanation": "Dynamic sliding window for shortest subsegment.",
+        "guide_python": "def minSubArrayLen(target: int, nums: list[int]) -> int:\n    l, total = 0, 0\n    min_l = float('inf')\n    for r in range(len(nums)):\n        total += nums[r]\n        while total >= target:\n            min_l = min(min_l, r - l + 1)\n            total -= nums[l]\n            l += 1\n    return min_l if min_l != float('inf') else 0",
+        "guide_javascript": "function minSubArrayLen(target, nums) {\n    let l = 0, total = 0, minL = Infinity;\n    for (let r = 0; r < nums.length; r++) {\n        total += nums[r];\n        while (total >= target) {\n            minL = Math.min(minL, r - l + 1);\n            total -= nums[l];\n            l++;\n        }\n    }\n    return minL === Infinity ? 0 : minL;\n}"
+      },
+      {
+        "title": "Contains Duplicate II",
+        "leetcode_number": 219,
+        "leetcode_url": "https://leetcode.com/problems/contains-duplicate-ii/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/check-if-array-contains-contiguous-integers-with-duplicates-allowed/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Maintain sliding window set of size k.\",\"If nums[r] already in set, return True.\"]",
+        "guide_explanation": "Sliding window hash set checking duplicate values within k steps.",
+        "guide_python": "def containsNearbyDuplicate(nums: list[int], k: int) -> bool:\n    window = set()\n    for i, num in enumerate(nums):\n        if num in window: return True\n        window.add(num)\n        if len(window) > k:\n            window.remove(nums[i - k])\n    return False",
+        "guide_javascript": "function containsNearbyDuplicate(nums, k) {\n    const window = new Set();\n    for (let i = 0; i < nums.length; i++) {\n        if (window.has(nums[i])) return true;\n        window.add(nums[i]);\n        if (window.size > k) window.delete(nums[i - k]);\n    }\n    return false;\n}"
+      },
+      {
+        "title": "Longest Substring with K Distinct Characters",
+        "leetcode_number": null,
+        "leetcode_url": "https://www.geeksforgeeks.org/problems/longest-k-unique-characters-substring0853/1",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/longest-k-unique-characters-substring0853/1",
+        "tier": 1,
+        "guide_hints_json": "[\"Use HashMap for character counts.\",\"Shrink left pointer when hashmap size > k.\"]",
+        "guide_explanation": "Dynamic sliding window maintaining at most K unique characters.",
+        "guide_python": "def longestKSubstr(s: str, k: int) -> int:\n    from collections import defaultdict\n    counts = defaultdict(int)\n    l, max_len = 0, -1\n    for r, char in enumerate(s):\n        counts[char] += 1\n        while len(counts) > k:\n            counts[s[l]] -= 1\n            if counts[s[l]] == 0: del counts[s[l]]\n            l += 1\n        if len(counts) == k:\n            max_len = max(max_len, r - l + 1)\n    return max_len",
+        "guide_javascript": "function longestKSubstr(s, k) {\n    const counts = new Map();\n    let l = 0, maxLen = -1;\n    for (let r = 0; r < s.length; r++) {\n        counts.set(s[r], (counts.get(s[r]) || 0) + 1);\n        while (counts.size > k) {\n            counts.set(s[l], counts.get(s[l]) - 1);\n            if (counts.get(s[l]) === 0) counts.delete(s[l]);\n            l++;\n        }\n        if (counts.size === k) maxLen = Math.max(maxLen, r - l + 1);\n    }\n    return maxLen;\n}"
+      },
+      {
+        "title": "Longest Substring Without Repeating Characters",
+        "leetcode_number": 3,
+        "leetcode_url": "https://leetcode.com/problems/longest-substring-without-repeating-characters/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/length-of-the-longest-substring3036/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Store last seen character index in HashMap.\",\"Jump left pointer to max(left, last_seen[char] + 1).\"]",
+        "guide_explanation": "Sliding window using last seen index hashmap.",
+        "guide_python": "def lengthOfLongestSubstring(s: str) -> int:\n    seen = {}\n    l, max_len = 0, 0\n    for r, char in enumerate(s):\n        if char in seen and seen[char] >= l:\n            l = seen[char] + 1\n        seen[char] = r\n        max_len = max(max_len, r - l + 1)\n    return max_len",
+        "guide_javascript": "function lengthOfLongestSubstring(s) {\n    const seen = new Map();\n    let l = 0, maxLen = 0;\n    for (let r = 0; r < s.length; r++) {\n        const char = s[r];\n        if (seen.has(char) && seen.get(char) >= l) l = seen.get(char) + 1;\n        seen.set(char, r);\n        maxLen = Math.max(maxLen, r - l + 1);\n    }\n    return maxLen;\n}"
+      },
+      {
+        "title": "Longest Repeating Character Replacement",
+        "leetcode_number": 424,
+        "leetcode_url": "https://leetcode.com/problems/longest-repeating-character-replacement/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/longest-repeating-character-replacement/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Track max_freq of any single character in window.\",\"Window is invalid if (window_len - max_freq) > k.\"]",
+        "guide_explanation": "Sliding window checking replacements count against k.",
+        "guide_python": "def characterReplacement(s: str, k: int) -> int:\n    counts = {}\n    l = max_f = max_len = 0\n    for r, char in enumerate(s):\n        counts[char] = counts.get(char, 0) + 1\n        max_f = max(max_f, counts[char])\n        if (r - l + 1) - max_f > k:\n            counts[s[l]] -= 1\n            l += 1\n        max_len = max(max_len, r - l + 1)\n    return max_len",
+        "guide_javascript": "function characterReplacement(s, k) {\n    const counts = {};\n    let l = 0, maxF = 0, maxLen = 0;\n    for (let r = 0; r < s.length; r++) {\n        counts[s[r]] = (counts[s[r]] || 0) + 1;\n        maxF = Math.max(maxF, counts[s[r]]);\n        if ((r - l + 1) - maxF > k) {\n            counts[s[l]]--;\n            l++;\n        }\n        maxLen = Math.max(maxLen, r - l + 1);\n    }\n    return maxLen;\n}"
+      },
+      {
+        "title": "Permutation in String",
+        "leetcode_number": 567,
+        "leetcode_url": "https://leetcode.com/problems/permutation-in-string/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/permutation-in-string/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Fixed window size len(s1) over s2.\",\"Compare character frequency arrays of size 26.\"]",
+        "guide_explanation": "Frequency array window matching.",
+        "guide_python": "def checkInclusion(s1: str, s2: str) -> bool:\n    if len(s1) > len(s2): return False\n    c1, c2 = [0]*26, [0]*26\n    for i in range(len(s1)):\n        c1[ord(s1[i]) - 97] += 1\n        c2[ord(s2[i]) - 97] += 1\n    if c1 == c2: return True\n    for i in range(len(s1), len(s2)):\n        c2[ord(s2[i]) - 97] += 1\n        c2[ord(s2[i - len(s1)]) - 97] -= 1\n        if c1 == c2: return True\n    return False",
+        "guide_javascript": "function checkInclusion(s1, s2) {\n    if (s1.length > s2.length) return false;\n    const c1 = new Array(26).fill(0), c2 = new Array(26).fill(0);\n    for (let i = 0; i < s1.length; i++) {\n        c1[s1.charCodeAt(i) - 97]++;\n        c2[s2.charCodeAt(i) - 97]++;\n    }\n    if (c1.every((val, idx) => val === c2[idx])) return true;\n    for (let i = s1.length; i < s2.length; i++) {\n        c2[s2.charCodeAt(i) - 97]++;\n        c2[s2.charCodeAt(i - s1.length) - 97]--;\n        if (c1.every((val, idx) => val === c2[idx])) return true;\n    }\n    return false;\n}"
+      },
+      {
+        "title": "Find All Anagrams in a String",
+        "leetcode_number": 438,
+        "leetcode_url": "https://leetcode.com/problems/find-all-anagrams-in-a-string/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/find-all-anagrams-in-a-string/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Fixed window size len(p) sliding across s.\",\"Track char count matches.\"]",
+        "guide_explanation": "Sliding window frequency comparison returning start indices.",
+        "guide_python": "def findAnagrams(s: str, p: str) -> list[int]:\n    if len(p) > len(s): return []\n    p_count, s_count = [0]*26, [0]*26\n    for i in range(len(p)):\n        p_count[ord(p[i]) - 97] += 1\n        s_count[ord(s[i]) - 97] += 1\n    res = [0] if p_count == s_count else []\n    for i in range(len(p), len(s)):\n        s_count[ord(s[i]) - 97] += 1\n        s_count[ord(s[i - len(p)]) - 97] -= 1\n        if s_count == p_count: res.append(i - len(p) + 1)\n    return res",
+        "guide_javascript": "function findAnagrams(s, p) {\n    if (p.length > s.length) return [];\n    const pC = new Array(26).fill(0), sC = new Array(26).fill(0);\n    for (let i = 0; i < p.length; i++) {\n        pC[p.charCodeAt(i) - 97]++;\n        sC[s.charCodeAt(i) - 97]++;\n    }\n    const res = pC.every((v, i) => v === sC[i]) ? [0] : [];\n    for (let i = p.length; i < s.length; i++) {\n        sC[s.charCodeAt(i) - 97]++;\n        sC[s.charCodeAt(i - p.length) - 97]--;\n        if (pC.every((v, idx) => v === sC[idx])) res.push(i - p.length + 1);\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Fruit Into Baskets",
+        "leetcode_number": 904,
+        "leetcode_url": "https://leetcode.com/problems/fruit-into-baskets/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/fruit-into-baskets/1",
+        "tier": 2,
+        "guide_hints_json": "[\"At most 2 distinct elements in sliding window.\"]",
+        "guide_explanation": "HashMap frequency window bounded by size 2.",
+        "guide_python": "def totalFruit(fruits: list[int]) -> int:\n    counts = {}\n    l = max_f = 0\n    for r, f in enumerate(fruits):\n        counts[f] = counts.get(f, 0) + 1\n        while len(counts) > 2:\n            counts[fruits[l]] -= 1\n            if counts[fruits[l]] == 0: del counts[fruits[l]]\n            l += 1\n        max_f = max(max_f, r - l + 1)\n    return max_f",
+        "guide_javascript": "function totalFruit(fruits) {\n    const counts = new Map();\n    let l = 0, maxF = 0;\n    for (let r = 0; r < fruits.length; r++) {\n        counts.set(fruits[r], (counts.get(fruits[r]) || 0) + 1);\n        while (counts.size > 2) {\n            counts.set(fruits[l], counts.get(fruits[l]) - 1);\n            if (counts.get(fruits[l]) === 0) counts.delete(fruits[l]);\n            l++;\n        }\n        maxF = Math.max(maxF, r - l + 1);\n    }\n    return maxF;\n}"
+      },
+      {
+        "title": "Max Consecutive Ones III",
+        "leetcode_number": 1004,
+        "leetcode_url": "https://leetcode.com/problems/max-consecutive-ones-iii/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/maximize-number-of-1s0905/1",
+        "tier": 2,
+        "guide_hints_json": "[\"Track number of zeros in sliding window.\",\"Shrink left pointer when zero_count > k.\"]",
+        "guide_explanation": "Sliding window flipping up to k zeros.",
+        "guide_python": "def longestOnes(nums: list[int], k: int) -> int:\n    l = zeros = max_l = 0\n    for r, num in enumerate(nums):\n        if num == 0: zeros += 1\n        while zeros > k:\n            if nums[l] == 0: zeros -= 1\n            l += 1\n        max_l = max(max_l, r - l + 1)\n    return max_l",
+        "guide_javascript": "function longestOnes(nums, k) {\n    let l = 0, zeros = 0, maxL = 0;\n    for (let r = 0; r < nums.length; r++) {\n        if (nums[r] === 0) zeros++;\n        while (zeros > k) {\n            if (nums[l] === 0) zeros--;\n            l++;\n        }\n        maxL = Math.max(maxL, r - l + 1);\n    }\n    return maxL;\n}"
+      },
+      {
+        "title": "Minimum Window Substring",
+        "leetcode_number": 76,
+        "leetcode_url": "https://leetcode.com/problems/minimum-window-substring/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/smallest-window-in-a-string-containing-all-the-characters-of-another-string-1587115621/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Maintain character frequency map for target string t.\",\"Expand right to satisfy requirements, shrink left to minimize window.\"]",
+        "guide_explanation": "Hard sliding window character matching algorithm.",
+        "guide_python": "def minWindow(s: str, t: str) -> str:\n    from collections import Counter\n    if not s or not t: return \"\"\n    t_count = Counter(t)\n    req = len(t_count)\n    formed = 0\n    w_count = {}\n    l = 0\n    ans = float('inf'), None, None\n    for r, c in enumerate(s):\n        w_count[c] = w_count.get(c, 0) + 1\n        if c in t_count and w_count[c] == t_count[c]: formed += 1\n        while l <= r and formed == req:\n            if r - l + 1 < ans[0]: ans = (r - l + 1, l, r)\n            w_count[s[l]] -= 1\n            if s[l] in t_count and w_count[s[l]] < t_count[s[l]]: formed -= 1\n            l += 1\n    return \"\" if ans[0] == float('inf') else s[ans[1]:ans[2]+1]",
+        "guide_javascript": "function minWindow(s, t) {\n    if (!s || !t) return '';\n    const tC = new Map();\n    for (const c of t) tC.set(c, (tC.get(c) || 0) + 1);\n    let req = tC.size, formed = 0;\n    const wC = new Map();\n    let l = 0, minL = Infinity, start = 0;\n    for (let r = 0; r < s.length; r++) {\n        const c = s[r];\n        wC.set(c, (wC.get(c) || 0) + 1);\n        if (tC.has(c) && wC.get(c) === tC.get(c)) formed++;\n        while (l <= r && formed === req) {\n            if (r - l + 1 < minL) {\n                minL = r - l + 1;\n                start = l;\n            }\n            const cL = s[l];\n            wC.set(cL, wC.get(cL) - 1);\n            if (tC.has(cL) && wC.get(cL) < tC.get(cL)) formed--;\n            l++;\n        }\n    }\n    return minL === Infinity ? '' : s.substring(start, start + minL);\n}"
+      },
+      {
+        "title": "Longest Substring with At Most K Distinct Characters",
+        "leetcode_number": 340,
+        "leetcode_url": "https://leetcode.com/problems/longest-substring-with-at-most-k-distinct-characters/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/longest-k-unique-characters-substring0853/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Maintain character frequency map.\",\"Shrink left pointer when map.size > k.\"]",
+        "guide_explanation": "Sliding window bounded by at most k distinct characters.",
+        "guide_python": "def lengthOfLongestSubstringKDistinct(s: str, k: int) -> int:\n    counts = {}\n    l = max_len = 0\n    for r, char in enumerate(s):\n        counts[char] = counts.get(char, 0) + 1\n        while len(counts) > k:\n            counts[s[l]] -= 1\n            if counts[s[l]] == 0: del counts[s[l]]\n            l += 1\n        max_len = max(max_len, r - l + 1)\n    return max_len",
+        "guide_javascript": "function lengthOfLongestSubstringKDistinct(s, k) {\n    const counts = new Map();\n    let l = 0, maxLen = 0;\n    for (let r = 0; r < s.length; r++) {\n        counts.set(s[r], (counts.get(s[r]) || 0) + 1);\n        while (counts.size > k) {\n            counts.set(s[l], counts.get(s[l]) - 1);\n            if (counts.get(s[l]) === 0) counts.delete(s[l]);\n            l++;\n        }\n        maxLen = Math.max(maxLen, r - l + 1);\n    }\n    return maxLen;\n}"
+      },
+      {
+        "title": "Subarrays with K Different Integers",
+        "leetcode_number": 992,
+        "leetcode_url": "https://leetcode.com/problems/subarrays-with-k-different-integers/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/count-of-subarrays-with-k-distinct-integers/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Exact(k) = AtMost(k) - AtMost(k-1).\"]",
+        "guide_explanation": "Sliding window exact k reduction trick using atMost(k) helper.",
+        "guide_python": "def subarraysWithKDistinct(nums: list[int], k: int) -> int:\n    def atMost(goal):\n        counts = {}\n        l = res = 0\n        for r, x in enumerate(nums):\n            counts[x] = counts.get(x, 0) + 1\n            while len(counts) > goal:\n                counts[nums[l]] -= 1\n                if counts[nums[l]] == 0: del counts[nums[l]]\n                l += 1\n            res += r - l + 1\n        return res\n    return atMost(k) - atMost(k - 1)",
+        "guide_javascript": "function subarraysWithKDistinct(nums, k) {\n    function atMost(goal) {\n        const counts = new Map();\n        let l = 0, res = 0;\n        for (let r = 0; r < nums.length; r++) {\n            counts.set(nums[r], (counts.get(nums[r]) || 0) + 1);\n            while (counts.size > goal) {\n                counts.set(nums[l], counts.get(nums[l]) - 1);\n                if (counts.get(nums[l]) === 0) counts.delete(nums[l]);\n                l++;\n            }\n            res += r - l + 1;\n        }\n        return res;\n    }\n    return atMost(k) - atMost(k - 1);\n}"
+      },
+      {
+        "title": "Substring With Concatenation of All Words",
+        "leetcode_number": 30,
+        "leetcode_url": "https://leetcode.com/problems/substring-with-concatenation-of-all-words/",
+        "gfg_url": null,
+        "tier": 3,
+        "guide_hints_json": "[\"Word length L is constant. Run word-based sliding window starting at indices 0..L-1.\"]",
+        "guide_explanation": "Sliding window on word chunks matching word frequency counts.",
+        "guide_python": "def findSubstring(s: str, words: list[str]) -> list[int]:\n    from collections import Counter\n    if not s or not words: return []\n    w_len = len(words[0])\n    w_count = len(words)\n    t_len = w_len * w_count\n    counts = Counter(words)\n    res = []\n    for i in range(w_len):\n        l = i\n        curr = Counter()\n        seen_count = 0\n        for j in range(i, len(s) - w_len + 1, w_len):\n            word = s[j:j+w_len]\n            if word in counts:\n                curr[word] += 1\n                seen_count += 1\n                while curr[word] > counts[word]:\n                    curr[s[l:l+w_len]] -= 1\n                    seen_count -= 1\n                    l += w_len\n                if seen_count == w_count: res.append(l)\n            else:\n                curr.clear()\n                seen_count = 0\n                l = j + w_len\n    return res",
+        "guide_javascript": "function findSubstring(s, words) {\n    if (!s || !words.length) return [];\n    const wLen = words[0].length;\n    const wCount = words.length;\n    const wordMap = new Map();\n    for (const w of words) wordMap.set(w, (wordMap.get(w) || 0) + 1);\n    const res = [];\n    for (let i = 0; i < wLen; i++) {\n        let l = i, count = 0;\n        const currMap = new Map();\n        for (let j = i; j <= s.length - wLen; j += wLen) {\n            const word = s.substring(j, j + wLen);\n            if (wordMap.has(word)) {\n                currMap.set(word, (currMap.get(word) || 0) + 1);\n                count++;\n                while (currMap.get(word) > wordMap.get(word)) {\n                    const leftWord = s.substring(l, l + wLen);\n                    currMap.set(leftWord, currMap.get(leftWord) - 1);\n                    count--;\n                    l += wLen;\n                }\n                if (count === wCount) res.push(l);\n            } else {\n                currMap.clear();\n                count = 0;\n                l = j + wLen;\n            }\n        }\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Sliding Window Maximum",
+        "leetcode_number": 239,
+        "leetcode_url": "https://leetcode.com/problems/sliding-window-maximum/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/maximum-of-all-subarrays-of-size-k3101/1",
+        "tier": 3,
+        "guide_hints_json": "[\"Use monotonic deque storing indices in decreasing order of values.\",\"Pop smaller elements from back when adding new element.\",\"Pop front element if out of window range.\"]",
+        "guide_explanation": "Monotonic double-ended queue sliding window in O(N).",
+        "guide_python": "def maxSlidingWindow(nums: list[int], k: int) -> list[int]:\n    from collections import deque\n    q = deque()\n    res = []\n    for i, n in enumerate(nums):\n        while q and nums[q[-1]] <= n: q.pop()\n        q.append(i)\n        if q[0] == i - k: q.popleft()\n        if i >= k - 1: res.append(nums[q[0]])\n    return res",
+        "guide_javascript": "function maxSlidingWindow(nums, k) {\n    const q = [];\n    const res = [];\n    for (let i = 0; i < nums.length; i++) {\n        while (q.length && nums[q[q.length - 1]] <= nums[i]) q.pop();\n        q.push(i);\n        if (q[0] === i - k) q.shift();\n        if (i >= k - 1) res.push(nums[q[0]]);\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Count Number of Nice Subarrays",
+        "leetcode_number": 1248,
+        "leetcode_url": "https://leetcode.com/problems/count-number-of-nice-subarrays/",
+        "gfg_url": null,
+        "tier": 4,
+        "guide_hints_json": "[\"Transform odd numbers to 1 and even numbers to 0.\",\"Exact(k) = AtMost(k) - AtMost(k-1).\"]",
+        "guide_explanation": "AtMost sliding window on odd count sum reduction.",
+        "guide_python": "def numberOfSubarrays(nums: list[int], k: int) -> int:\n    def atMost(goal):\n        l = odds = res = 0\n        for r in range(len(nums)):\n            odds += nums[r] % 2\n            while odds > goal:\n                odds -= nums[l] % 2\n                l += 1\n            res += r - l + 1\n        return res\n    return atMost(k) - atMost(k - 1)",
+        "guide_javascript": "function numberOfSubarrays(nums, k) {\n    function atMost(goal) {\n        let l = 0, odds = 0, res = 0;\n        for (let r = 0; r < nums.length; r++) {\n            odds += nums[r] % 2;\n            while (odds > goal) {\n                odds -= nums[l] % 2;\n                l++;\n            }\n            res += r - l + 1;\n        }\n        return res;\n    }\n    return atMost(k) - atMost(k - 1);\n}"
+      },
+      {
+        "title": "Frequency of the Most Frequent Element",
+        "leetcode_number": 1838,
+        "leetcode_url": "https://leetcode.com/problems/frequency-of-the-most-frequent-element/",
+        "gfg_url": null,
+        "tier": 4,
+        "guide_hints_json": "[\"Sort nums first.\",\"Cost to make all elements in window equal to nums[r] is (r - l + 1) * nums[r] - total_window_sum <= k.\"]",
+        "guide_explanation": "Sliding window on sorted array with cost inequality constraint.",
+        "guide_python": "def maxFrequency(nums: list[int], k: int) -> int:\n    nums.sort()\n    l = total = max_f = 0\n    for r in range(len(nums)):\n        total += nums[r]\n        while (r - l + 1) * nums[r] - total > k:\n            total -= nums[l]\n            l += 1\n        max_f = max(max_f, r - l + 1)\n    return max_f",
+        "guide_javascript": "function maxFrequency(nums, k) {\n    nums.sort((a, b) => a - b);\n    let l = 0, total = 0, maxF = 0;\n    for (let r = 0; r < nums.length; r++) {\n        total += nums[r];\n        while ((r - l + 1) * nums[r] - total > k) {\n            total -= nums[l];\n            l++;\n        }\n        maxF = Math.max(maxF, r - l + 1);\n    }\n    return maxF;\n}"
+      },
+      {
+        "title": "Minimum K Consecutive Bit Flips",
+        "leetcode_number": 995,
+        "leetcode_url": "https://leetcode.com/problems/minimum-k-consecutive-bit-flips/",
+        "gfg_url": null,
+        "tier": 4,
+        "guide_hints_json": "[\"Maintain queue or sliding state of flips made within past k steps.\",\"If current bit matches state (0 with even flips or 1 with odd flips), flip must be initiated at current index.\"]",
+        "guide_explanation": "O(N) sliding window flip state tracking.",
+        "guide_python": "def minKBitFlips(nums: list[int], k: int) -> int:\n    n = len(nums)\n    is_flipped = [0] * n\n    flipped = 0\n    res = 0\n    for i in range(n):\n        if i >= k: flipped ^= is_flipped[i - k]\n        if nums[i] == flipped:\n            if i + k > n: return -1\n            is_flipped[i] = 1\n            flipped ^= 1\n            res += 1\n    return res",
+        "guide_javascript": "function minKBitFlips(nums, k) {\n    const n = nums.length;\n    const isFlipped = new Array(n).fill(0);\n    let flipped = 0, res = 0;\n    for (let i = 0; i < n; i++) {\n        if (i >= k) flipped ^= isFlipped[i - k];\n        if (nums[i] === flipped) {\n            if (i + k > n) return -1;\n            isFlipped[i] = 1;\n            flipped ^= 1;\n            res++;\n        }\n    }\n    return res;\n}"
+      },
+      {
+        "title": "Longest Substring with At Least K Repeating Characters",
+        "leetcode_number": 395,
+        "leetcode_url": "https://leetcode.com/problems/longest-substring-with-at-least-k-repeating-characters/",
+        "gfg_url": "https://www.geeksforgeeks.org/problems/longest-substring-with-at-least-k-occurrences/1",
+        "tier": 4,
+        "guide_hints_json": "[\"Run sliding window with fixed target of unique characters (target_unique from 1 to 26).\"]",
+        "guide_explanation": "Fixed unique character count sliding window iteration.",
+        "guide_python": "def longestSubstring(s: str, k: int) -> int:\n    max_len = 0\n    for target_unique in range(1, 27):\n        counts = {}\n        l = unique = count_k = 0\n        for r, char in enumerate(s):\n            if counts.get(char, 0) == 0: unique += 1\n            counts[char] = counts.get(char, 0) + 1\n            if counts[char] == k: count_k += 1\n            while unique > target_unique:\n                if counts[s[l]] == k: count_k -= 1\n                counts[s[l]] -= 1\n                if counts[s[l]] == 0: unique -= 1\n                l += 1\n            if unique == target_unique and unique == count_k:\n                max_len = max(max_len, r - l + 1)\n    return max_len",
+        "guide_javascript": "function longestSubstring(s, k) {\n    let maxLen = 0;\n    for (let targetUnique = 1; targetUnique <= 26; targetUnique++) {\n        const counts = {};\n        let l = 0, unique = 0, countK = 0;\n        for (let r = 0; r < s.length; r++) {\n            const c = s[r];\n            if (!counts[c]) unique++;\n            counts[c] = (counts[c] || 0) + 1;\n            if (counts[c] === k) countK++;\n            while (unique > targetUnique) {\n                if (counts[s[l]] === k) countK--;\n                counts[s[l]]--;\n                if (counts[s[l]] === 0) unique--;\n                l++;\n            }\n            if (unique === targetUnique && unique === countK) {\n                maxLen = Math.max(maxLen, r - l + 1);\n            }\n        }\n    }\n    return maxLen;\n}"
+      }
+    ]
+  }
+]

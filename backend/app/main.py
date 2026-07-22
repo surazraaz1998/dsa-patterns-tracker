@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.db import Base, engine
+from app.db import init_db
 from app.routes import patterns, auth, progress
 from app.seed_data import seed
 
@@ -15,7 +15,7 @@ logger = logging.getLogger("dsa_patterns_tracker")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
-        Base.metadata.create_all(bind=engine)
+        init_db()
         seed()
         logger.info("Database initialized & seeded successfully")
     except Exception as exc:
@@ -58,4 +58,3 @@ def health_check_extended():
 @app.get("/")
 def health_check():
     return {"status": "ok"}
-

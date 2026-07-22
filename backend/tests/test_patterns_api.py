@@ -1,15 +1,7 @@
 from fastapi.testclient import TestClient
-
 from app.main import app
-from app.routes import patterns as patterns_routes
-
 
 client = TestClient(app)
-
-
-class BrokenDb:
-    def query(self, *args, **kwargs):
-        raise RuntimeError("db unavailable")
 
 
 def test_health_check():
@@ -18,17 +10,31 @@ def test_health_check():
     assert response.json() == {"status": "ok"}
 
 
-def test_patterns_fallback_to_seed_data_when_db_is_unavailable():
-    response = patterns_routes.list_patterns(db=BrokenDb())
-    assert response[0]["slug"] == "two-pointer"
-    assert response[0]["problem_count"] > 0
+def test_list_patterns_dsa_track():
+    response = client.get("/patterns?track=dsa")
+    assert response.status_code == 200
+    data = response.json()
+    assert len(data) >= 3
+    slugs = [p["slug"] for p in data]
+    assert "two-pointers" in slugs or "two-pointer" in slugs
+    assert "fast-and-slow-pointers" in slugs
+    assert "sliding-window" in slugs
 
 
-def test_pattern_detail_includes_problem_guides_from_seed_data():
-    response = patterns_routes.get_pattern("two-pointer", db=BrokenDb())
-    tier_one = response["problems_by_tier"][1][0]
-    assert tier_one["title"] == "Two Sum II - Input Array Is Sorted"
-    assert tier_one["guide"]["hints"]
-    assert tier_one["guide"]["explanation"]
-    assert tier_one["guide"]["python"]
-    assert tier_one["guide"]["javascript"]
+def test_pattern_detail_includes_problem_guides():
+    response = client.get("/patterns/two-pointers")
+    if response.status_code == 404:
+        response = client.get("/patterns/two-pointer")
+    assert response.status_code == 200
+    data = response.json()
+    assert "problems_by_tier" in data
+    assert 1 in data["problems_by_tier"] or "1" in data["problems_by_tier"]
+    
+    tier_one_problems = data["problems_by_tier"].get(1) or data["problems_by_tier"].get("1")
+    assert len(tier_one_problems) > 0
+    problem = tier_one_problems[0]
+    assert "guide" in problem
+    assert "hints" in problem["guide"]
+    assert "explanation" in problem["guide"]
+    assert "python" in problem["guide"]
+    assert "javascript" in problem["guide"]

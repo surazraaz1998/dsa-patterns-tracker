@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PatternDetail, ProblemGuide } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { FaCheckCircle, FaRegCircle, FaExternalLinkAlt, FaLightbulb, FaCode } from 'react-icons/fa';
+import { FaCheckCircle, FaRegCircle, FaExternalLinkAlt, FaLightbulb, FaCode, FaBrain, FaBolt } from 'react-icons/fa';
 
 type DetailPanelProps = {
     selectedPattern: PatternDetail | null;
@@ -44,11 +44,31 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                     <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedPattern.description}</p>
                 </div>
 
-                {/* Revision Notes Markdown Card */}
+                {/* Illustrative Pattern Overview & Solving Strategy */}
                 {selectedPattern.revision_note_md && (
-                    <div className="bg-slate-950/70 border border-slate-800 rounded-2xl p-4 md:p-5 prose prose-invert max-w-none text-xs md:text-sm">
-                        <h3 className="text-sm md:text-base font-bold text-blue-400 mb-3 mt-0">Revision Notes & Mindmap</h3>
-                        <div className="markdown-body">
+                    <div className="bg-gradient-to-br from-slate-950 via-slate-900/90 to-slate-950 border border-blue-500/20 rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
+                        {/* Header Badge & Title */}
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                            <div className="flex items-center gap-2.5">
+                                <div className="p-2 rounded-xl bg-blue-500/10 border border-blue-500/30 text-blue-400">
+                                    <FaBrain className="text-base" />
+                                </div>
+                                <div>
+                                    <h3 className="text-sm md:text-base font-bold text-white tracking-wide">
+                                        Pattern Mental Blueprint & Solving Strategy
+                                    </h3>
+                                    <p className="text-[11px] text-slate-400">
+                                        Master the intuition, decision triggers, and standard code structure before attempting problems.
+                                    </p>
+                                </div>
+                            </div>
+                            <span className="hidden sm:inline-flex items-center gap-1 px-3 py-1 rounded-full bg-blue-500/10 border border-blue-500/30 text-blue-300 text-xs font-semibold">
+                                <FaBolt className="text-amber-400 text-[10px]" /> Intuition First
+                            </span>
+                        </div>
+
+                        {/* Illustrative Markdown Container */}
+                        <div className="markdown-body prose prose-invert max-w-none text-xs md:text-sm text-slate-300 leading-relaxed space-y-3">
                             <ReactMarkdown>{selectedPattern.revision_note_md}</ReactMarkdown>
                         </div>
                     </div>
@@ -114,7 +134,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                                         rel="noreferrer"
                                                         className="text-xs md:text-sm font-bold text-slate-100 hover:text-blue-400 flex items-center gap-1.5 transition"
                                                     >
-                                                        <span>{problem.leetcode_number ? `#${problem.leetcode_number} ` : ''}{problem.title}</span>
+                                                        <span>{problem.title}</span>
                                                         <FaExternalLinkAlt className="text-[10px] text-slate-500 shrink-0" />
                                                     </a>
                                                 </div>
