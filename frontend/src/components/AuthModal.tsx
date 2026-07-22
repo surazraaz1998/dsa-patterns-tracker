@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FaGithub, FaTimes, FaUser, FaLock, FaEnvelope, FaKey } from 'react-icons/fa';
+import { FaGithub, FaTimes, FaUser, FaLock, FaEnvelope } from 'react-icons/fa';
 
 type AuthModalProps = {
     isOpen: boolean;
@@ -9,7 +9,7 @@ type AuthModalProps = {
 };
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTab = 'login' }) => {
-    const { login, loginAsAdmin, register, githubLogin } = useAuth();
+    const { login, register, githubLogin } = useAuth();
     const [tab, setTab] = useState<'login' | 'register'>(initialTab);
 
     const [usernameOrEmail, setUsernameOrEmail] = useState('');
@@ -46,19 +46,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
             onClose();
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Registration failed');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    const handleAdminQuickLogin = async () => {
-        setError(null);
-        setIsSubmitting(true);
-        try {
-            await loginAsAdmin();
-            onClose();
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Admin login failed');
         } finally {
             setIsSubmitting(false);
         }
@@ -124,22 +111,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
                     </div>
                 )}
 
-                {/* Precreated Admin Demo Card */}
-                <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/30 space-y-2">
-                    <div className="text-xs text-amber-300">
-                        <strong className="block text-amber-200">⚡ Precreated Test Credentials:</strong>
-                        <span>Username: <code className="bg-slate-950 px-1 py-0.5 rounded text-white font-mono">Admin</code> | Password: <code className="bg-slate-950 px-1 py-0.5 rounded text-white font-mono">Suraz@1998</code></span>
-                    </div>
-                    <button
-                        type="button"
-                        onClick={() => void handleAdminQuickLogin()}
-                        disabled={isSubmitting}
-                        className="w-full py-1.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-extrabold flex items-center justify-center gap-1.5 transition"
-                    >
-                        <FaKey size={12} /> Quick Login as Admin
-                    </button>
-                </div>
-
                 {/* Social Login */}
                 <div className="space-y-3">
                     <button
@@ -165,7 +136,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
                                 <FaUser className="absolute left-3 text-slate-500 text-xs" />
                                 <input
                                     type="text"
-                                    placeholder="Enter Admin or your email"
+                                    placeholder="Enter your username or email"
                                     value={usernameOrEmail}
                                     onChange={(e) => setUsernameOrEmail(e.target.value)}
                                     required
