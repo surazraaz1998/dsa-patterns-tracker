@@ -15,22 +15,41 @@ function getAuthHeaders(token?: string | null): Record<string, string> {
     return headers;
 }
 
+// In-Memory Response Caches for pure GET APIs
+const patternListCache = new Map<string, PatternSummary[]>();
+const patternDetailCache = new Map<string, PatternDetail>();
+
 export const api = {
-    // Patterns API
+    clearCache(): void {
+        patternListCache.clear();
+        patternDetailCache.clear();
+    },
+
+    // Patterns API (Cached for instant UI rendering)
     async getPatterns(trackCategory: string = 'dsa'): Promise<PatternSummary[]> {
+        if (patternListCache.has(trackCategory)) {
+            return patternListCache.get(trackCategory)!;
+        }
         const response = await fetch(`${API_BASE_URL}/patterns?track=${trackCategory}`);
         if (!response.ok) {
             throw new Error('Failed to fetch patterns');
         }
-        return response.json();
+        const data: PatternSummary[] = await response.json();
+        patternListCache.set(trackCategory, data);
+        return data;
     },
 
     async getPatternDetail(slug: string): Promise<PatternDetail> {
+        if (patternDetailCache.has(slug)) {
+            return patternDetailCache.get(slug)!;
+        }
         const response = await fetch(`${API_BASE_URL}/patterns/${slug}`);
         if (!response.ok) {
             throw new Error('Failed to fetch pattern details');
         }
-        return response.json();
+        const data: PatternDetail = await response.json();
+        patternDetailCache.set(slug, data);
+        return data;
     },
 
     // Auth API

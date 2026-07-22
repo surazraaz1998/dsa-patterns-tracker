@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-from app.main import app
+from app.main import app, AUTH_RATE_LIMIT
 
 client = TestClient(app)
 
@@ -38,3 +38,13 @@ def test_pattern_detail_includes_problem_guides():
     assert "explanation" in problem["guide"]
     assert "python" in problem["guide"]
     assert "javascript" in problem["guide"]
+
+
+def test_rate_limiting_middleware():
+    # Make request bursts to test auth rate limit 429 response
+    responses = [
+        client.post("/auth/login", json={"username_or_email": "nonexistent", "password": "wrongpassword"})
+        for _ in range(AUTH_RATE_LIMIT + 5)
+    ]
+    status_codes = [r.status_code for r in responses]
+    assert 429 in status_codes
