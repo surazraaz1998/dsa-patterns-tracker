@@ -74,20 +74,24 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Middle: Desktop Track Switcher */}
+                    {/* Middle: Desktop Track Switcher (Only for Logged-In Users) */}
                     <div className="hidden md:flex flex-1 justify-center max-w-xl px-2">
-                        <TrackSelector />
+                        {isAuthenticated && (
+                            <TrackSelector />
+                        )}
                     </div>
 
                     {/* Right: Solved Badge & Auth (Desktop) */}
                     <div className="hidden md:flex items-center gap-3 shrink-0">
-                        <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
-                            <FaTrophy className="text-emerald-400 text-sm" />
-                            <div className="flex items-baseline gap-1">
-                                <span className="font-extrabold text-white text-sm">{solvedCount}</span>
-                                <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Solved</span>
+                        {isAuthenticated && (
+                            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                                <FaTrophy className="text-emerald-400 text-sm" />
+                                <div className="flex items-baseline gap-1">
+                                    <span className="font-extrabold text-white text-sm">{solvedCount}</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Solved</span>
+                                </div>
                             </div>
-                        </div>
+                        )}
 
                         {isAuthenticated && user ? (
                             <button
@@ -220,11 +224,10 @@ export const Header: React.FC<HeaderProps> = ({
                                                 key={t.id}
                                                 type="button"
                                                 onClick={() => handleTrackSelect(t.id)}
-                                                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition ${
-                                                    isActive
+                                                className={`w-full flex items-center justify-between p-3 rounded-xl text-left transition ${isActive
                                                         ? 'bg-blue-600/20 border border-blue-500/50 text-white font-bold'
                                                         : 'bg-slate-800/40 border border-slate-800 text-slate-300 hover:bg-slate-800'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center gap-2.5">
                                                     <span className="text-base">{t.icon}</span>
@@ -249,11 +252,10 @@ export const Header: React.FC<HeaderProps> = ({
                                                     key={p.slug}
                                                     type="button"
                                                     onClick={() => handleTopicClick(p.slug)}
-                                                    className={`w-full text-left p-2.5 rounded-lg text-xs transition flex items-center justify-between ${
-                                                        isSelected
+                                                    className={`w-full text-left p-2.5 rounded-lg text-xs transition flex items-center justify-between ${isSelected
                                                             ? 'bg-slate-800 border border-blue-500/40 text-blue-300 font-semibold'
                                                             : 'text-slate-300 hover:bg-slate-800/60'
-                                                    }`}
+                                                        }`}
                                                 >
                                                     <span className="truncate pr-2">{p.name}</span>
                                                     <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-700/60 text-slate-400">

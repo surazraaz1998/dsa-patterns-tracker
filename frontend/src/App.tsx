@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
-import { AuthProvider } from './context/AuthContext';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { TrackProvider, useTrack } from './context/TrackContext';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { DetailPanel } from './components/DetailPanel';
+import { LandingShowcase } from './components/LandingShowcase';
+import { AuthModal } from './components/AuthModal';
 import { api } from './services/api';
 import { PatternDetail, PatternSummary } from './types';
 import { FaGithub, FaLinkedin, FaInstagram, FaList, FaBookOpen } from 'react-icons/fa';
@@ -13,6 +15,7 @@ const INSTAGRAM_URL = 'https://www.instagram.com/__r.a.a.j/';
 const GITHUB_URL = 'https://github.com/surazraaz1998';
 
 function MainAppContent() {
+    const { isAuthenticated } = useAuth();
     const { activeTrackId } = useTrack();
     const [patterns, setPatterns] = useState<PatternSummary[]>([]);
     const [selectedPattern, setSelectedPattern] = useState<PatternDetail | null>(null);
@@ -20,7 +23,17 @@ function MainAppContent() {
     const [error, setError] = useState<string | null>(null);
     const [mobileTab, setMobileTab] = useState<'topics' | 'details'>('topics');
 
+    const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+    const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+
+    const openAuthModal = (tab: 'login' | 'register') => {
+        setAuthModalTab(tab);
+        setIsAuthModalOpen(true);
+    };
+
     useEffect(() => {
+        if (!isAuthenticated) return;
+
         const loadPatterns = async () => {
             setLoading(true);
             setError(null);
@@ -42,7 +55,7 @@ function MainAppContent() {
         };
 
         void loadPatterns();
-    }, [activeTrackId]);
+    }, [activeTrackId, isAuthenticated]);
 
     const loadPattern = async (slug: string) => {
         try {
@@ -63,52 +76,69 @@ function MainAppContent() {
                 onSelectPattern={(slug) => void loadPattern(slug)}
             />
 
-            {/* Mobile View Toggle Tabs (< md screens) */}
-            <div className="flex md:hidden max-w-7xl mx-auto px-4 w-full mt-3 gap-2">
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('topics')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border transition ${
-                        mobileTab === 'topics'
-                            ? 'bg-blue-600/30 border-blue-500 text-white'
-                            : 'bg-slate-900 border-slate-800 text-slate-400'
-                    }`}
-                >
-                    <FaList size={12} /> Topics List ({patterns.length})
-                </button>
-                <button
-                    type="button"
-                    onClick={() => setMobileTab('details')}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border transition ${
-                        mobileTab === 'details'
-                            ? 'bg-blue-600/30 border-blue-500 text-white'
-                            : 'bg-slate-900 border-slate-800 text-slate-400'
-                    }`}
-                >
-                    <FaBookOpen size={12} /> {selectedPattern ? selectedPattern.name : 'Guide Details'}
-                </button>
-            </div>
-
-            {/* Main Content Layout */}
-            <main className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-8">
-                <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
-                    {/* Topics Sidebar Column */}
-                    <div className={`md:col-span-4 lg:col-span-4 ${mobileTab === 'topics' ? 'block' : 'hidden md:block'}`}>
-                        <Sidebar
-                            patterns={patterns}
-                            selectedPattern={selectedPattern}
-                            loading={loading}
-                            error={error}
-                            onSelectPattern={(slug) => void loadPattern(slug)}
-                        />
+            {/* If Authenticated: Render Workspace */}
+            {isAuthenticated ? (
+                <>
+                    {/* Mobile View Toggle Tabs (< md screens) */}
+                    <div className="flex md:hidden max-w-7xl mx-auto px-4 w-full mt-3 gap-2">
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('topics')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border transition ${
+                                mobileTab === 'topics'
+                                    ? 'bg-blue-600/30 border-blue-500 text-white'
+                                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                        >
+                            <FaList size={12} /> Topics List ({patterns.length})
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setMobileTab('details')}
+                            className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-xl text-xs font-semibold border transition ${
+                                mobileTab === 'details'
+                                    ? 'bg-blue-600/30 border-blue-500 text-white'
+                                    : 'bg-slate-900 border-slate-800 text-slate-400'
+                            }`}
+                        >
+                            <FaBookOpen size={12} /> {selectedPattern ? selectedPattern.name : 'Guide Details'}
+                        </button>
                     </div>
 
-                    {/* Problem Detail Panel Column */}
-                    <div className={`md:col-span-8 lg:col-span-8 ${mobileTab === 'details' ? 'block' : 'hidden md:block'}`}>
-                        <DetailPanel selectedPattern={selectedPattern} />
-                    </div>
-                </div>
-            </main>
+                    {/* Main Workspace Layout */}
+                    <main className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-8">
+                        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-start">
+                            {/* Topics Sidebar Column */}
+                            <div className={`md:col-span-4 lg:col-span-4 ${mobileTab === 'topics' ? 'block' : 'hidden md:block'}`}>
+                                <Sidebar
+                                    patterns={patterns}
+                                    selectedPattern={selectedPattern}
+                                    loading={loading}
+                                    error={error}
+                                    onSelectPattern={(slug) => void loadPattern(slug)}
+                                />
+                            </div>
+
+                            {/* Problem Detail Panel Column */}
+                            <div className={`md:col-span-8 lg:col-span-8 ${mobileTab === 'details' ? 'block' : 'hidden md:block'}`}>
+                                <DetailPanel selectedPattern={selectedPattern} />
+                            </div>
+                        </div>
+                    </main>
+                </>
+            ) : (
+                /* If Guest (Unauthenticated): Render Brand Landing Showcase */
+                <main className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex-1">
+                    <LandingShowcase onOpenAuth={openAuthModal} />
+                </main>
+            )}
+
+            {/* Auth Modal Triggered from Landing Showcase */}
+            <AuthModal
+                isOpen={isAuthModalOpen}
+                onClose={() => setIsAuthModalOpen(false)}
+                initialTab={authModalTab}
+            />
 
             {/* Site Footer */}
             <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 py-6">
