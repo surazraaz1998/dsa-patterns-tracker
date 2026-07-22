@@ -14,5 +14,12 @@ frontend/.vercel/
 .env.local
 backend/.env
 
+# Local Documentation
+PROJECT_ARCHITECTURE_EXPLAINER.md
+
+# Database
+*.db
+*.sqlite
+
 # OS
 .DS_Store

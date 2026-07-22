@@ -3,7 +3,9 @@
     "private": true,
     "version": "1.0.0",
     "scripts": {
-        "build": "npm --prefix frontend ci && npm --prefix frontend run build && rm -rf dist && cp -R frontend/dist dist"
+        "build": "npm --prefix frontend ci && npm --prefix frontend run build && rm -rf dist && cp -R frontend/dist dist",
+        "dev:frontend": "npm --prefix frontend run dev",
+        "dev:backend": "cd backend && uvicorn app.main:app --reload --port 8000"
     },
     "engines": {
         "node": "20.x"
