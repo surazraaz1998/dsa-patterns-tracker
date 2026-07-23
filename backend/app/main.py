@@ -11,6 +11,12 @@ from app.db import init_db
 from app.routes import patterns, auth, progress
 from app.seed_data import seed
 
+from dotenv import load_dotenv
+
+# Automatically load backend/.env variables
+load_dotenv()
+load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dsa_patterns_tracker")
 

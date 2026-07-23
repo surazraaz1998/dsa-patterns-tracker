@@ -66,7 +66,7 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 function MainAppContent() {
-    const { isAuthenticated, githubLogin } = useAuth();
+    const { isAuthenticated, githubLogin, googleLogin } = useAuth();
     const { activeTrackId } = useTrack();
     const [patterns, setPatterns] = useState<PatternSummary[]>([]);
     const [selectedPattern, setSelectedPattern] = useState<PatternDetail | null>(null);
@@ -82,15 +82,25 @@ function MainAppContent() {
         setIsAuthModalOpen(true);
     };
 
-    // Auto-detect GitHub OAuth ?code= redirect URL parameter on mount
+    // Auto-detect GitHub / Google OAuth ?code= redirect URL parameter on mount
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
         const code = urlParams.get('code');
+        const scope = urlParams.get('scope') || '';
+
         if (code) {
             window.history.replaceState({}, document.title, window.location.pathname);
-            void githubLogin({ code });
+            const redirectUri = window.location.origin;
+
+            if (scope.includes('googleapis') || scope.includes('userinfo')) {
+                void googleLogin({ code, redirectUri });
+            } else {
+                void githubLogin({ code, redirectUri }).catch(() => {
+                    return googleLogin({ code, redirectUri });
+                });
+            }
         }
-    }, [githubLogin]);
+    }, [githubLogin, googleLogin]);
 
     // Load patterns ONLY when authenticated
     useEffect(() => {

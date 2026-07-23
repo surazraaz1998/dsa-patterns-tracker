@@ -9,10 +9,12 @@ type AuthContextType = {
     solvedCount: number;
     userProgress: UserProgressMap;
     loading: boolean;
-    login: (username: string, pass: string) => Promise<void>;
-    loginAsAdmin: () => Promise<void>;
-    register: (username: string, email: string, pass: string) => Promise<void>;
-    githubLogin: (payload?: { code?: string; githubUsername?: string } | string) => Promise<void>;
+    login: (username: string, pass: string) => Promise<User>;
+    loginAsAdmin: () => Promise<User>;
+    register: (username: string, email: string, pass: string) => Promise<User>;
+    unifiedEmailAuth: (email: string, pass?: string, username?: string) => Promise<User>;
+    githubLogin: (payload?: { code?: string; redirectUri?: string; githubUsername?: string } | string) => Promise<User>;
+    googleLogin: (payload: { code?: string; redirectUri?: string; email?: string; name?: string }) => Promise<User>;
     logout: () => void;
     toggleProblemSolved: (problemTitle: string, problemId?: number) => Promise<void>;
     saveSubmittedCode: (problemTitle: string, code: string, language: string, problemId?: number) => Promise<void>;
@@ -45,6 +47,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     // Load DB progress
                     const prog = await api.getProgress();
                     setUserProgress(prog);
+
+                    // If user has leetcode handle, auto sync on session restore silently
+                    if (currentUser.leetcode_username) {
+                        void api.syncLeetCode(currentUser.leetcode_username).then((res) => {
+                            setUser((prev) => (prev ? { ...prev, solved_count: res.total_solved_count } : null));
+                            return api.getProgress().then((p) => setUserProgress(p));
+                        }).catch(() => {});
+                    }
                 } catch (err) {
                     console.warn('Session expired or backend offline:', err);
                     localStorage.removeItem('dsa_tracker_token');
@@ -72,7 +82,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     };
 
-    const handleAuthSuccess = async (authToken: string, authUser: User) => {
+    const handleAuthSuccess = async (authToken: string, authUser: User): Promise<User> => {
         setToken(authToken);
         setUser(authUser);
         localStorage.setItem('dsa_tracker_token', authToken);
@@ -80,28 +90,51 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             const prog = await api.getProgress();
             setUserProgress(prog);
+
+            if (authUser.leetcode_username) {
+                try {
+                    const syncRes = await api.syncLeetCode(authUser.leetcode_username);
+                    const refreshedProg = await api.getProgress();
+                    setUserProgress(refreshedProg);
+                    authUser = { ...authUser, solved_count: syncRes.total_solved_count };
+                    setUser(authUser);
+                } catch (syncErr) {
+                    console.warn('Auto-sync LeetCode questions failed:', syncErr);
+                }
+            }
         } catch (err) {
             console.warn('Could not sync user progress', err);
         }
+        return authUser;
     };
 
-    const login = async (username: string, pass: string) => {
+    const login = async (username: string, pass: string): Promise<User> => {
         const res = await api.login(username, pass);
-        await handleAuthSuccess(res.token, res.user);
+        return await handleAuthSuccess(res.token, res.user);
     };
 
-    const loginAsAdmin = async () => {
-        await login('Admin', 'Suraz@1998');
+    const loginAsAdmin = async (): Promise<User> => {
+        return await login('Admin', 'Suraz@1998');
     };
 
-    const register = async (username: string, email: string, pass: string) => {
+    const register = async (username: string, email: string, pass: string): Promise<User> => {
         const res = await api.register(username, email, pass);
-        await handleAuthSuccess(res.token, res.user);
+        return await handleAuthSuccess(res.token, res.user);
     };
 
-    const githubLogin = async (payload: { code?: string; githubUsername?: string } | string = 'surazraaz1998') => {
-        const res = await api.githubAuth(payload);
-        await handleAuthSuccess(res.token, res.user);
+    const unifiedEmailAuth = async (email: string, pass?: string, username?: string): Promise<User> => {
+        const res = await api.unifiedEmailAuth(email, pass, username);
+        return await handleAuthSuccess(res.token, res.user);
+    };
+
+    const githubLogin = async (payload?: { code?: string; redirectUri?: string; githubUsername?: string } | string): Promise<User> => {
+        const res = await api.githubAuth(payload || {});
+        return await handleAuthSuccess(res.token, res.user);
+    };
+
+    const googleLogin = async (payload: { code?: string; redirectUri?: string; email?: string; name?: string }): Promise<User> => {
+        const res = await api.googleAuth(payload);
+        return await handleAuthSuccess(res.token, res.user);
     };
 
     const logout = () => {
@@ -210,7 +243,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 login,
                 loginAsAdmin,
                 register,
+                unifiedEmailAuth,
                 githubLogin,
+                googleLogin,
                 logout,
                 toggleProblemSolved,
                 saveSubmittedCode,

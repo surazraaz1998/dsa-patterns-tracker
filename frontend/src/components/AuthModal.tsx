@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { api } from '../services/api';
-import { FaGithub, FaTimes, FaUser, FaLock, FaCode, FaArrowRight, FaCheck } from 'react-icons/fa';
+import { FaGithub, FaGoogle, FaTimes, FaEnvelope, FaLock, FaCode, FaArrowRight, FaCheck } from 'react-icons/fa';
 
 type AuthModalProps = {
     isOpen: boolean;
@@ -10,21 +10,21 @@ type AuthModalProps = {
 };
 
 export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
-    const { user, login, githubLogin, updateProfile } = useAuth();
+    const { user, unifiedEmailAuth, updateProfile, syncLeetCode } = useAuth();
     const [step, setStep] = useState<'auth' | 'link_profiles'>('auth');
 
-    // Unified Credentials State
-    const [identifier, setIdentifier] = useState('');
-    const [password, setPassword] = useState('');
+    // Email & Password state
+    const [emailInput, setEmailInput] = useState('');
+    const [passwordInput, setPasswordInput] = useState('');
 
-    // Profile Handles State
+    // Handle Input states
     const [leetcodeHandle, setLeetcodeHandle] = useState('');
     const [gfgHandle, setGfgHandle] = useState('');
 
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    // CRITICAL: Reset step to 'auth' whenever modal opens so re-login after logout ALWAYS works!
+    // Reset step to 'auth' whenever modal opens
     useEffect(() => {
         if (isOpen) {
             setStep('auth');
@@ -43,23 +43,37 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
     if (!isOpen) return null;
 
-    const handleGitHubAuth = async () => {
+    // Google OAuth Browser Redirect Flow
+    const handleGoogleOAuth = async () => {
         setError(null);
         setIsSubmitting(true);
         try {
-            const oauthInfo = await api.getGitHubOAuthUrl().catch(() => null);
-            if (oauthInfo && oauthInfo.client_id) {
-                window.location.href = oauthInfo.url;
+            const redirectUri = window.location.origin;
+            const res = await api.getGoogleOAuthUrl(redirectUri).catch(() => null);
+            if (res && res.configured && res.client_id && res.url) {
+                window.location.href = res.url;
                 return;
             }
-            // Seamless 1-Click fallback authentication
-            const defaultHandle = user?.github_username;
-            if (!defaultHandle) {
-                setError('Please enter your GitHub username');
+            setError('Google OAuth client ID is not configured in backend .env. Set GOOGLE_CLIENT_ID or continue with Email below.');
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Google authentication failed');
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    // GitHub OAuth Browser Redirect Flow
+    const handleGitHubOAuth = async () => {
+        setError(null);
+        setIsSubmitting(true);
+        try {
+            const redirectUri = window.location.origin;
+            const res = await api.getGitHubOAuthUrl(redirectUri).catch(() => null);
+            if (res && res.configured && res.client_id && res.url) {
+                window.location.href = res.url;
                 return;
             }
-            await githubLogin({ githubUsername: defaultHandle });
-            setStep('link_profiles');
+            setError('GitHub OAuth client ID is not configured in backend .env. Please set GITHUB_CLIENT_ID & GITHUB_CLIENT_SECRET in backend/.env');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'GitHub authentication failed');
         } finally {
@@ -67,17 +81,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         }
     };
 
-    const handleUnifiedSubmit = async (e: React.FormEvent) => {
+    // Unified Email Auto-Register / Login Submit
+    const handleEmailSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!identifier.trim() || !password) {
-            setError('Please enter your email/username and password');
+        if (!emailInput.trim() || !emailInput.includes('@')) {
+            setError('Please enter a valid email address');
             return;
         }
         setError(null);
         setIsSubmitting(true);
         try {
-            await login(identifier.trim(), password);
-            setStep('link_profiles');
+            const updatedUser = await unifiedEmailAuth(emailInput.trim(), passwordInput || undefined);
+            if (!updatedUser.leetcode_username) {
+                setStep('link_profiles');
+            } else {
+                onClose();
+            }
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Authentication failed');
         } finally {
@@ -85,6 +104,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         }
     };
 
+    // Save Coding Profile Handles & Trigger Auto Sync
     const handleSaveProfiles = async (e: React.FormEvent) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -93,6 +113,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                 leetcode_username: leetcodeHandle.trim() || undefined,
                 gfg_username: gfgHandle.trim() || undefined,
             });
+            if (leetcodeHandle.trim()) {
+                await syncLeetCode(leetcodeHandle.trim()).catch((syncErr) =>
+                    console.warn('Sync failed:', syncErr)
+                );
+            }
             onClose();
         } catch (err) {
             console.warn('Failed to save profile handles:', err);
@@ -100,10 +125,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
         } finally {
             setIsSubmitting(false);
         }
-    };
-
-    const handleSkip = () => {
-        onClose();
     };
 
     return (
@@ -128,7 +149,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                             </div>
                             <h2 className="text-xl font-extrabold text-white tracking-tight">Welcome to AlgoTrack</h2>
                             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                                1-Click login or account creation to track your DSA patterns & coding progress.
+                                1-Click OAuth or Email login to track DSA patterns & auto-sync solved questions.
                             </p>
                         </div>
 
@@ -138,33 +159,43 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                             </div>
                         )}
 
-                        {/* 1-Click Primary GitHub OAuth Login */}
-                        <div className="space-y-3">
+                        {/* Social OAuth Buttons (Google & GitHub) */}
+                        <div className="space-y-2.5">
                             <button
                                 type="button"
-                                onClick={() => void handleGitHubAuth()}
+                                onClick={() => void handleGoogleOAuth()}
                                 disabled={isSubmitting}
-                                className="w-full py-3 rounded-2xl bg-slate-950 border border-slate-700 hover:border-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2.5 shadow-xl transition transform hover:-translate-y-0.5"
+                                className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold flex items-center justify-center gap-2.5 border border-slate-300 shadow-sm transition"
                             >
-                                <FaGithub size={18} className="text-white" />
-                                {isSubmitting ? 'Connecting GitHub...' : '1-Click Login with GitHub'}
+                                <FaGoogle size={15} className="text-rose-500" />
+                                {isSubmitting ? 'Redirecting to Google...' : 'Continue with Google'}
                             </button>
 
-                            <div className="relative text-center my-2">
-                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
-                                <span className="relative bg-slate-900 px-3 text-[11px] text-slate-500 font-medium">or continue with credentials</span>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => void handleGitHubOAuth()}
+                                disabled={isSubmitting}
+                                className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 text-white text-xs font-bold flex items-center justify-center gap-2.5 border border-slate-700 shadow-sm transition"
+                            >
+                                <FaGithub size={16} />
+                                {isSubmitting ? 'Redirecting to GitHub...' : 'Continue with GitHub'}
+                            </button>
                         </div>
 
-                        {/* Unified Single Login / Account Form */}
-                        <form onSubmit={(e) => void handleUnifiedSubmit(e)} className="space-y-3.5 text-left">
+                        <div className="relative text-center my-2">
+                            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
+                            <span className="relative bg-slate-900 px-3 text-[11px] text-slate-500 font-medium">or continue with email</span>
+                        </div>
+
+                        {/* Unified Email Login / Auto-Register Form */}
+                        <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-3 text-left">
                             <div className="relative flex items-center">
-                                <FaUser className="absolute left-3.5 text-slate-500 text-xs" />
+                                <FaEnvelope className="absolute left-3.5 text-slate-500 text-xs" />
                                 <input
-                                    type="text"
-                                    placeholder="Username or Email"
-                                    value={identifier}
-                                    onChange={(e) => setIdentifier(e.target.value)}
+                                    type="email"
+                                    placeholder="Enter your email address"
+                                    value={emailInput}
+                                    onChange={(e) => setEmailInput(e.target.value)}
                                     required
                                     className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
                                 />
@@ -174,10 +205,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 <FaLock className="absolute left-3.5 text-slate-500 text-xs" />
                                 <input
                                     type="password"
-                                    placeholder="Password"
-                                    value={password}
-                                    onChange={(e) => setPassword(e.target.value)}
-                                    required
+                                    placeholder="Password (optional for new accounts)"
+                                    value={passwordInput}
+                                    onChange={(e) => setPasswordInput(e.target.value)}
                                     className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
                                 />
                             </div>
@@ -187,22 +217,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 disabled={isSubmitting}
                                 className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-lg shadow-blue-500/25 hover:opacity-90 transition flex items-center justify-center gap-1.5"
                             >
-                                <span>{isSubmitting ? 'Authenticating...' : 'Continue to Workspace'}</span>
+                                <span>{isSubmitting ? 'Authenticating...' : 'Login / Auto-Register with Email'}</span>
                                 <FaArrowRight size={12} />
                             </button>
                         </form>
                     </>
                 ) : (
-                    /* Step 2: Link Coding Profiles */
+                    /* Step 2: Link Handles for Question Auto-Syncing */
                     <form onSubmit={(e) => void handleSaveProfiles(e)} className="space-y-5 text-center">
                         <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto">
                             <FaCheck size={20} />
                         </div>
 
                         <div>
-                            <h2 className="text-xl font-extrabold text-white tracking-tight">Connect Coding Profiles</h2>
+                            <h2 className="text-xl font-extrabold text-white tracking-tight">Sync Solved Questions</h2>
                             <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
-                                Link your LeetCode and GeeksForGeeks usernames so AlgoTrack can auto-sync your solved problems.
+                                Enter your LeetCode username to automatically import and sync all your already solved questions!
                             </p>
                         </div>
 
@@ -213,7 +243,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 </label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. john_leetcode"
+                                    placeholder="e.g. your_leetcode_handle"
                                     value={leetcodeHandle}
                                     onChange={(e) => setLeetcodeHandle(e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:border-amber-400 outline-none"
@@ -222,11 +252,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
 
                             <div>
                                 <label className="block text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1">
-                                    🟢 GeeksForGeeks Username
+                                    🟢 GeeksForGeeks Username (Optional)
                                 </label>
                                 <input
                                     type="text"
-                                    placeholder="e.g. john_gfg"
+                                    placeholder="e.g. your_gfg_handle"
                                     value={gfgHandle}
                                     onChange={(e) => setGfgHandle(e.target.value)}
                                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:border-emerald-400 outline-none"
@@ -240,12 +270,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 disabled={isSubmitting}
                                 className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:opacity-90 transition"
                             >
-                                Save & Enter Workspace <FaArrowRight size={12} />
+                                {isSubmitting ? 'Saving & Syncing...' : 'Save & Sync Solved Questions'} <FaArrowRight size={12} />
                             </button>
 
                             <button
                                 type="button"
-                                onClick={handleSkip}
+                                onClick={onClose}
                                 className="text-xs text-slate-400 hover:text-slate-200 transition py-1"
                             >
                                 Skip for now →

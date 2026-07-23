@@ -137,3 +137,43 @@ def test_auto_sync_and_submitted_code():
         progress = prog_resp.json()["progress"]
         assert any("Two Sum" in title for title in progress.keys())
 
+
+def test_unified_email_auth():
+    """Verify unified email auth registers new user and logs in existing user."""
+    import uuid
+    email = f"auto_{uuid.uuid4().hex[:6]}@example.com"
+    with TestClient(app) as client:
+        # First call: Auto-registers
+        res1 = client.post("/auth/email-auth", json={"email": email})
+        assert res1.status_code == 200
+        data1 = res1.json()
+        assert "token" in data1
+        assert data1["user"]["email"] == email
+
+        # Second call: Auto-logs in
+        res2 = client.post("/auth/email-auth", json={"email": email})
+        assert res2.status_code == 200
+        data2 = res2.json()
+        assert data2["user"]["id"] == data1["user"]["id"]
+
+
+def test_google_auth():
+    """Verify Google OAuth route creates user session."""
+    import uuid
+    email = f"google_{uuid.uuid4().hex[:6]}@gmail.com"
+    with TestClient(app) as client:
+        url_res = client.get("/auth/google/url")
+        assert url_res.status_code == 200
+        assert "url" in url_res.json()
+
+        auth_res = client.post("/auth/google", json={
+            "email": email,
+            "name": "Google User",
+            "avatar_url": "https://lh3.googleusercontent.com/a/photo.jpg"
+        })
+        assert auth_res.status_code == 200
+        data = auth_res.json()
+        assert data["user"]["email"] == email
+        assert data["user"]["auth_provider"] == "google"
+
+

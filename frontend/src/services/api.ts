@@ -79,19 +79,34 @@ export const api = {
         return response.json();
     },
 
-    async getGitHubOAuthUrl(): Promise<{ url: string; client_id: string }> {
-        const response = await fetch(`${API_BASE_URL}/auth/github/url`);
+    async unifiedEmailAuth(email: string, password?: string, username?: string): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE_URL}/auth/email-auth`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password, username }),
+        });
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'Authentication failed');
+        }
+        return response.json();
+    },
+
+    async getGitHubOAuthUrl(redirectUri?: string): Promise<{ url: string; client_id: string; configured?: boolean }> {
+        const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
+        const response = await fetch(`${API_BASE_URL}/auth/github/url${query}`);
         if (!response.ok) {
             throw new Error('Failed to get GitHub OAuth URL');
         }
         return response.json();
     },
 
-    async githubAuth(params: { code?: string; githubUsername?: string; email?: string; avatarUrl?: string } | string): Promise<AuthResponse> {
+    async githubAuth(params: { code?: string; redirectUri?: string; githubUsername?: string; email?: string; avatarUrl?: string } | string): Promise<AuthResponse> {
         const payload = typeof params === 'string'
             ? { github_username: params, avatar_url: `https://github.com/${params}.png` }
             : {
                 code: params.code,
+                redirect_uri: params.redirectUri,
                 github_username: params.githubUsername,
                 email: params.email,
                 avatar_url: params.avatarUrl,
@@ -105,6 +120,34 @@ export const api = {
         if (!response.ok) {
             const errData = await response.json().catch(() => ({}));
             throw new Error(errData.detail || 'GitHub authentication failed');
+        }
+        return response.json();
+    },
+
+    async getGoogleOAuthUrl(redirectUri?: string): Promise<{ url: string; client_id: string; configured?: boolean }> {
+        const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
+        const response = await fetch(`${API_BASE_URL}/auth/google/url${query}`);
+        if (!response.ok) {
+            throw new Error('Failed to get Google OAuth URL');
+        }
+        return response.json();
+    },
+
+    async googleAuth(params: { code?: string; redirectUri?: string; email?: string; name?: string; avatarUrl?: string }): Promise<AuthResponse> {
+        const response = await fetch(`${API_BASE_URL}/auth/google`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                code: params.code,
+                redirect_uri: params.redirectUri,
+                email: params.email,
+                name: params.name,
+                avatar_url: params.avatarUrl,
+            }),
+        });
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'Google authentication failed');
         }
         return response.json();
     },

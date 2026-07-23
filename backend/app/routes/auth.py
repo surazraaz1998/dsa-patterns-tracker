@@ -142,9 +142,24 @@ class LoginRequest(BaseModel):
 
 class GitHubAuthRequest(BaseModel):
     code: Optional[str] = None
+    redirect_uri: Optional[str] = None
     github_username: Optional[str] = None
     email: Optional[str] = None
     avatar_url: Optional[str] = None
+
+
+class GoogleAuthRequest(BaseModel):
+    code: Optional[str] = None
+    redirect_uri: Optional[str] = None
+    email: Optional[str] = None
+    name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UnifiedEmailAuthRequest(BaseModel):
+    email: str
+    password: Optional[str] = None
+    username: Optional[str] = None
 
 
 class ProfileUpdateRequest(BaseModel):
@@ -159,6 +174,16 @@ def _ensure_db_initialized(db: Session):
         Base.metadata.create_all(bind=engine)
     except Exception as exc:
         logger.warning("Failed metadata create_all: %s", exc)
+
+
+def _generate_unique_username(db: Session, base_name: str) -> str:
+    cleaned = "".join(c for c in base_name if c.isalnum() or c in ("_", "-")).strip() or "user"
+    candidate = cleaned
+    counter = 1
+    while db.query(User).filter(User.username == candidate).first():
+        candidate = f"{cleaned}_{counter}"
+        counter += 1
+    return candidate
 
 
 def _build_user_response(user: User, db: Session) -> dict:
@@ -185,6 +210,51 @@ def _build_user_response(user: User, db: Session) -> dict:
     }
 
 
+@router.post("/email-auth")
+def email_auth(req: UnifiedEmailAuthRequest, db: Session = Depends(get_db)):
+    """Unified email-based auto-register or login flow."""
+    try:
+        _ensure_db_initialized(db)
+        email = req.email.strip().lower()
+        if not email or "@" not in email:
+            raise HTTPException(status_code=400, detail="A valid email address is required")
+
+        user = db.query(User).filter(User.email == email).first()
+
+        if user:
+            # Login flow
+            if user.password_hash and req.password:
+                if not verify_password(req.password, user.password_hash):
+                    raise HTTPException(status_code=401, detail="Incorrect password for this email")
+            token = generate_session_token(user.id)
+            return {"token": token, "user": _build_user_response(user, db)}
+        else:
+            # Auto-register flow
+            base_uname = req.username.strip() if req.username else email.split("@")[0]
+            unique_username = _generate_unique_username(db, base_uname)
+            pw_hash = hash_password(req.password) if req.password else None
+
+            user = User(
+                username=unique_username,
+                email=email,
+                password_hash=pw_hash,
+                auth_provider="email",
+                avatar_url=f"https://api.dicebear.com/7.x/bottts/svg?seed={unique_username}"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+
+            token = generate_session_token(user.id)
+            return {"token": token, "user": _build_user_response(user, db)}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Unified email auth error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Authentication failed: {exc}")
+
+
 @router.post("/register")
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     try:
@@ -200,7 +270,6 @@ def register(req: RegisterRequest, db: Session = Depends(get_db)):
         ).first()
 
         if existing_user:
-            # If user exists, log them in automatically (unified auto-account flow)
             if existing_user.password_hash and verify_password(req.password, existing_user.password_hash):
                 token = generate_session_token(existing_user.id)
                 return {"token": token, "user": _build_user_response(existing_user, db)}
@@ -268,11 +337,13 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
 
 
 @router.get("/github/url")
-def get_github_oauth_url():
-    client_id = os.getenv("GITHUB_CLIENT_ID", "")
-    redirect_uri = os.getenv("GITHUB_REDIRECT_URI", "")
-    url = f"https://github.com/login/oauth/authorize?client_id={client_id}&scope=read:user%20user:email"
-    return {"url": url, "client_id": client_id}
+def get_github_oauth_url(redirect_uri: Optional[str] = None):
+    client_id = os.getenv("GITHUB_CLIENT_ID", "").strip()
+    if not client_id:
+        return {"url": "", "client_id": "", "configured": False}
+    effective_redirect_uri = redirect_uri or os.getenv("GITHUB_REDIRECT_URI", "http://localhost:5173")
+    url = f"https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={effective_redirect_uri}&scope=read:user%20user:email"
+    return {"url": url, "client_id": client_id, "configured": True}
 
 
 @router.post("/github")
@@ -280,11 +351,13 @@ async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
     try:
         _ensure_db_initialized(db)
         github_user_data = None
+        github_emails = []
 
         # Real OAuth 2.0 authorization code exchange if code provided
         if req.code:
-            client_id = os.getenv("GITHUB_CLIENT_ID", "")
-            client_secret = os.getenv("GITHUB_CLIENT_SECRET", "")
+            client_id = os.getenv("GITHUB_CLIENT_ID", "").strip()
+            client_secret = os.getenv("GITHUB_CLIENT_SECRET", "").strip()
+            effective_redirect_uri = req.redirect_uri or os.getenv("GITHUB_REDIRECT_URI", "http://localhost:5173")
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     token_res = await client.post(
@@ -293,6 +366,7 @@ async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
                             "client_id": client_id,
                             "client_secret": client_secret,
                             "code": req.code,
+                            "redirect_uri": effective_redirect_uri,
                         },
                         headers={"Accept": "application/json"}
                     )
@@ -309,6 +383,17 @@ async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
                         )
                         if user_res.status_code == 200:
                             github_user_data = user_res.json()
+
+                        # Fetch emails if primary email is private in user profile
+                        emails_res = await client.get(
+                            "https://api.github.com/user/emails",
+                            headers={
+                                "Authorization": f"Bearer {access_token}",
+                                "User-Agent": "AlgoTrack-App"
+                            }
+                        )
+                        if emails_res.status_code == 200:
+                            github_emails = emails_res.json()
             except Exception as exc:
                 logger.warning("GitHub OAuth API exchange error: %s", exc)
 
@@ -325,37 +410,55 @@ async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
             except Exception as exc:
                 logger.warning("Public GitHub API lookup warning: %s", exc)
 
-        username = (
+        gh_handle = (
             github_user_data.get("login")
             if github_user_data
             else (req.github_username or "github_user").strip()
         )
+
+        primary_email = None
+        if github_emails:
+            for em in github_emails:
+                if em.get("primary") and em.get("verified"):
+                    primary_email = em.get("email")
+                    break
+            if not primary_email and len(github_emails) > 0:
+                primary_email = github_emails[0].get("email")
+
         email = (
-            github_user_data.get("email")
-            if github_user_data and github_user_data.get("email")
-            else (req.email or f"{username.lower()}@users.noreply.github.com").strip().lower()
-        )
+            primary_email
+            or (github_user_data.get("email") if github_user_data else None)
+            or (req.email or f"{gh_handle.lower()}@users.noreply.github.com")
+        ).strip().lower()
+
         avatar_url = (
             github_user_data.get("avatar_url")
             if github_user_data
-            else (req.avatar_url or f"https://github.com/{username}.png")
+            else (req.avatar_url or f"https://github.com/{gh_handle}.png")
         )
 
         user = db.query(User).filter(
-            (User.github_username == username) | (User.username == username) | (User.email == email)
+            (User.email == email) | (User.github_username == gh_handle)
         ).first()
 
         if not user:
+            unique_username = _generate_unique_username(db, gh_handle)
             user = User(
-                username=username,
+                username=unique_username,
                 email=email,
                 avatar_url=avatar_url,
-                github_username=username,
+                github_username=gh_handle,
                 auth_provider="github"
             )
             db.add(user)
             db.commit()
             db.refresh(user)
+        else:
+            if not user.github_username:
+                user.github_username = gh_handle
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            db.commit()
 
         token = generate_session_token(user.id)
         return {
@@ -368,6 +471,111 @@ async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
         db.rollback()
         logger.error("GitHub auth error: %s", exc)
         raise HTTPException(status_code=500, detail=f"GitHub authentication failed: {exc}")
+
+
+@router.get("/google/url")
+def get_google_oauth_url(redirect_uri: Optional[str] = None):
+    client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+    if not client_id:
+        return {"url": "", "client_id": "", "configured": False}
+    effective_redirect_uri = redirect_uri or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173")
+    scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
+    url = (
+        f"https://accounts.google.com/o/oauth2/v2/auth?"
+        f"client_id={client_id}&redirect_uri={effective_redirect_uri}&"
+        f"response_type=code&scope={scope}&access_type=offline&prompt=consent"
+    )
+    return {"url": url, "client_id": client_id, "configured": True}
+
+
+@router.post("/google")
+async def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
+    try:
+        _ensure_db_initialized(db)
+        google_user_data = None
+
+        if req.code:
+            client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+            client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+            effective_redirect_uri = req.redirect_uri or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173")
+
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    token_res = await client.post(
+                        "https://oauth2.googleapis.com/token",
+                        data={
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "code": req.code,
+                            "grant_type": "authorization_code",
+                            "redirect_uri": effective_redirect_uri,
+                        },
+                        headers={"Content-Type": "application/x-www-form-urlencoded"}
+                    )
+                    token_data = token_res.json()
+                    access_token = token_data.get("access_token")
+
+                    if access_token:
+                        user_res = await client.get(
+                            "https://www.googleapis.com/oauth2/v2/userinfo",
+                            headers={"Authorization": f"Bearer {access_token}"}
+                        )
+                        if user_res.status_code == 200:
+                            google_user_data = user_res.json()
+            except Exception as exc:
+                logger.warning("Google OAuth API exchange error: %s", exc)
+
+        email = (
+            google_user_data.get("email")
+            if google_user_data and google_user_data.get("email")
+            else req.email
+        )
+        if email:
+            email = email.strip().lower()
+
+        if not email:
+            raise HTTPException(status_code=400, detail="Google authentication failed: Email not available")
+
+        name = (
+            google_user_data.get("name") or google_user_data.get("given_name")
+            if google_user_data
+            else (req.name or email.split("@")[0])
+        )
+        avatar_url = (
+            google_user_data.get("picture")
+            if google_user_data
+            else (req.avatar_url or f"https://api.dicebear.com/7.x/bottts/svg?seed={email}")
+        )
+
+        user = db.query(User).filter(User.email == email).first()
+
+        if not user:
+            unique_username = _generate_unique_username(db, name or email.split("@")[0])
+            user = User(
+                username=unique_username,
+                email=email,
+                avatar_url=avatar_url,
+                auth_provider="google"
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        else:
+            if avatar_url and not user.avatar_url:
+                user.avatar_url = avatar_url
+            db.commit()
+
+        token = generate_session_token(user.id)
+        return {
+            "token": token,
+            "user": _build_user_response(user, db)
+        }
+    except HTTPException:
+        raise
+    except Exception as exc:
+        db.rollback()
+        logger.error("Google auth error: %s", exc)
+        raise HTTPException(status_code=500, detail=f"Google authentication failed: {exc}")
 
 
 @router.get("/me")
