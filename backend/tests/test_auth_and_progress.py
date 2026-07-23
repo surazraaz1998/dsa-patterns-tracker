@@ -12,19 +12,6 @@ def setup_db():
     seed()
 
 
-def test_admin_user_precreated():
-    """Verify precreated Admin user credentials work."""
-    with TestClient(app) as client:
-        response = client.post("/auth/login", json={
-            "username_or_email": "Admin",
-            "password": "Suraz@1998"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert "token" in data
-        assert data["user"]["username"] == "Admin"
-
-
 def test_user_registration_and_login():
     """Verify new user registration, login, and auth/me."""
     import uuid
@@ -66,13 +53,11 @@ def test_github_auth():
 
 def test_user_progress_tracking():
     """Verify marking problem as solved updates counter."""
+    import uuid
+    email = f"track_{uuid.uuid4().hex[:6]}@example.com"
     with TestClient(app) as client:
-        # Login as Admin
-        login_resp = client.post("/auth/login", json={
-            "username_or_email": "Admin",
-            "password": "Suraz@1998"
-        })
-        token = login_resp.json()["token"]
+        reg_resp = client.post("/auth/email-auth", json={"email": email})
+        token = reg_resp.json()["token"]
 
         # Get patterns to find problem ID
         patterns_resp = client.get("/patterns?track=dsa")
@@ -100,13 +85,11 @@ def test_user_progress_tracking():
 
 def test_auto_sync_and_submitted_code():
     """Verify auto-syncing submitted code and updating profile."""
+    import uuid
+    email = f"sync_{uuid.uuid4().hex[:6]}@example.com"
     with TestClient(app) as client:
-        # Login
-        login_resp = client.post("/auth/login", json={
-            "username_or_email": "Admin",
-            "password": "Suraz@1998"
-        })
-        token = login_resp.json()["token"]
+        reg_resp = client.post("/auth/email-auth", json={"email": email})
+        token = reg_resp.json()["token"]
 
         # Update Profile
         prof_resp = client.put(

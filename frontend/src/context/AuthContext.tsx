@@ -10,7 +10,6 @@ type AuthContextType = {
     userProgress: UserProgressMap;
     loading: boolean;
     login: (username: string, pass: string) => Promise<User>;
-    loginAsAdmin: () => Promise<User>;
     register: (username: string, email: string, pass: string) => Promise<User>;
     unifiedEmailAuth: (email: string, pass?: string, username?: string) => Promise<User>;
     githubLogin: (payload?: { code?: string; redirectUri?: string; githubUsername?: string } | string) => Promise<User>;
@@ -111,10 +110,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const login = async (username: string, pass: string): Promise<User> => {
         const res = await api.login(username, pass);
         return await handleAuthSuccess(res.token, res.user);
-    };
-
-    const loginAsAdmin = async (): Promise<User> => {
-        return await login('Admin', 'Suraz@1998');
     };
 
     const register = async (username: string, email: string, pass: string): Promise<User> => {
@@ -241,7 +236,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 userProgress,
                 loading,
                 login,
-                loginAsAdmin,
                 register,
                 unifiedEmailAuth,
                 githubLogin,
