@@ -96,3 +96,44 @@ def test_user_progress_tracking():
         assert prog_resp.status_code == 200
         assert prog_resp.json()["status"] == "solved"
         assert prog_resp.json()["total_solved_count"] >= 1
+
+
+def test_auto_sync_and_submitted_code():
+    """Verify auto-syncing submitted code and updating profile."""
+    with TestClient(app) as client:
+        # Login
+        login_resp = client.post("/auth/login", json={
+            "username_or_email": "Admin",
+            "password": "Suraz@1998"
+        })
+        token = login_resp.json()["token"]
+
+        # Update Profile
+        prof_resp = client.put(
+            "/auth/profile",
+            json={"leetcode_username": "suraz_leetcode"},
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert prof_resp.status_code == 200
+        assert prof_resp.json()["leetcode_username"] == "suraz_leetcode"
+
+        # Auto sync code submission
+        sync_resp = client.post(
+            "/progress/auto-sync",
+            json={
+                "problem_title": "Two Sum II",
+                "status": "solved",
+                "submitted_code": "def twoSum(nums, target): return [1, 2]",
+                "submitted_language": "python"
+            },
+            headers={"Authorization": f"Bearer {token}"}
+        )
+        assert sync_resp.status_code == 200
+        assert sync_resp.json()["status"] == "success"
+
+        # Check progress details
+        prog_resp = client.get("/progress", headers={"Authorization": f"Bearer {token}"})
+        assert prog_resp.status_code == 200
+        progress = prog_resp.json()["progress"]
+        assert any("Two Sum" in title for title in progress.keys())
+

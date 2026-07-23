@@ -47,6 +47,8 @@ export type User = {
     email: string;
     avatar_url: string;
     github_username?: string;
+    leetcode_username?: string;
+    gfg_username?: string;
     auth_provider: 'email' | 'github';
     solved_count: number;
 };
@@ -57,3 +59,12 @@ export type AuthResponse = {
 };
 
 export type ProblemStatus = 'not_started' | 'attempted' | 'solved';
+
+export type ProblemProgressDetail = {
+    status: ProblemStatus;
+    submitted_code?: string | null;
+    submitted_language?: string | null;
+    last_submitted_at?: string | null;
+};
+
+export type UserProgressMap = Record<string, ProblemStatus | ProblemProgressDetail>;

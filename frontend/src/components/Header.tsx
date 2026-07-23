@@ -9,7 +9,6 @@ import {
     FaCode,
     FaTrophy,
     FaUser,
-    FaUserPlus,
     FaBars,
     FaTimes,
     FaCheckCircle,
@@ -97,28 +96,27 @@ export const Header: React.FC<HeaderProps> = ({
                             <button
                                 type="button"
                                 onClick={() => setIsProfileModalOpen(true)}
-                                className="flex items-center gap-2.5 p-1 pr-3.5 rounded-full bg-slate-800/80 border border-slate-700 hover:border-blue-500 text-slate-100 transition"
+                                className="flex items-center gap-2 p-1 pr-3 rounded-full bg-slate-800/80 border border-slate-700 hover:border-blue-500 text-slate-100 transition"
                             >
-                                <img src={user.avatar_url} alt={user.username} className="w-7 h-7 rounded-full object-cover bg-slate-900" />
-                                <span className="text-xs font-semibold">{user.username}</span>
+                                <img src={user.avatar_url} alt={user.username} className="w-7 h-7 rounded-full object-cover bg-slate-900 shrink-0" />
+                                <div className="flex flex-col text-left">
+                                    <span className="text-xs font-semibold leading-none">{user.username}</span>
+                                    {(user.leetcode_username || user.gfg_username) && (
+                                        <div className="flex items-center gap-1.5 mt-0.5 text-[10px]">
+                                            {user.leetcode_username && <span className="text-amber-400 font-medium">LC: {user.leetcode_username}</span>}
+                                            {user.gfg_username && <span className="text-emerald-400 font-medium">GFG: {user.gfg_username}</span>}
+                                        </div>
+                                    )}
+                                </div>
                             </button>
                         ) : (
-                            <div className="flex items-center gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => openAuthModal('login')}
-                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-200 bg-slate-800/80 border border-slate-700 hover:bg-slate-700/80 hover:border-blue-400 transition"
-                                >
-                                    <FaUser size={12} /> Log In
-                                </button>
-                                <button
-                                    type="button"
-                                    onClick={() => openAuthModal('register')}
-                                    className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-500/30 hover:opacity-90 transition"
-                                >
-                                    <FaUserPlus size={12} /> Register
-                                </button>
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => openAuthModal('login')}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 transition"
+                            >
+                                <FaUser size={12} /> Log In / Sign Up
+                            </button>
                         )}
                     </div>
 

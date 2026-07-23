@@ -1,12 +1,17 @@
+import base64
 import hashlib
+import hmac
+import json
+import logging
 import os
 import secrets
-import logging
+import time
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Header
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import SQLAlchemyError
+import httpx
 
 from app.db import Base, engine, get_db
 from app.models import User, UserProgress
@@ -14,8 +19,7 @@ from app.models import User, UserProgress
 logger = logging.getLogger("dsa_patterns_tracker")
 router = APIRouter(prefix="/auth", tags=["auth"])
 
-# Simple token storage for active sessions in-memory
-_SESSION_TOKENS: dict[str, int] = {}
+JWT_SECRET = os.getenv("JWT_SECRET", "algotrack_super_secret_jwt_key_2026_prod")
 
 
 def hash_password(password: str, salt: Optional[str] = None) -> str:
@@ -44,6 +48,68 @@ def verify_password(password: str, password_hash: str) -> bool:
         return False
 
 
+def generate_session_token(user_id: int, days_valid: int = 30) -> str:
+    """Generate a stateless, HMAC-SHA256 signed JWT access token."""
+    header = {"alg": "HS256", "typ": "JWT"}
+    now = int(time.time())
+    payload = {
+        "sub": user_id,
+        "iat": now,
+        "exp": now + (days_valid * 86400)
+    }
+
+    def b64_encode(data: dict) -> str:
+        json_bytes = json.dumps(data, separators=(",", ":")).encode("utf-8")
+        return base64.urlsafe_b64encode(json_bytes).decode("utf-8").rstrip("=")
+
+    encoded_header = b64_encode(header)
+    encoded_payload = b64_encode(payload)
+
+    signing_input = f"{encoded_header}.{encoded_payload}".encode("utf-8")
+    signature = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+    encoded_signature = base64.urlsafe_b64encode(signature).decode("utf-8").rstrip("=")
+
+    return f"{encoded_header}.{encoded_payload}.{encoded_signature}"
+
+
+def decode_session_token(token: str) -> Optional[int]:
+    """Verify HMAC signature and return user_id if valid."""
+    if not token:
+        return None
+    try:
+        parts = token.split(".")
+        if len(parts) != 3:
+            # Fallback for legacy tokens
+            if "_" in token:
+                token_parts = token.split("_")
+                if len(token_parts) >= 2 and token_parts[1].isdigit():
+                    return int(token_parts[1])
+            return None
+
+        encoded_header, encoded_payload, encoded_signature = parts
+        signing_input = f"{encoded_header}.{encoded_payload}".encode("utf-8")
+
+        expected_sig = hmac.new(JWT_SECRET.encode("utf-8"), signing_input, hashlib.sha256).digest()
+        actual_sig = base64.urlsafe_b64encode(expected_sig).decode("utf-8").rstrip("=")
+
+        if not secrets.compare_digest(actual_sig, encoded_signature):
+            return None
+
+        rem_p = len(encoded_payload) % 4
+        padded_p = encoded_payload + ("=" * ((4 - rem_p) % 4))
+        payload_bytes = base64.urlsafe_b64decode(padded_p)
+        payload = json.loads(payload_bytes.decode("utf-8"))
+
+        if payload.get("exp") and time.time() > payload["exp"]:
+            logger.info("JWT token expired for sub %s", payload.get("sub"))
+            return None
+
+        return int(payload["sub"])
+    except Exception as exc:
+        logger.warning("Failed to decode JWT session token: %s", exc)
+        return None
+
+
 def get_current_user_from_header(
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db)
@@ -51,18 +117,7 @@ def get_current_user_from_header(
     if not authorization:
         return None
     token = authorization.replace("Bearer ", "").strip()
-    user_id = _SESSION_TOKENS.get(token)
-    
-    if not user_id:
-        if token.startswith("token_") or token.startswith("user_"):
-            try:
-                parts = token.split("_")
-                if len(parts) >= 2:
-                    user_id = int(parts[1])
-            except ValueError:
-                return None
-        else:
-            return None
+    user_id = decode_session_token(token)
 
     if not user_id:
         return None
@@ -86,15 +141,16 @@ class LoginRequest(BaseModel):
 
 
 class GitHubAuthRequest(BaseModel):
-    github_username: Optional[str] = "github_user"
+    code: Optional[str] = None
+    github_username: Optional[str] = None
     email: Optional[str] = None
     avatar_url: Optional[str] = None
 
 
-def generate_session_token(user_id: int) -> str:
-    token = f"token_{user_id}_{secrets.token_hex(16)}"
-    _SESSION_TOKENS[token] = user_id
-    return token
+class ProfileUpdateRequest(BaseModel):
+    leetcode_username: Optional[str] = None
+    gfg_username: Optional[str] = None
+    avatar_url: Optional[str] = None
 
 
 def _ensure_db_initialized(db: Session):
@@ -122,6 +178,8 @@ def _build_user_response(user: User, db: Session) -> dict:
         "email": user.email,
         "avatar_url": getattr(user, "avatar_url", None) or f"https://api.dicebear.com/7.x/bottts/svg?seed={user.username}",
         "github_username": getattr(user, "github_username", None),
+        "leetcode_username": getattr(user, "leetcode_username", None),
+        "gfg_username": getattr(user, "gfg_username", None),
         "auth_provider": getattr(user, "auth_provider", "email") or "email",
         "solved_count": solved_count,
     }
@@ -131,35 +189,39 @@ def _build_user_response(user: User, db: Session) -> dict:
 def register(req: RegisterRequest, db: Session = Depends(get_db)):
     try:
         _ensure_db_initialized(db)
-        username_clean = req.username.strip()
-        email_clean = req.email.strip().lower()
+        username = req.username.strip()
+        email = req.email.strip().lower()
 
-        if not username_clean or not email_clean or not req.password:
+        if not username or not email or not req.password:
             raise HTTPException(status_code=400, detail="Username, email, and password are required")
 
         existing_user = db.query(User).filter(
-            (User.username == username_clean) | (User.email == email_clean)
+            (User.username == username) | (User.email == email)
         ).first()
 
         if existing_user:
-            raise HTTPException(status_code=400, detail="Username or Email already registered")
+            # If user exists, log them in automatically (unified auto-account flow)
+            if existing_user.password_hash and verify_password(req.password, existing_user.password_hash):
+                token = generate_session_token(existing_user.id)
+                return {"token": token, "user": _build_user_response(existing_user, db)}
+            raise HTTPException(status_code=400, detail="Username or email already exists")
 
-        pwd_hash = hash_password(req.password)
-        new_user = User(
-            username=username_clean,
-            email=email_clean,
-            password_hash=pwd_hash,
+        pw_hash = hash_password(req.password)
+        user = User(
+            username=username,
+            email=email,
+            password_hash=pw_hash,
             auth_provider="email",
-            avatar_url=f"https://api.dicebear.com/7.x/bottts/svg?seed={username_clean}"
+            avatar_url=f"https://api.dicebear.com/7.x/bottts/svg?seed={username}"
         )
-        db.add(new_user)
+        db.add(user)
         db.commit()
-        db.refresh(new_user)
+        db.refresh(user)
 
-        token = generate_session_token(new_user.id)
+        token = generate_session_token(user.id)
         return {
             "token": token,
-            "user": _build_user_response(new_user, db)
+            "user": _build_user_response(user, db)
         }
     except HTTPException:
         raise
@@ -181,18 +243,9 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         if not identifier or not req.password:
             raise HTTPException(status_code=400, detail="Username/email and password are required")
 
-        try:
-            user = db.query(User).filter(
-                (User.username == identifier) | (User.email == identifier.lower())
-            ).first()
-        except SQLAlchemyError:
-            # Retry initializing DB schema & re-seeding if tables missing
-            db.rollback()
-            from app.seed_data import seed
-            seed()
-            user = db.query(User).filter(
-                (User.username == identifier) | (User.email == identifier.lower())
-            ).first()
+        user = db.query(User).filter(
+            (User.username == identifier) | (User.email == identifier.lower())
+        ).first()
 
         if not user or not getattr(user, "password_hash", None) or not verify_password(req.password, user.password_hash):
             raise HTTPException(status_code=401, detail="Invalid username/email or password")
@@ -214,16 +267,82 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=500, detail=f"Internal server error during login: {exc}")
 
 
+@router.get("/github/url")
+def get_github_oauth_url():
+    client_id = os.getenv("GITHUB_CLIENT_ID", "")
+    redirect_uri = os.getenv("GITHUB_REDIRECT_URI", "")
+    url = f"https://github.com/login/oauth/authorize?client_id={client_id}&scope=read:user%20user:email"
+    return {"url": url, "client_id": client_id}
+
+
 @router.post("/github")
-def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
+async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
     try:
         _ensure_db_initialized(db)
-        username = (req.github_username or "GitHubDeveloper").strip()
-        email = (req.email or f"{username.lower()}@users.noreply.github.com").strip().lower()
-        avatar_url = req.avatar_url or f"https://github.com/{username}.png"
+        github_user_data = None
+
+        # Real OAuth 2.0 authorization code exchange if code provided
+        if req.code:
+            client_id = os.getenv("GITHUB_CLIENT_ID", "")
+            client_secret = os.getenv("GITHUB_CLIENT_SECRET", "")
+            try:
+                async with httpx.AsyncClient(timeout=10.0) as client:
+                    token_res = await client.post(
+                        "https://github.com/login/oauth/access_token",
+                        json={
+                            "client_id": client_id,
+                            "client_secret": client_secret,
+                            "code": req.code,
+                        },
+                        headers={"Accept": "application/json"}
+                    )
+                    token_data = token_res.json()
+                    access_token = token_data.get("access_token")
+
+                    if access_token:
+                        user_res = await client.get(
+                            "https://api.github.com/user",
+                            headers={
+                                "Authorization": f"Bearer {access_token}",
+                                "User-Agent": "AlgoTrack-App"
+                            }
+                        )
+                        if user_res.status_code == 200:
+                            github_user_data = user_res.json()
+            except Exception as exc:
+                logger.warning("GitHub OAuth API exchange error: %s", exc)
+
+        # Live public GitHub API lookup if username provided directly without OAuth code
+        if not github_user_data and req.github_username:
+            try:
+                async with httpx.AsyncClient(timeout=5.0) as client:
+                    gh_res = await client.get(
+                        f"https://api.github.com/users/{req.github_username.strip()}",
+                        headers={"User-Agent": "AlgoTrack-App"}
+                    )
+                    if gh_res.status_code == 200:
+                        github_user_data = gh_res.json()
+            except Exception as exc:
+                logger.warning("Public GitHub API lookup warning: %s", exc)
+
+        username = (
+            github_user_data.get("login")
+            if github_user_data
+            else (req.github_username or "github_user").strip()
+        )
+        email = (
+            github_user_data.get("email")
+            if github_user_data and github_user_data.get("email")
+            else (req.email or f"{username.lower()}@users.noreply.github.com").strip().lower()
+        )
+        avatar_url = (
+            github_user_data.get("avatar_url")
+            if github_user_data
+            else (req.avatar_url or f"https://github.com/{username}.png")
+        )
 
         user = db.query(User).filter(
-            (User.username == username) | (User.email == email)
+            (User.github_username == username) | (User.username == username) | (User.email == email)
         ).first()
 
         if not user:
@@ -263,3 +382,25 @@ def get_me(authorization: Optional[str] = Header(None), db: Session = Depends(ge
     except Exception as exc:
         logger.error("Error in /auth/me: %s", exc)
         raise HTTPException(status_code=500, detail="Failed to fetch user session")
+
+
+@router.put("/profile")
+def update_profile(
+    req: ProfileUpdateRequest,
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+):
+    user = get_current_user_from_header(authorization, db)
+    if not user:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+
+    if req.leetcode_username is not None:
+        user.leetcode_username = req.leetcode_username.strip() or None
+    if req.gfg_username is not None:
+        user.gfg_username = req.gfg_username.strip() or None
+    if req.avatar_url is not None:
+        user.avatar_url = req.avatar_url.strip() or None
+
+    db.commit()
+    db.refresh(user)
+    return _build_user_response(user, db)

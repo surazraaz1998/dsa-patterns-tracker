@@ -80,6 +80,8 @@ class User(Base):
     password_hash = Column(String(255), nullable=True)
     avatar_url = Column(String(500), nullable=True)
     github_username = Column(String(100), nullable=True)
+    leetcode_username = Column(String(100), nullable=True)
+    gfg_username = Column(String(100), nullable=True)
     auth_provider = Column(String(50), default="email")  # 'email' | 'github'
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -94,8 +96,12 @@ class UserProgress(Base):
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     problem_id = Column(Integer, ForeignKey("problems.id", ondelete="CASCADE"), nullable=False)
     status = Column(String(20), default="not_started")  # 'not_started' | 'attempted' | 'solved'
+    submitted_code = Column(Text, nullable=True)
+    submitted_language = Column(String(50), nullable=True)
+    last_submitted_at = Column(DateTime(timezone=True), nullable=True)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="progress_entries")
     problem = relationship("Problem", back_populates="user_progress")
+
 

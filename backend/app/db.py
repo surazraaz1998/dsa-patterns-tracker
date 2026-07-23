@@ -48,6 +48,8 @@ def init_db():
                 ("password_hash", "VARCHAR(255)"),
                 ("avatar_url", "VARCHAR(500)"),
                 ("github_username", "VARCHAR(100)"),
+                ("leetcode_username", "VARCHAR(100)"),
+                ("gfg_username", "VARCHAR(100)"),
                 ("auth_provider", "VARCHAR(50) DEFAULT 'email'"),
                 ("created_at", "TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP"),
             ]
@@ -59,6 +61,22 @@ def init_db():
                             logger.info("Added missing column '%s' to 'users' table.", col_name)
                         except Exception as exc:
                             logger.warning("Could not add column '%s' to 'users': %s", col_name, exc)
+
+        if "user_progress" in tables:
+            existing_cols = {col["name"] for col in inspector.get_columns("user_progress")}
+            up_cols = [
+                ("submitted_code", "TEXT"),
+                ("submitted_language", "VARCHAR(50)"),
+                ("last_submitted_at", "TIMESTAMP WITH TIME ZONE"),
+            ]
+            with engine.begin() as conn:
+                for col_name, col_type in up_cols:
+                    if col_name not in existing_cols:
+                        try:
+                            conn.execute(text(f"ALTER TABLE user_progress ADD COLUMN {col_name} {col_type}"))
+                            logger.info("Added missing column '%s' to 'user_progress' table.", col_name)
+                        except Exception as exc:
+                            logger.warning("Could not add column '%s' to 'user_progress': %s", col_name, exc)
 
         if "problems" in tables:
             existing_cols = {col["name"] for col in inspector.get_columns("problems")}

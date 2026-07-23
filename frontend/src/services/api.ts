@@ -1,4 +1,4 @@
-import { AuthResponse, PatternDetail, PatternSummary, ProblemStatus, User } from '../types';
+import { AuthResponse, PatternDetail, PatternSummary, ProblemStatus, User, UserProgressMap } from '../types';
 
 const API_BASE_URL =
     (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL?.replace(/\/$/, '') ||
@@ -79,18 +79,32 @@ export const api = {
         return response.json();
     },
 
-    async githubAuth(githubUsername: string, email?: string, avatarUrl?: string): Promise<AuthResponse> {
+    async getGitHubOAuthUrl(): Promise<{ url: string; client_id: string }> {
+        const response = await fetch(`${API_BASE_URL}/auth/github/url`);
+        if (!response.ok) {
+            throw new Error('Failed to get GitHub OAuth URL');
+        }
+        return response.json();
+    },
+
+    async githubAuth(params: { code?: string; githubUsername?: string; email?: string; avatarUrl?: string } | string): Promise<AuthResponse> {
+        const payload = typeof params === 'string'
+            ? { github_username: params, avatar_url: `https://github.com/${params}.png` }
+            : {
+                code: params.code,
+                github_username: params.githubUsername,
+                email: params.email,
+                avatar_url: params.avatarUrl,
+              };
+
         const response = await fetch(`${API_BASE_URL}/auth/github`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                github_username: githubUsername,
-                email,
-                avatar_url: avatarUrl,
-            }),
+            body: JSON.stringify(payload),
         });
         if (!response.ok) {
-            throw new Error('GitHub authentication failed');
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'GitHub authentication failed');
         }
         return response.json();
     },
@@ -105,8 +119,21 @@ export const api = {
         return response.json();
     },
 
-    // Progress API
-    async getProgress(): Promise<Record<string, ProblemStatus>> {
+    async updateProfile(data: { leetcode_username?: string; gfg_username?: string; avatar_url?: string }): Promise<User> {
+        const response = await fetch(`${API_BASE_URL}/auth/profile`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(data),
+        });
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'Failed to update profile');
+        }
+        return response.json();
+    },
+
+    // Progress & Sync API
+    async getProgress(): Promise<UserProgressMap> {
         const response = await fetch(`${API_BASE_URL}/progress`, {
             headers: getAuthHeaders(),
         });
@@ -117,7 +144,13 @@ export const api = {
         return data.progress || {};
     },
 
-    async updateProgress(problemTitle: string, status: ProblemStatus, problemId?: number): Promise<{ total_solved_count: number }> {
+    async updateProgress(
+        problemTitle: string,
+        status: ProblemStatus,
+        problemId?: number,
+        submittedCode?: string,
+        submittedLanguage?: string
+    ): Promise<{ total_solved_count: number; submitted_code?: string; submitted_language?: string }> {
         const response = await fetch(`${API_BASE_URL}/progress`, {
             method: 'POST',
             headers: getAuthHeaders(),
@@ -125,10 +158,45 @@ export const api = {
                 problem_id: problemId,
                 problem_title: problemTitle,
                 status,
+                submitted_code: submittedCode,
+                submitted_language: submittedLanguage,
             }),
         });
         if (!response.ok) {
             throw new Error('Failed to update progress');
+        }
+        return response.json();
+    },
+
+    async syncLeetCode(leetcodeUsername?: string): Promise<{ status: string; synced_count: number; synced_problems: string[]; total_solved_count: number }> {
+        const response = await fetch(`${API_BASE_URL}/progress/sync-leetcode`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ leetcode_username: leetcodeUsername }),
+        });
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'LeetCode sync failed');
+        }
+        return response.json();
+    },
+
+    async autoSync(payload: {
+        problem_title?: string;
+        leetcode_slug?: string;
+        problem_id?: number;
+        status?: string;
+        submitted_code?: string;
+        submitted_language?: string;
+    }): Promise<{ status: string; synced_problem: string; total_solved_count: number }> {
+        const response = await fetch(`${API_BASE_URL}/progress/auto-sync`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload),
+        });
+        if (!response.ok) {
+            const errData = await response.json().catch(() => ({}));
+            throw new Error(errData.detail || 'Auto-sync failed');
         }
         return response.json();
     },

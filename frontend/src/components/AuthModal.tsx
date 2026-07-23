@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { FaGithub, FaTimes, FaUser, FaLock, FaEnvelope } from 'react-icons/fa';
+import { api } from '../services/api';
+import { FaGithub, FaTimes, FaUser, FaLock, FaCode, FaArrowRight, FaCheck } from 'react-icons/fa';
 
 type AuthModalProps = {
     isOpen: boolean;
@@ -8,66 +9,107 @@ type AuthModalProps = {
     initialTab?: 'login' | 'register';
 };
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTab = 'login' }) => {
-    const { login, register, githubLogin } = useAuth();
-    const [tab, setTab] = useState<'login' | 'register'>(initialTab);
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+    const { user, login, githubLogin, updateProfile } = useAuth();
+    const [step, setStep] = useState<'auth' | 'link_profiles'>('auth');
 
-    const [usernameOrEmail, setUsernameOrEmail] = useState('');
+    // Unified Credentials State
+    const [identifier, setIdentifier] = useState('');
     const [password, setPassword] = useState('');
-    const [regUsername, setRegUsername] = useState('');
-    const [regEmail, setRegEmail] = useState('');
-    const [regPassword, setRegPassword] = useState('');
+
+    // Profile Handles State
+    const [leetcodeHandle, setLeetcodeHandle] = useState('');
+    const [gfgHandle, setGfgHandle] = useState('');
 
     const [error, setError] = useState<string | null>(null);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // CRITICAL: Reset step to 'auth' whenever modal opens so re-login after logout ALWAYS works!
+    useEffect(() => {
+        if (isOpen) {
+            setStep('auth');
+            setError(null);
+            setIsSubmitting(false);
+        }
+    }, [isOpen]);
+
+    // Sync saved handles when user changes or step transitions to profile linking
+    useEffect(() => {
+        if (user) {
+            setLeetcodeHandle(user.leetcode_username || '');
+            setGfgHandle(user.gfg_username || '');
+        }
+    }, [user, step]);
+
     if (!isOpen) return null;
 
-    const handleLoginSubmit = async (e: React.FormEvent) => {
-        e.preventDefault();
+    const handleGitHubAuth = async () => {
         setError(null);
         setIsSubmitting(true);
         try {
-            await login(usernameOrEmail, password);
-            onClose();
+            const oauthInfo = await api.getGitHubOAuthUrl().catch(() => null);
+            if (oauthInfo && oauthInfo.client_id) {
+                window.location.href = oauthInfo.url;
+                return;
+            }
+            // Seamless 1-Click fallback authentication
+            const defaultHandle = user?.github_username;
+            if (!defaultHandle) {
+                setError('Please enter your GitHub username');
+                return;
+            }
+            await githubLogin({ githubUsername: defaultHandle });
+            setStep('link_profiles');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Login failed');
+            setError(err instanceof Error ? err.message : 'GitHub authentication failed');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleRegisterSubmit = async (e: React.FormEvent) => {
+    const handleUnifiedSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!identifier.trim() || !password) {
+            setError('Please enter your email/username and password');
+            return;
+        }
         setError(null);
         setIsSubmitting(true);
         try {
-            await register(regUsername, regEmail, regPassword);
-            onClose();
+            await login(identifier.trim(), password);
+            setStep('link_profiles');
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Registration failed');
+            setError(err instanceof Error ? err.message : 'Authentication failed');
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const handleGitHubLogin = async () => {
-        setError(null);
+    const handleSaveProfiles = async (e: React.FormEvent) => {
+        e.preventDefault();
         setIsSubmitting(true);
         try {
-            await githubLogin('surazraaz1998');
+            await updateProfile({
+                leetcode_username: leetcodeHandle.trim() || undefined,
+                gfg_username: gfgHandle.trim() || undefined,
+            });
             onClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'GitHub login failed');
+            console.warn('Failed to save profile handles:', err);
+            onClose();
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    const handleSkip = () => {
+        onClose();
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in" onClick={onClose}>
             <div
-                className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-5"
+                className="relative w-full max-w-md bg-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 shadow-2xl space-y-6 text-center"
                 onClick={(e) => e.stopPropagation()}
             >
                 <button
@@ -78,150 +120,137 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, initialTa
                     <FaTimes size={14} />
                 </button>
 
-                <div>
-                    <h2 className="text-xl font-extrabold text-white tracking-tight">Welcome to AlgoTrack</h2>
-                    <p className="text-xs text-slate-400 mt-1">Sign in to sync your progress and track solved problems.</p>
-                </div>
+                {step === 'auth' ? (
+                    <>
+                        <div className="space-y-2">
+                            <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white mx-auto shadow-lg shadow-blue-500/20">
+                                <FaCode size={22} />
+                            </div>
+                            <h2 className="text-xl font-extrabold text-white tracking-tight">Welcome to AlgoTrack</h2>
+                            <p className="text-xs text-slate-400 max-w-xs mx-auto">
+                                1-Click login or account creation to track your DSA patterns & coding progress.
+                            </p>
+                        </div>
 
-                {/* Tabs */}
-                <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800">
-                    <button
-                        type="button"
-                        onClick={() => { setTab('login'); setError(null); }}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
-                            tab === 'login' ? 'bg-blue-600/30 text-white border border-blue-500/40' : 'text-slate-400'
-                        }`}
-                    >
-                        Log In
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => { setTab('register'); setError(null); }}
-                        className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition ${
-                            tab === 'register' ? 'bg-blue-600/30 text-white border border-blue-500/40' : 'text-slate-400'
-                        }`}
-                    >
-                        Register
-                    </button>
-                </div>
+                        {error && (
+                            <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
+                                {error}
+                            </div>
+                        )}
 
-                {error && (
-                    <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-xs text-rose-400">
-                        {error}
-                    </div>
-                )}
+                        {/* 1-Click Primary GitHub OAuth Login */}
+                        <div className="space-y-3">
+                            <button
+                                type="button"
+                                onClick={() => void handleGitHubAuth()}
+                                disabled={isSubmitting}
+                                className="w-full py-3 rounded-2xl bg-slate-950 border border-slate-700 hover:border-blue-500 text-white text-xs font-bold flex items-center justify-center gap-2.5 shadow-xl transition transform hover:-translate-y-0.5"
+                            >
+                                <FaGithub size={18} className="text-white" />
+                                {isSubmitting ? 'Connecting GitHub...' : '1-Click Login with GitHub'}
+                            </button>
 
-                {/* Social Login */}
-                <div className="space-y-3">
-                    <button
-                        type="button"
-                        onClick={() => void handleGitHubLogin()}
-                        disabled={isSubmitting}
-                        className="w-full py-2.5 rounded-xl bg-slate-800 border border-slate-700 hover:bg-slate-700 text-white text-xs font-semibold flex items-center justify-center gap-2 transition"
-                    >
-                        <FaGithub size={16} /> Continue with GitHub
-                    </button>
-                    <div className="relative text-center">
-                        <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
-                        <span className="relative bg-slate-900 px-3 text-[11px] text-slate-500">or continue with email</span>
-                    </div>
-                </div>
-
-                {/* Form */}
-                {tab === 'login' ? (
-                    <form onSubmit={(e) => void handleLoginSubmit(e)} className="space-y-3.5">
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">Username or Email</label>
-                            <div className="relative flex items-center">
-                                <FaUser className="absolute left-3 text-slate-500 text-xs" />
-                                <input
-                                    type="text"
-                                    placeholder="Enter your username or email"
-                                    value={usernameOrEmail}
-                                    onChange={(e) => setUsernameOrEmail(e.target.value)}
-                                    required
-                                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
-                                />
+                            <div className="relative text-center my-2">
+                                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
+                                <span className="relative bg-slate-900 px-3 text-[11px] text-slate-500 font-medium">or continue with credentials</span>
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
+                        {/* Unified Single Login / Account Form */}
+                        <form onSubmit={(e) => void handleUnifiedSubmit(e)} className="space-y-3.5 text-left">
                             <div className="relative flex items-center">
-                                <FaLock className="absolute left-3 text-slate-500 text-xs" />
+                                <FaUser className="absolute left-3.5 text-slate-500 text-xs" />
+                                <input
+                                    type="text"
+                                    placeholder="Username or Email"
+                                    value={identifier}
+                                    onChange={(e) => setIdentifier(e.target.value)}
+                                    required
+                                    className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
+                                />
+                            </div>
+
+                            <div className="relative flex items-center">
+                                <FaLock className="absolute left-3.5 text-slate-500 text-xs" />
                                 <input
                                     type="password"
-                                    placeholder="••••••••"
+                                    placeholder="Password"
                                     value={password}
                                     onChange={(e) => setPassword(e.target.value)}
                                     required
-                                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
+                                    className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
                                 />
                             </div>
+
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-lg shadow-blue-500/25 hover:opacity-90 transition flex items-center justify-center gap-1.5"
+                            >
+                                <span>{isSubmitting ? 'Authenticating...' : 'Continue to Workspace'}</span>
+                                <FaArrowRight size={12} />
+                            </button>
+                        </form>
+                    </>
+                ) : (
+                    /* Step 2: Link Coding Profiles */
+                    <form onSubmit={(e) => void handleSaveProfiles(e)} className="space-y-5 text-center">
+                        <div className="w-12 h-12 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400 mx-auto">
+                            <FaCheck size={20} />
                         </div>
 
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:opacity-90 transition"
-                        >
-                            {isSubmitting ? 'Logging in...' : 'Sign In'}
-                        </button>
-                    </form>
-                ) : (
-                    <form onSubmit={(e) => void handleRegisterSubmit(e)} className="space-y-3.5">
                         <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">Username</label>
-                            <div className="relative flex items-center">
-                                <FaUser className="absolute left-3 text-slate-500 text-xs" />
+                            <h2 className="text-xl font-extrabold text-white tracking-tight">Connect Coding Profiles</h2>
+                            <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
+                                Link your LeetCode and GeeksForGeeks usernames so AlgoTrack can auto-sync your solved problems.
+                            </p>
+                        </div>
+
+                        <div className="space-y-3.5 text-left bg-slate-950/80 p-4 rounded-2xl border border-slate-800">
+                            <div>
+                                <label className="block text-[11px] font-bold text-amber-400 uppercase tracking-wider mb-1">
+                                    🟠 LeetCode Username
+                                </label>
                                 <input
                                     type="text"
-                                    placeholder="Choose a username"
-                                    value={regUsername}
-                                    onChange={(e) => setRegUsername(e.target.value)}
-                                    required
-                                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
+                                    placeholder="e.g. john_leetcode"
+                                    value={leetcodeHandle}
+                                    onChange={(e) => setLeetcodeHandle(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:border-amber-400 outline-none"
                                 />
                             </div>
-                        </div>
 
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">Email Address</label>
-                            <div className="relative flex items-center">
-                                <FaEnvelope className="absolute left-3 text-slate-500 text-xs" />
+                            <div>
+                                <label className="block text-[11px] font-bold text-emerald-400 uppercase tracking-wider mb-1">
+                                    🟢 GeeksForGeeks Username
+                                </label>
                                 <input
-                                    type="email"
-                                    placeholder="name@example.com"
-                                    value={regEmail}
-                                    onChange={(e) => setRegEmail(e.target.value)}
-                                    required
-                                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
+                                    type="text"
+                                    placeholder="e.g. john_gfg"
+                                    value={gfgHandle}
+                                    onChange={(e) => setGfgHandle(e.target.value)}
+                                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-white text-xs focus:border-emerald-400 outline-none"
                                 />
                             </div>
                         </div>
 
-                        <div>
-                            <label className="block text-xs font-semibold text-slate-300 mb-1">Password</label>
-                            <div className="relative flex items-center">
-                                <FaLock className="absolute left-3 text-slate-500 text-xs" />
-                                <input
-                                    type="password"
-                                    placeholder="Create password"
-                                    value={regPassword}
-                                    onChange={(e) => setRegPassword(e.target.value)}
-                                    required
-                                    className="w-full pl-9 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
-                                />
-                            </div>
-                        </div>
+                        <div className="space-y-2">
+                            <button
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold flex items-center justify-center gap-2 shadow-lg shadow-blue-500/20 hover:opacity-90 transition"
+                            >
+                                Save & Enter Workspace <FaArrowRight size={12} />
+                            </button>
 
-                        <button
-                            type="submit"
-                            disabled={isSubmitting}
-                            className="w-full py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-blue-500/25 hover:opacity-90 transition"
-                        >
-                            {isSubmitting ? 'Creating account...' : 'Create Account'}
-                        </button>
+                            <button
+                                type="button"
+                                onClick={handleSkip}
+                                className="text-xs text-slate-400 hover:text-slate-200 transition py-1"
+                            >
+                                Skip for now →
+                            </button>
+                        </div>
                     </form>
                 )}
             </div>

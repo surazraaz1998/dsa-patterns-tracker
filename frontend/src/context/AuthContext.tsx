@@ -1,20 +1,25 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { api } from '../services/api';
-import { ProblemStatus, User } from '../types';
+import { ProblemProgressDetail, ProblemStatus, User, UserProgressMap } from '../types';
 
 type AuthContextType = {
     user: User | null;
     token: string | null;
     isAuthenticated: boolean;
     solvedCount: number;
-    userProgress: Record<string, ProblemStatus>;
+    userProgress: UserProgressMap;
     loading: boolean;
     login: (username: string, pass: string) => Promise<void>;
     loginAsAdmin: () => Promise<void>;
     register: (username: string, email: string, pass: string) => Promise<void>;
-    githubLogin: (username?: string) => Promise<void>;
+    githubLogin: (payload?: { code?: string; githubUsername?: string } | string) => Promise<void>;
     logout: () => void;
     toggleProblemSolved: (problemTitle: string, problemId?: number) => Promise<void>;
+    saveSubmittedCode: (problemTitle: string, code: string, language: string, problemId?: number) => Promise<void>;
+    syncLeetCode: (leetcodeUsername?: string) => Promise<{ synced_count: number; synced_problems: string[] }>;
+    updateProfile: (data: { leetcode_username?: string; gfg_username?: string; avatar_url?: string }) => Promise<void>;
+    getProblemStatus: (problemTitle: string) => ProblemStatus;
+    getProblemProgress: (problemTitle: string) => ProblemProgressDetail | null;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -24,7 +29,7 @@ const LOCAL_STORAGE_PROGRESS_KEY = 'dsa_tracker_guest_progress';
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
     const [token, setToken] = useState<string | null>(localStorage.getItem('dsa_tracker_token'));
-    const [userProgress, setUserProgress] = useState<Record<string, ProblemStatus>>({});
+    const [userProgress, setUserProgress] = useState<UserProgressMap>({});
     const [loading, setLoading] = useState<boolean>(true);
 
     // Initial session load
@@ -45,7 +50,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     localStorage.removeItem('dsa_tracker_token');
                     setToken(null);
                     setUser(null);
-                    // Load local guest progress fallback
                     loadLocalGuestProgress();
                 }
             } else {
@@ -95,9 +99,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         await handleAuthSuccess(res.token, res.user);
     };
 
-    const githubLogin = async (username: string = 'surazraaz1998') => {
-        const avatarUrl = `https://github.com/${username}.png`;
-        const res = await api.githubAuth(username, `${username.toLowerCase()}@users.noreply.github.com`, avatarUrl);
+    const githubLogin = async (payload: { code?: string; githubUsername?: string } | string = 'surazraaz1998') => {
+        const res = await api.githubAuth(payload);
         await handleAuthSuccess(res.token, res.user);
     };
 
@@ -109,12 +112,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loadLocalGuestProgress();
     };
 
+    const getProblemStatus = (problemTitle: string): ProblemStatus => {
+        const val = userProgress[problemTitle];
+        if (!val) return 'not_started';
+        if (typeof val === 'string') return val as ProblemStatus;
+        return val.status;
+    };
+
+    const getProblemProgress = (problemTitle: string): ProblemProgressDetail | null => {
+        const val = userProgress[problemTitle];
+        if (!val) return null;
+        if (typeof val === 'string') {
+            return { status: val as ProblemStatus };
+        }
+        return val;
+    };
+
     const toggleProblemSolved = async (problemTitle: string, problemId?: number) => {
-        const currentStatus = userProgress[problemTitle] || 'not_started';
+        const currentStatus = getProblemStatus(problemTitle);
         const newStatus: ProblemStatus = currentStatus === 'solved' ? 'not_started' : 'solved';
 
-        // Optimistic UI update
-        const updatedProgress = { ...userProgress, [problemTitle]: newStatus };
+        const existingDetail = getProblemProgress(problemTitle);
+        const newDetail: ProblemProgressDetail = {
+            ...(existingDetail || {}),
+            status: newStatus,
+        };
+
+        const updatedProgress = { ...userProgress, [problemTitle]: newDetail };
         setUserProgress(updatedProgress);
 
         if (user && token) {
@@ -125,14 +149,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 console.error('Failed to sync progress with database:', err);
             }
         } else {
-            // Save to guest localStorage
             localStorage.setItem(LOCAL_STORAGE_PROGRESS_KEY, JSON.stringify(updatedProgress));
         }
     };
 
+    const saveSubmittedCode = async (
+        problemTitle: string,
+        code: string,
+        language: string,
+        problemId?: number
+    ) => {
+        const newDetail: ProblemProgressDetail = {
+            status: 'solved',
+            submitted_code: code,
+            submitted_language: language,
+            last_submitted_at: new Date().toISOString(),
+        };
+
+        const updatedProgress = { ...userProgress, [problemTitle]: newDetail };
+        setUserProgress(updatedProgress);
+
+        if (user && token) {
+            try {
+                const res = await api.updateProgress(problemTitle, 'solved', problemId, code, language);
+                setUser((prev) => (prev ? { ...prev, solved_count: res.total_solved_count } : null));
+            } catch (err) {
+                console.error('Failed to save code to database:', err);
+            }
+        } else {
+            localStorage.setItem(LOCAL_STORAGE_PROGRESS_KEY, JSON.stringify(updatedProgress));
+        }
+    };
+
+    const syncLeetCode = async (leetcodeUsername?: string) => {
+        const res = await api.syncLeetCode(leetcodeUsername);
+        const refreshedProgress = await api.getProgress();
+        setUserProgress(refreshedProgress);
+        setUser((prev) => (prev ? { ...prev, solved_count: res.total_solved_count, leetcode_username: leetcodeUsername || prev.leetcode_username } : null));
+        return { synced_count: res.synced_count, synced_problems: res.synced_problems };
+    };
+
+    const updateProfile = async (data: { leetcode_username?: string; gfg_username?: string; avatar_url?: string }) => {
+        const updatedUser = await api.updateProfile(data);
+        setUser(updatedUser);
+    };
+
     const solvedCount = user
-        ? Object.values(userProgress).filter((s) => s === 'solved').length || user.solved_count
-        : Object.values(userProgress).filter((s) => s === 'solved').length;
+        ? Object.keys(userProgress).filter((title) => getProblemStatus(title) === 'solved').length || user.solved_count
+        : Object.keys(userProgress).filter((title) => getProblemStatus(title) === 'solved').length;
 
     return (
         <AuthContext.Provider
@@ -149,6 +213,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 githubLogin,
                 logout,
                 toggleProblemSolved,
+                saveSubmittedCode,
+                syncLeetCode,
+                updateProfile,
+                getProblemStatus,
+                getProblemProgress,
             }}
         >
             {children}

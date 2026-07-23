@@ -43,13 +43,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 </div>
             )}
 
-            {!loading && !error && patterns.length === 0 && (
+            {!loading && !error && (patterns || []).length === 0 && (
                 <p className="py-8 text-center text-xs text-slate-400">No topics found for this track.</p>
             )}
 
-            {!loading && !error && patterns.length > 0 && (
+            {!loading && !error && (patterns || []).length > 0 && (
                 <div className="max-h-[calc(100vh-220px)] overflow-y-auto pr-1 space-y-2.5">
-                    {patterns.map((pattern) => {
+                    {(patterns || []).map((pattern) => {
                         const isActive = selectedPattern?.slug === pattern.slug;
                         return (
                             <button
