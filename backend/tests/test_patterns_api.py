@@ -17,7 +17,7 @@ def test_list_patterns_dsa_track():
     assert len(data) >= 3
     slugs = [p["slug"] for p in data]
     assert "two-pointers" in slugs or "two-pointer" in slugs
-    assert "fast-and-slow-pointers" in slugs
+    assert "fast-slow-pointers" in slugs or "fast-and-slow-pointers" in slugs
     assert "sliding-window" in slugs
 
 
