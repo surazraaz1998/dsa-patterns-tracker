@@ -316,6 +316,7 @@ export const Header: React.FC<HeaderProps> = ({
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
                 initialTab={authModalTab}
+                onEnterGuestMode={onEnterGuestMode}
             />
 
             <ProfileModal
