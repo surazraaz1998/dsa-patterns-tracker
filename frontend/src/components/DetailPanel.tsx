@@ -109,14 +109,23 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
 
                 {/* Problem Tiers */}
                 <div className="space-y-6">
-                    {Object.entries(selectedPattern.problems_by_tier || {}).map(([tier, problems = []]) => (
+                    {Object.entries(selectedPattern.problems_by_tier || {}).map(([tier, problems = []]) => {
+                        const tierMeta: Record<string, { label: string; badge: string; dot: string }> = {
+                            '1': { label: 'Foundation', badge: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30', dot: 'bg-emerald-400' },
+                            '2': { label: 'Core Fluency', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/30', dot: 'bg-blue-400' },
+                            '3': { label: 'Deep Dive', badge: 'bg-amber-500/10 text-amber-400 border-amber-500/30', dot: 'bg-amber-400' },
+                            '4': { label: 'Interview Expert', badge: 'bg-rose-500/10 text-rose-400 border-rose-500/30', dot: 'bg-rose-400' },
+                        };
+                        const meta = tierMeta[tier] || { label: 'Problems', badge: 'bg-blue-500/10 text-blue-400 border-blue-500/30', dot: 'bg-blue-400' };
+
+                        return (
                         <div key={tier} className="bg-slate-950/50 border border-slate-800 rounded-2xl p-4 md:p-5">
                             <div className="flex items-center justify-between mb-4 border-b border-slate-800/80 pb-2.5">
                                 <h3 className="text-sm md:text-base font-bold text-slate-200 flex items-center gap-2">
-                                    <span className="w-2.5 h-2.5 rounded-full bg-blue-500" />
-                                    Tier {tier} Problems
+                                    <span className={`w-2.5 h-2.5 rounded-full ${meta.dot}`} />
+                                    <span>Tier {tier} — {meta.label}</span>
                                 </h3>
-                                <span className="text-[11px] font-semibold text-slate-400 bg-slate-800/60 px-2.5 py-0.5 rounded-full border border-slate-700">
+                                <span className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${meta.badge}`}>
                                     {(problems || []).length} {(problems || []).length === 1 ? 'Problem' : 'Problems'}
                                 </span>
                             </div>
@@ -388,7 +397,8 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                 })}
                             </ul>
                         </div>
-                    ))}
+                    );
+                })}
                 </div>
             </div>
         </section>

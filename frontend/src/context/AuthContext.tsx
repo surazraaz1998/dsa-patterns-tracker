@@ -87,14 +87,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem('dsa_tracker_token', authToken);
 
         try {
-            const prog = await api.getProgress();
+            // Merge guest progress if present
+            const guestRaw = localStorage.getItem(LOCAL_STORAGE_PROGRESS_KEY);
+            if (guestRaw) {
+                try {
+                    const guestProg: UserProgressMap = JSON.parse(guestRaw);
+                    for (const [title, detail] of Object.entries(guestProg)) {
+                        const status = typeof detail === 'string' ? detail : detail.status;
+                        if (status === 'solved') {
+                            await api.updateProgress(title, 'solved');
+                        }
+                    }
+                    localStorage.removeItem(LOCAL_STORAGE_PROGRESS_KEY);
+                } catch (guestErr) {
+                    console.warn('Guest progress merge failed:', guestErr);
+                }
+            }
+
+            let prog = await api.getProgress();
             setUserProgress(prog);
 
             if (authUser.leetcode_username) {
                 try {
                     const syncRes = await api.syncLeetCode(authUser.leetcode_username);
-                    const refreshedProg = await api.getProgress();
-                    setUserProgress(refreshedProg);
+                    prog = await api.getProgress();
+                    setUserProgress(prog);
                     authUser = { ...authUser, solved_count: syncRes.total_solved_count };
                     setUser(authUser);
                 } catch (syncErr) {
