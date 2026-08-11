@@ -41,7 +41,25 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                 gfg_username: gfgHandle.trim() || undefined,
             });
             setSavedHandleSuccess(true);
-            setTimeout(() => setSavedHandleSuccess(false), 2000);
+
+            if (leetcodeHandle.trim()) {
+                setIsSyncing(true);
+                const result = await syncLeetCode(leetcodeHandle.trim()).catch((syncErr) => {
+                    console.warn('Auto sync warning:', syncErr);
+                    return null;
+                });
+                setIsSyncing(false);
+                if (result) {
+                    setSyncMessage({
+                        type: 'success',
+                        text: `Profile saved & synced ${result.synced_count} solved LeetCode questions!`
+                    });
+                }
+            } else {
+                setSyncMessage({ type: 'success', text: 'Profile handles saved successfully!' });
+            }
+
+            setTimeout(() => setSavedHandleSuccess(false), 3000);
         } catch (err: any) {
             setSyncMessage({ type: 'error', text: err.message || 'Failed to update profile handles' });
         } finally {

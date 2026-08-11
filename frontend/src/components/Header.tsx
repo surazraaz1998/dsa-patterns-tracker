@@ -22,12 +22,16 @@ type HeaderProps = {
     patterns?: PatternSummary[];
     selectedSlug?: string;
     onSelectPattern?: (slug: string) => void;
+    isWorkspaceActive?: boolean;
+    onEnterGuestMode?: () => void;
 };
 
 export const Header: React.FC<HeaderProps> = ({
     patterns = [],
     selectedSlug,
     onSelectPattern,
+    isWorkspaceActive = false,
+    onEnterGuestMode,
 }) => {
     const { user, isAuthenticated, solvedCount, logout } = useAuth();
     const { activeTrack, selectTrack } = useTrack();
@@ -73,9 +77,9 @@ export const Header: React.FC<HeaderProps> = ({
                         </div>
                     </div>
 
-                    {/* Middle: Desktop Track Switcher (Only for Logged-In Users) */}
+                    {/* Middle: Desktop Track Switcher (Only for Active Workspace) */}
                     <div className="hidden md:flex flex-1 justify-center max-w-xl px-2">
-                        {isAuthenticated && (
+                        {isWorkspaceActive && (
                             <TrackSelector />
                         )}
                     </div>
@@ -109,14 +113,41 @@ export const Header: React.FC<HeaderProps> = ({
                                     )}
                                 </div>
                             </button>
+                        ) : isWorkspaceActive ? (
+                            <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-semibold">
+                                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                                    <span>Guest Mode</span>
+                                    <span className="text-slate-500">•</span>
+                                    <span className="font-bold text-emerald-400">{solvedCount} Solved</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => openAuthModal('login')}
+                                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 transition"
+                                >
+                                    <FaUser size={12} /> Sign In to Sync
+                                </button>
+                            </div>
                         ) : (
-                            <button
-                                type="button"
-                                onClick={() => openAuthModal('login')}
-                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 transition"
-                            >
-                                <FaUser size={12} /> Log In / Sign Up
-                            </button>
+                            <div className="flex items-center gap-2">
+                                {onEnterGuestMode && (
+                                    <button
+                                        type="button"
+                                        onClick={onEnterGuestMode}
+                                        className="px-3.5 py-2 rounded-xl border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold transition"
+                                    >
+                                        Try Guest Mode ⚡
+                                    </button>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => openAuthModal('login')}
+                                    className="inline-flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-blue-600 to-indigo-600 shadow-md shadow-blue-500/25 hover:from-blue-500 hover:to-indigo-500 transition"
+                                >
+                                    <FaUser size={12} /> Log In / Sign Up
+                                </button>
+                            </div>
                         )}
                     </div>
 

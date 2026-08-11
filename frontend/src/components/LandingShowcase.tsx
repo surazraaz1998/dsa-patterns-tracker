@@ -6,18 +6,19 @@ import {
     FaLayerGroup,
     FaCheckCircle,
     FaArrowRight,
-    FaLock,
     FaStar,
     FaShieldAlt,
     FaCode,
-    FaLightbulb
+    FaLightbulb,
+    FaBolt
 } from 'react-icons/fa';
 
 type LandingShowcaseProps = {
     onOpenAuth: (tab: 'login' | 'register') => void;
+    onEnterGuestMode?: () => void;
 };
 
-export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth }) => {
+export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, onEnterGuestMode }) => {
     return (
         <div className="w-full max-w-6xl mx-auto py-6 md:py-12 space-y-12 animate-fade-in">
             {/* Hero Section */}
@@ -45,21 +46,23 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth }) 
                         <FaArrowRight size={14} />
                     </button>
 
-                    <button
-                        type="button"
-                        onClick={() => onOpenAuth('login')}
-                        className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-sm font-bold text-slate-200 bg-slate-900/90 border border-slate-800 hover:bg-slate-800 hover:text-white transition-all"
-                    >
-                        <FaLock size={12} className="text-slate-400" />
-                        <span>Sign In to Unlock</span>
-                    </button>
+                    {onEnterGuestMode && (
+                        <button
+                            type="button"
+                            onClick={onEnterGuestMode}
+                            className="w-full sm:w-auto inline-flex items-center justify-center gap-2 px-7 py-3.5 rounded-2xl text-sm font-bold text-slate-200 bg-slate-900/90 border border-slate-800 hover:bg-slate-800 hover:border-slate-700 hover:text-white transition-all shadow-lg"
+                        >
+                            <FaBolt size={14} className="text-amber-400" />
+                            <span>Explore as Guest (Instant Access)</span>
+                        </button>
+                    )}
                 </div>
 
                 {/* Trust Badges */}
                 <div className="flex items-center justify-center gap-6 text-xs text-slate-400 pt-2">
                     <span className="flex items-center gap-1.5"><FaShieldAlt className="text-emerald-400" /> 100% Free Forever</span>
-                    <span className="flex items-center gap-1.5"><FaStar className="text-amber-400" /> Curated Questions</span>
-                    <span className="flex items-center gap-1.5"><FaCheckCircle className="text-blue-400" /> Real-time Progress</span>
+                    <span className="flex items-center gap-1.5"><FaStar className="text-amber-400" /> 15 Tiered Patterns</span>
+                    <span className="flex items-center gap-1.5"><FaCheckCircle className="text-blue-400" /> Auto LeetCode Sync</span>
                 </div>
             </div>
 
@@ -70,7 +73,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth }) 
                     <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 text-xl">
                         <FaBrain />
                     </div>
-                    <h3 className="text-base font-bold text-white">Pattern-Based Learning</h3>
+                    <h3 className="text-base font-bold text-white">15 Reusable Patterns</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
                         Group questions by underlying algorithmic patterns (Two-Pointer, Sliding Window, Monotonic Stack) to solve new problems effortlessly.
                     </p>
@@ -111,16 +114,18 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth }) 
                             <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Sneak Peek Inside</span>
                             <h2 className="text-lg md:text-xl font-bold text-white">Structured Practice Workspace</h2>
                         </div>
-                        <button
-                            type="button"
-                            onClick={() => onOpenAuth('register')}
-                            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold self-start sm:self-auto transition"
-                        >
-                            <FaLock size={12} /> Unlock All Practice Guides
-                        </button>
+                        {onEnterGuestMode && (
+                            <button
+                                type="button"
+                                onClick={onEnterGuestMode}
+                                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition self-start sm:self-auto"
+                            >
+                                <FaBolt size={12} /> Enter Practice Workspace
+                            </button>
+                        )}
                     </div>
 
-                    {/* Dummy Blurred Teaser Content */}
+                    {/* Preview Cards */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Sample Card 1 */}
                         <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
@@ -137,7 +142,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth }) 
                             </p>
                             <div className="flex gap-2 pt-1">
                                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 flex items-center gap-1">
-                                    <FaLightbulb className="text-amber-400" /> 2 Hints Included
+                                    <FaLightbulb className="text-amber-400" /> Hints Included
                                 </span>
                                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 flex items-center gap-1">
                                     <FaCode className="text-blue-400" /> JS & Python Solutions
@@ -169,25 +174,28 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth }) 
                         </div>
                     </div>
 
-                    {/* Lock Overlay Banner */}
-                    <div className="p-4 rounded-2xl bg-blue-600/10 border border-blue-500/30 text-center space-y-2">
-                        <p className="text-xs text-blue-200">
-                            🔒 <strong>Authentication Required:</strong> Please log in or create a free account to access questions, practice solutions, and save your progress.
-                        </p>
-                        <div className="flex justify-center gap-3 pt-1">
-                            <button
-                                type="button"
-                                onClick={() => onOpenAuth('login')}
-                                className="px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold"
-                            >
-                                Log In
-                            </button>
+                    {/* Bottom CTA Bar */}
+                    <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
+                        <div className="text-left">
+                            <h4 className="text-sm font-bold text-white">Ready to start practicing?</h4>
+                            <p className="text-xs text-slate-400">Practice instantly as a guest or sign in to sync your LeetCode profile.</p>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0">
+                            {onEnterGuestMode && (
+                                <button
+                                    type="button"
+                                    onClick={onEnterGuestMode}
+                                    className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition"
+                                >
+                                    Try Guest Mode
+                                </button>
+                            )}
                             <button
                                 type="button"
                                 onClick={() => onOpenAuth('register')}
-                                className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold"
+                                className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-bold shadow-md shadow-blue-500/20 hover:opacity-90 transition"
                             >
-                                Register Now
+                                Sign Up Free
                             </button>
                         </div>
                     </div>

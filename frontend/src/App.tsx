@@ -74,12 +74,24 @@ function MainAppContent() {
     const [error, setError] = useState<string | null>(null);
     const [mobileTab, setMobileTab] = useState<'topics' | 'details'>('topics');
 
+    const [isGuestSession, setIsGuestSession] = useState<boolean>(() => {
+        return localStorage.getItem('dsa_tracker_guest_mode') === 'true';
+    });
+
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+
+    const isWorkspaceActive = isAuthenticated || isGuestSession;
 
     const openAuthModal = (tab: 'login' | 'register') => {
         setAuthModalTab(tab);
         setIsAuthModalOpen(true);
+    };
+
+    const handleEnterGuestMode = () => {
+        localStorage.setItem('dsa_tracker_guest_mode', 'true');
+        setIsGuestSession(true);
+        setIsAuthModalOpen(false);
     };
 
     // Auto-detect GitHub / Google OAuth ?code= redirect URL parameter on mount
@@ -102,9 +114,9 @@ function MainAppContent() {
         }
     }, [githubLogin, googleLogin]);
 
-    // Load patterns ONLY when authenticated
+    // Load patterns ONLY when workspace is active (Authenticated OR Guest Mode entered)
     useEffect(() => {
-        if (!isAuthenticated) {
+        if (!isWorkspaceActive) {
             setPatterns([]);
             setSelectedPattern(null);
             setLoading(false);
@@ -123,7 +135,7 @@ function MainAppContent() {
                     setSelectedPattern(null);
                 }
             } catch (err) {
-                setError(err instanceof Error ? err.message : 'Unexpected error');
+                setError(err instanceof Error ? err.message : 'Unexpected error loading patterns');
                 setPatterns([]);
                 setSelectedPattern(null);
             } finally {
@@ -132,7 +144,7 @@ function MainAppContent() {
         };
 
         void loadPatterns();
-    }, [activeTrackId, isAuthenticated]);
+    }, [activeTrackId, isWorkspaceActive]);
 
     const fetchPatternDetail = async (slug: string, switchMobileTab: boolean = true) => {
         try {
@@ -148,15 +160,17 @@ function MainAppContent() {
 
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
-            {/* Header Navbar with Mobile Drawer */}
+            {/* Header Navbar */}
             <Header
                 patterns={patterns}
                 selectedSlug={selectedPattern?.slug}
                 onSelectPattern={(slug) => void fetchPatternDetail(slug, true)}
+                isWorkspaceActive={isWorkspaceActive}
+                onEnterGuestMode={handleEnterGuestMode}
             />
 
-            {/* If Authenticated: Render Workspace */}
-            {isAuthenticated ? (
+            {/* If Active Workspace (Authenticated or Guest Mode): Render Practice Workspace */}
+            {isWorkspaceActive ? (
                 <>
                     {/* Mobile View Toggle Tabs (< md screens) */}
                     <div className="flex md:hidden max-w-7xl mx-auto px-4 w-full mt-3 gap-2">
@@ -206,17 +220,21 @@ function MainAppContent() {
                     </main>
                 </>
             ) : (
-                /* If Guest (Unauthenticated): Render Brand Landing Showcase */
+                /* Initial Brand Landing Showcase (Zero API Calls) */
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 w-full flex-1">
-                    <LandingShowcase onOpenAuth={openAuthModal} />
+                    <LandingShowcase
+                        onOpenAuth={openAuthModal}
+                        onEnterGuestMode={handleEnterGuestMode}
+                    />
                 </main>
             )}
 
-            {/* Auth Modal Triggered from Landing Showcase */}
+            {/* Auth Modal */}
             <AuthModal
                 isOpen={isAuthModalOpen}
                 onClose={() => setIsAuthModalOpen(false)}
                 initialTab={authModalTab}
+                onEnterGuestMode={handleEnterGuestMode}
             />
 
             {/* Site Footer */}

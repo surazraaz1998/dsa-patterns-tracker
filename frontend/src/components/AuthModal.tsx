@@ -7,9 +7,10 @@ type AuthModalProps = {
     isOpen: boolean;
     onClose: () => void;
     initialTab?: 'login' | 'register';
+    onEnterGuestMode?: () => void;
 };
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGuestMode }) => {
     const { user, unifiedEmailAuth, updateProfile, syncLeetCode } = useAuth();
     const [step, setStep] = useState<'auth' | 'link_profiles'>('auth');
 
@@ -221,6 +222,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
                                 <FaArrowRight size={12} />
                             </button>
                         </form>
+
+                        <div className="pt-2 border-t border-slate-800/80">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    if (onEnterGuestMode) onEnterGuestMode();
+                                    onClose();
+                                }}
+                                className="w-full py-2.5 rounded-xl border border-slate-800 bg-slate-950/60 hover:bg-slate-800 text-slate-400 hover:text-white text-xs font-semibold transition"
+                            >
+                                Continue as Guest →
+                            </button>
+                        </div>
                     </>
                 ) : (
                     /* Step 2: Link Handles for Question Auto-Syncing */

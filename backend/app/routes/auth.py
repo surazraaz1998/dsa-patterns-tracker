@@ -341,7 +341,7 @@ def get_github_oauth_url(redirect_uri: Optional[str] = None):
     client_id = os.getenv("GITHUB_CLIENT_ID", "").strip()
     if not client_id:
         return {"url": "", "client_id": "", "configured": False}
-    effective_redirect_uri = redirect_uri or os.getenv("GITHUB_REDIRECT_URI", "http://localhost:5173")
+    effective_redirect_uri = (redirect_uri or os.getenv("GITHUB_REDIRECT_URI", "http://localhost:5173")).strip().rstrip("/")
     url = f"https://github.com/login/oauth/authorize?client_id={client_id}&redirect_uri={effective_redirect_uri}&scope=read:user%20user:email"
     return {"url": url, "client_id": client_id, "configured": True}
 
@@ -357,7 +357,7 @@ async def github_auth(req: GitHubAuthRequest, db: Session = Depends(get_db)):
         if req.code:
             client_id = os.getenv("GITHUB_CLIENT_ID", "").strip()
             client_secret = os.getenv("GITHUB_CLIENT_SECRET", "").strip()
-            effective_redirect_uri = req.redirect_uri or os.getenv("GITHUB_REDIRECT_URI", "http://localhost:5173")
+            effective_redirect_uri = (req.redirect_uri or os.getenv("GITHUB_REDIRECT_URI", "http://localhost:5173")).strip().rstrip("/")
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:
                     token_res = await client.post(
@@ -478,7 +478,7 @@ def get_google_oauth_url(redirect_uri: Optional[str] = None):
     client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
     if not client_id:
         return {"url": "", "client_id": "", "configured": False}
-    effective_redirect_uri = redirect_uri or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173")
+    effective_redirect_uri = (redirect_uri or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173")).strip().rstrip("/")
     scope = "https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile"
     url = (
         f"https://accounts.google.com/o/oauth2/v2/auth?"
@@ -495,9 +495,9 @@ async def google_auth(req: GoogleAuthRequest, db: Session = Depends(get_db)):
         google_user_data = None
 
         if req.code:
-            client_id = os.getenv("GOOGLE_CLIENT_ID", "")
-            client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
-            effective_redirect_uri = req.redirect_uri or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173")
+            client_id = os.getenv("GOOGLE_CLIENT_ID", "").strip()
+            client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "").strip()
+            effective_redirect_uri = (req.redirect_uri or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:5173")).strip().rstrip("/")
 
             try:
                 async with httpx.AsyncClient(timeout=10.0) as client:

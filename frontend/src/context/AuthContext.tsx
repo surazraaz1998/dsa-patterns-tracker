@@ -94,8 +94,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     const guestProg: UserProgressMap = JSON.parse(guestRaw);
                     for (const [title, detail] of Object.entries(guestProg)) {
                         const status = typeof detail === 'string' ? detail : detail.status;
-                        if (status === 'solved') {
-                            await api.updateProgress(title, 'solved');
+                        const code = typeof detail === 'object' ? detail?.submitted_code : undefined;
+                        const lang = typeof detail === 'object' ? detail?.submitted_language : undefined;
+                        if (status === 'solved' || code) {
+                            await api.updateProgress(title, status || 'solved', undefined, code || undefined, lang || undefined);
                         }
                     }
                     localStorage.removeItem(LOCAL_STORAGE_PROGRESS_KEY);
