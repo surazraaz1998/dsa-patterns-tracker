@@ -1,9 +1,16 @@
 import os
 import logging
+from pathlib import Path
+
+from dotenv import load_dotenv
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
 logger = logging.getLogger("dsa_patterns_tracker")
+
+# Load backend/.env before anything reads configuration. Existing environment
+# variables win, so tests and hosting platforms can override it.
+load_dotenv(Path(__file__).resolve().parents[1] / ".env")
 
 DATABASE_URL = os.getenv("DATABASE_URL", "").strip()
 
@@ -31,6 +38,14 @@ except Exception as e:
     if not DATABASE_URL.startswith("postgresql"):
         DATABASE_URL = "sqlite:///./dsa_tracker.db"
         engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
+
+if DATABASE_URL.startswith("sqlite"):
+    from sqlalchemy import event
+
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _record):
+        # SQLite ignores ON DELETE CASCADE unless this is on for every connection.
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
@@ -88,6 +103,7 @@ def init_db():
                 ("guide_explanation", "TEXT"),
                 ("guide_python", "TEXT"),
                 ("guide_javascript", "TEXT"),
+                ("guide_answer_md", "TEXT"),
             ]
             with engine.begin() as conn:
                 for col_name, col_type in prob_cols:
@@ -100,13 +116,18 @@ def init_db():
 
         if "patterns" in tables:
             existing_cols = {col["name"] for col in inspector.get_columns("patterns")}
-            if "track_category" not in existing_cols:
-                with engine.begin() as conn:
-                    try:
-                        conn.execute(text("ALTER TABLE patterns ADD COLUMN track_category VARCHAR(50) DEFAULT 'dsa'"))
-                        logger.info("Added missing column 'track_category' to 'patterns' table.")
-                    except Exception as exc:
-                        logger.warning("Could not add column 'track_category' to 'patterns': %s", exc)
+            pattern_cols = [
+                ("track_category", "VARCHAR(50) DEFAULT 'dsa'"),
+                ("lesson_json", "TEXT"),
+            ]
+            with engine.begin() as conn:
+                for col_name, col_type in pattern_cols:
+                    if col_name not in existing_cols:
+                        try:
+                            conn.execute(text(f"ALTER TABLE patterns ADD COLUMN {col_name} {col_type}"))
+                            logger.info("Added missing column '%s' to 'patterns' table.", col_name)
+                        except Exception as exc:
+                            logger.warning("Could not add column '%s' to 'patterns': %s", col_name, exc)
 
     except Exception as exc:
         logger.warning("Database schema check encountered non-fatal error: %s", exc)

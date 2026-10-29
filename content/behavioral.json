@@ -1,0 +1,93 @@
+{
+  "track": {
+    "id": "behavioral",
+    "name": "Behavioral & HR",
+    "description": "STAR stories, job-switch questions and negotiation.",
+    "icon": "🤝",
+    "order": 7
+  },
+  "topics": [
+    {
+      "slug": "star-storytelling",
+      "name": "STAR Storytelling",
+      "description": "Turn your work into crisp stories: Situation, Task, Action, Result — with numbers.",
+      "revision_note_md": "## The STAR method\n\n- **S**ituation — 1–2 lines of context.\n- **T**ask — what *you* owned.\n- **A**ction — 60% of the answer; say **I**, not *we*; specific decisions and why.\n- **R**esult — numbers (latency ↓40%, ₹/$ saved, users), plus what you learned.\n\n**Prepare a story bank of 6–8 stories** that can each answer several questions: a hard bug, a conflict, a failure, leadership without authority, a tight deadline, a proud project.\n\nKeep each answer to **~2 minutes**.",
+      "items": [
+        {
+          "title": "Tell me about yourself",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Present → Past → Future.",
+            "End with why this role."
+          ],
+          "explanation": "A 60-90 second pitch: present role and impact, past experience that led here, and why this role is the logical next step; not a CV readout.",
+          "answer_md": "**Present → Past → Future** in ~90 s:\n> \"I'm a backend engineer at X, where I own the payments service handling 2M txns/day — recently cut p99 latency 40%. Before that I … Now I'm looking for a role where I can work on larger-scale distributed systems, which is why this team excites me.\""
+        },
+        {
+          "title": "Tell me about a challenging bug or technical problem",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Show your debugging process, not just the fix.",
+            "What did you add so it never happens again?"
+          ],
+          "explanation": "Use STAR: describe the impact of the bug, how you narrowed it down systematically with logs, metrics and hypotheses, the fix, and the prevention you added.",
+          "answer_md": "Show **method**: reproduce → observe (logs, metrics, traces) → hypothesise → bisect → fix → **prevent** (test, alert, postmortem). Quantify impact before and after."
+        },
+        {
+          "title": "Describe a time you failed",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Avoid fake failures like 'I work too hard'.",
+            "Spend most time on the learning."
+          ],
+          "explanation": "Pick a real failure with real stakes, own it without blaming others, explain what you changed afterwards, and show the lesson applied later.",
+          "answer_md": "Choose something real but not catastrophic. Own it (\"I underestimated…\"), describe the recovery, and — most important — **what you do differently now**, with an example of applying it."
+        }
+      ]
+    },
+    {
+      "slug": "job-switch-hr",
+      "name": "Job Switch & HR Round",
+      "description": "Why are you leaving, notice period, salary negotiation and questions to ask the interviewer.",
+      "revision_note_md": "## HR round playbook\n\n- **Why switch?** Talk about *pull* (growth, scale, domain) not *push* (bad manager). Never badmouth.\n- **Salary**: research bands (levels.fyi, Glassdoor, AmbitionBox); let them anchor first; talk total compensation; negotiate with competing offers politely.\n- **Notice period**: be honest; mention buy-out options if any.\n- **Gaps / short stints**: one honest sentence + what you did/learned.\n- **Always ask 2–3 questions** at the end.",
+      "items": [
+        {
+          "title": "Why do you want to leave your current company?",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Pull factors, not push factors.",
+            "Connect it to this specific role."
+          ],
+          "explanation": "Frame it positively around growth and what the new role offers, such as bigger scale, new domain, or ownership, without criticising the current employer.",
+          "answer_md": "> \"I've learned a lot at X — I built Y and grew into owning Z. I'm now looking for bigger scale/ownership in [domain], and this role offers exactly that.\"\n\nNever: \"My manager is bad\" / \"only for money\"."
+        },
+        {
+          "title": "What are your salary expectations?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Try to get their range first.",
+            "Talk total compensation, not only fixed."
+          ],
+          "explanation": "Deflect early to understand the band, then give a researched range based on total compensation and market data, anchored slightly above your target, and negotiate with data or competing offers.",
+          "answer_md": "Early: *\"I'd like to understand the role and level first — what's the budgeted range?\"*\nIf pushed: give a **researched range** (fixed + variable + stock), with your target near the bottom. With an offer: be grateful, cite market data or competing offers, ask for one specific improvement."
+        },
+        {
+          "title": "Do you have any questions for us?",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Never say 'no questions'.",
+            "Ask about what success looks like."
+          ],
+          "explanation": "Always ask thoughtful questions about the team, success in the first 90 days, engineering practices, and challenges, showing genuine interest.",
+          "answer_md": "Good ones:\n- What does success look like in the first 90 days?\n- What's the biggest technical challenge the team faces right now?\n- How are code review, on-call and deployments done?\n- How do engineers grow here (levels, promotions)?"
+        }
+      ]
+    }
+  ]
+}

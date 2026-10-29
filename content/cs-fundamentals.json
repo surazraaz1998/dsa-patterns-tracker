@@ -1,0 +1,157 @@
+{
+  "track": {
+    "id": "cs-fundamentals",
+    "name": "CS Fundamentals",
+    "description": "OS, DBMS/SQL and Computer Networks — the theory round.",
+    "icon": "💻",
+    "order": 6
+  },
+  "topics": [
+    {
+      "slug": "operating-systems",
+      "name": "Operating Systems",
+      "description": "Processes vs threads, scheduling, deadlocks, memory management and paging.",
+      "revision_note_md": "## OS in one page\n\n- **Process** = program in execution with its own address space. **Thread** = unit of execution inside a process, sharing memory.\n- **Context switch**: save/restore registers + PC; process switches are costlier (TLB flush, page tables).\n- **Scheduling**: FCFS, SJF, Round Robin, Priority, Multilevel queue.\n- **Synchronisation**: race condition → critical section → mutex / semaphore / monitor.\n- **Deadlock** needs all four: mutual exclusion, hold-and-wait, no preemption, circular wait.\n- **Virtual memory**: paging maps virtual pages to physical frames; page fault loads from disk; TLB caches translations.",
+      "items": [
+        {
+          "title": "Process vs thread",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "What is shared and what is private for a thread?",
+            "Which crash takes down what?"
+          ],
+          "explanation": "A process has its own memory space and resources; threads live inside a process and share its memory, so they are cheaper to create and switch but need synchronisation.",
+          "answer_md": "| | Process | Thread |\n|---|---|---|\n| Memory | own address space | shares heap/code with siblings |\n| Private | everything | stack, registers, PC |\n| Creation/switch | expensive | cheap |\n| Communication | IPC (pipes, sockets) | shared memory (needs locks) |\n| Crash | isolated | can kill whole process |\n\nExample: Chrome uses a process per tab for isolation; a web server uses a thread pool for throughput."
+        },
+        {
+          "title": "What is a deadlock and how do you prevent it?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Name the four Coffman conditions.",
+            "Lock ordering breaks circular wait."
+          ],
+          "explanation": "Deadlock is when processes wait on each other forever; it requires mutual exclusion, hold and wait, no preemption, and circular wait; prevent by breaking one, e.g. global lock ordering or timeouts.",
+          "answer_md": "Four **Coffman conditions** must all hold: mutual exclusion, hold-and-wait, no preemption, circular wait.\n\nHandling: **prevention** (always acquire locks in a fixed global order; request all at once), **avoidance** (Banker's algorithm), **detection + recovery** (wait-for graph, kill/rollback), or **timeouts** (`tryLock`)."
+        },
+        {
+          "title": "Mutex vs semaphore",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Who can release a mutex?",
+            "Binary semaphore vs mutex difference."
+          ],
+          "explanation": "A mutex is a lock with ownership allowing one thread into a critical section; a semaphore is a counter allowing up to N threads and can be signalled by any thread, used for resource pools and signalling.",
+          "answer_md": "- **Mutex**: ownership — only the thread that locked it can unlock it; protects a critical section.\n- **Counting semaphore**: integer N; `wait()` decrements, `signal()` increments; limits concurrent access (DB connection pool of 10).\n- **Binary semaphore** looks like a mutex but has no ownership → used for signalling between threads."
+        },
+        {
+          "title": "Explain paging, page faults and thrashing",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "What does the TLB cache?",
+            "Name a page replacement algorithm."
+          ],
+          "explanation": "Paging splits virtual memory into fixed pages mapped to physical frames via page tables; a page fault occurs when a page is not in RAM; thrashing is when the system spends more time swapping pages than executing.",
+          "answer_md": "Virtual address → (page number, offset) → **page table** → frame. **TLB** caches recent translations. Accessing a page not in RAM → **page fault** → OS loads it from disk (evicting via LRU/FIFO/Clock). If the working set doesn't fit in RAM, the system **thrashes** — constant faults, CPU idle. Fix: more RAM, fewer processes, better locality."
+        }
+      ]
+    },
+    {
+      "slug": "dbms",
+      "name": "DBMS & SQL",
+      "description": "ACID, isolation levels, indexing, normalization and the SQL queries every interview asks.",
+      "revision_note_md": "## DBMS essentials\n\n- **ACID**: Atomicity, Consistency, Isolation, Durability.\n- **Isolation anomalies**: dirty read, non-repeatable read, phantom read → Read Uncommitted < Read Committed < Repeatable Read < Serializable.\n- **Indexes**: B+ tree (range queries), hash (equality). Speed reads, slow writes, cost storage. Composite index follows the left-prefix rule.\n- **Normalization**: 1NF atomic values, 2NF no partial dependency, 3NF no transitive dependency; denormalize for read speed.\n- **SQL must-knows**: JOINs, GROUP BY + HAVING, window functions (`ROW_NUMBER`, `RANK`), subqueries.",
+      "items": [
+        {
+          "title": "Explain ACID properties",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Use a bank transfer as the example.",
+            "Which component provides durability? (WAL)"
+          ],
+          "explanation": "Atomicity means all or nothing, Consistency means constraints hold before and after, Isolation means concurrent transactions don't interfere, Durability means committed data survives crashes.",
+          "answer_md": "Bank transfer ₹100 from A to B:\n- **Atomicity** — debit and credit both happen or neither (rollback).\n- **Consistency** — total money and constraints remain valid.\n- **Isolation** — another transaction never sees the half-done state.\n- **Durability** — once committed, survives a crash (write-ahead log)."
+        },
+        {
+          "title": "How does a database index work? When does it hurt?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "B+ tree leaves are linked — why does that help range queries?",
+            "Left-prefix rule for composite indexes."
+          ],
+          "explanation": "An index is usually a B+ tree on column values pointing to rows, turning full scans into logarithmic lookups; it slows inserts and updates, uses storage, and is skipped for low-selectivity columns or functions on the column.",
+          "answer_md": "A **B+ tree** keeps keys sorted with linked leaves → O(log n) lookup and fast range scans. Composite index `(a, b)` helps `WHERE a=?` and `WHERE a=? AND b=?` but not `WHERE b=?` (**left-prefix rule**).\n\nCosts: slower writes (index maintenance), extra storage, useless on low-cardinality columns (gender), defeated by `WHERE LOWER(email)=...` unless it's a functional index. Check with `EXPLAIN`."
+        },
+        {
+          "title": "Find the second highest salary (and Nth highest)",
+          "tier": 1,
+          "url": "https://leetcode.com/problems/second-highest-salary/",
+          "hints": [
+            "Think about duplicates in salary.",
+            "DENSE_RANK vs RANK vs ROW_NUMBER."
+          ],
+          "explanation": "Use a subquery with MAX below the max, or DENSE_RANK window function to get the Nth highest handling ties.",
+          "answer_md": "```sql\n-- 2nd highest\nSELECT MAX(salary) FROM employees\nWHERE salary < (SELECT MAX(salary) FROM employees);\n\n-- Nth highest, ties handled\nSELECT DISTINCT salary FROM (\n  SELECT salary, DENSE_RANK() OVER (ORDER BY salary DESC) AS rnk\n  FROM employees\n) t WHERE rnk = 3;\n```",
+          "leetcode_number": 176
+        },
+        {
+          "title": "Transaction isolation levels and their anomalies",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Map each anomaly to the level that fixes it.",
+            "Postgres default is Read Committed."
+          ],
+          "explanation": "Read uncommitted allows dirty reads, read committed prevents dirty reads, repeatable read prevents non-repeatable reads, serializable prevents phantoms; higher levels cost concurrency.",
+          "answer_md": "| Level | Dirty read | Non-repeatable | Phantom |\n|---|---|---|---|\n| Read Uncommitted | ✅ possible | ✅ | ✅ |\n| Read Committed (PG default) | ❌ | ✅ | ✅ |\n| Repeatable Read (MySQL default) | ❌ | ❌ | ✅* |\n| Serializable | ❌ | ❌ | ❌ |\n\nImplemented via locks or **MVCC** (snapshots). Higher isolation = more aborts/blocking."
+        }
+      ]
+    },
+    {
+      "slug": "computer-networks",
+      "name": "Computer Networks",
+      "description": "TCP vs UDP, what happens when you type a URL, HTTP/HTTPS, DNS and the OSI model.",
+      "revision_note_md": "## Networks quick revision\n\n- **OSI**: Physical, Data link, Network (IP), Transport (TCP/UDP), Session, Presentation, Application (HTTP).\n- **TCP**: connection-oriented, 3-way handshake, reliable, ordered, flow + congestion control.\n- **UDP**: connectionless, no guarantees, low latency — video calls, DNS, gaming.\n- **HTTPS** = HTTP over TLS: certificate verification + key exchange → symmetric encryption.\n- **HTTP versions**: 1.1 keep-alive, 2 multiplexing over one TCP connection, 3 runs on QUIC (UDP).",
+      "items": [
+        {
+          "title": "What happens when you type a URL and press Enter?",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "DNS → TCP → TLS → HTTP → render.",
+            "Mention caching at each step."
+          ],
+          "explanation": "Browser checks caches, DNS resolves the domain to an IP, a TCP connection and TLS handshake are made, an HTTP request is sent, the server responds, and the browser parses HTML, fetches assets, builds DOM and CSSOM, and renders.",
+          "answer_md": "1. **Parse URL**, check HSTS and browser cache.\n2. **DNS**: browser → OS → resolver → root → TLD → authoritative → IP.\n3. **TCP** 3-way handshake (SYN, SYN-ACK, ACK).\n4. **TLS** handshake: certificate check, key exchange.\n5. **HTTP request** → load balancer → app server → DB/cache → response.\n6. **Render**: HTML → DOM, CSS → CSSOM → render tree → layout → paint; JS may block parsing."
+        },
+        {
+          "title": "TCP vs UDP",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Which one would you use for a video call and why?",
+            "What does the 3-way handshake do?"
+          ],
+          "explanation": "TCP is connection-oriented, reliable and ordered with flow and congestion control; UDP is connectionless and unreliable but low-latency, used for streaming, gaming and DNS.",
+          "answer_md": "| TCP | UDP |\n|---|---|\n| Connection (3-way handshake) | Connectionless |\n| Reliable, ordered, retransmits | Best effort |\n| Flow & congestion control | None |\n| HTTP/1.1–2, SSH, DB | DNS, VoIP, gaming, QUIC |\n\nVideo call → UDP: a late packet is useless, better to drop it than wait."
+        },
+        {
+          "title": "How does HTTPS / TLS keep data secure?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Asymmetric for key exchange, symmetric for data.",
+            "What does the CA prove?"
+          ],
+          "explanation": "The server presents a certificate signed by a trusted CA, client and server use asymmetric key exchange to agree on a session key, then all data is encrypted with fast symmetric encryption providing confidentiality, integrity and authentication.",
+          "answer_md": "1. Client hello (supported ciphers) → server hello + **certificate**.\n2. Client verifies the cert chain against trusted **CAs** → proves server identity.\n3. Key exchange (ECDHE) → shared **session key** (forward secrecy).\n4. Everything after is **symmetric** (AES-GCM): confidentiality + integrity."
+        }
+      ]
+    }
+  ]
+}

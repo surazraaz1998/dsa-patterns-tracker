@@ -1,18 +1,32 @@
-import { useEffect, useState, Component, ErrorInfo, ReactNode } from 'react';
+import { useEffect, useRef, useState, Component, ErrorInfo, ReactNode } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TrackProvider, useTrack } from './context/TrackContext';
+import { LearningProvider } from './context/LearningContext';
+import { RoadmapView } from './components/RoadmapView';
+import { PlaybookView } from './components/PlaybookView';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
 import { DetailPanel } from './components/DetailPanel';
 import { LandingShowcase } from './components/LandingShowcase';
 import { AuthModal } from './components/AuthModal';
 import { api } from './services/api';
+import { consumeOAuthCallback } from './services/oauth';
+import { EdithPanel } from './voice/EdithPanel';
 import { PatternDetail, PatternSummary } from './types';
 import { FaGithub, FaLinkedin, FaInstagram, FaList, FaBookOpen, FaExclamationTriangle, FaRedo } from 'react-icons/fa';
 
 const LINKEDIN_URL = 'https://www.linkedin.com/in/surazraaz1998/';
 const INSTAGRAM_URL = 'https://www.instagram.com/__r.a.a.j/';
 const GITHUB_URL = 'https://github.com/surazraaz1998';
+// EDITH (voice tutor) is paused; build with VITE_EDITH_ENABLED=true (and EDITH_ENABLED=true on the backend) to bring it back.
+const EDITH_ENABLED = import.meta.env.VITE_EDITH_ENABLED === 'true';
+
+type View = 'roadmap' | 'topics' | 'playbook';
+const VIEWS: { id: View; label: string }[] = [
+    { id: 'roadmap', label: '🗺️ Roadmap' },
+    { id: 'topics', label: '📚 Lessons & practice' },
+    { id: 'playbook', label: '🎯 Interview playbook' },
+];
 
 interface ErrorBoundaryProps {
     children: ReactNode;
@@ -67,7 +81,10 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 
 function MainAppContent() {
     const { isAuthenticated, githubLogin, googleLogin } = useAuth();
-    const { activeTrackId } = useTrack();
+    const { activeTrackId, selectTrack } = useTrack();
+    const [view, setView] = useState<View>('roadmap');
+    // Lesson to open after switching tracks (set from the roadmap)
+    const pendingSlug = useRef<string | null>(null);
     const [patterns, setPatterns] = useState<PatternSummary[]>([]);
     const [selectedPattern, setSelectedPattern] = useState<PatternDetail | null>(null);
     const [loading, setLoading] = useState(true);
@@ -80,6 +97,9 @@ function MainAppContent() {
 
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
+    const [authError, setAuthError] = useState<string | null>(null);
+    const [oauthInProgress, setOauthInProgress] = useState(false);
+    const [isEdithOpen, setIsEdithOpen] = useState(false);
 
     const isWorkspaceActive = isAuthenticated || isGuestSession;
 
@@ -94,25 +114,26 @@ function MainAppContent() {
         setIsAuthModalOpen(false);
     };
 
-    // Auto-detect GitHub / Google OAuth ?code= redirect URL parameter on mount
+    // Finish GitHub / Google sign-in when the provider redirects back with ?code=&state=
     useEffect(() => {
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const scope = urlParams.get('scope') || '';
-
-        if (code) {
-            window.history.replaceState({}, document.title, window.location.pathname);
-            const redirectUri = window.location.origin;
-
-            if (scope.includes('googleapis') || scope.includes('userinfo')) {
-                void googleLogin({ code, redirectUri });
-            } else {
-                void githubLogin({ code, redirectUri }).catch(() => {
-                    return googleLogin({ code, redirectUri });
-                });
-            }
+        const callback = consumeOAuthCallback();
+        if (callback.kind === 'none') return;
+        if (callback.kind === 'error') {
+            setAuthError(callback.message);
+            setIsAuthModalOpen(true);
+            return;
         }
-    }, [githubLogin, googleLogin]);
+        setOauthInProgress(true);
+        const login = callback.provider === 'github' ? githubLogin : googleLogin;
+        login({ code: callback.code, redirectUri: callback.redirectUri })
+            .catch((err) => {
+                setAuthError(err instanceof Error ? err.message : 'Sign-in failed. Please try again.');
+                setIsAuthModalOpen(true);
+            })
+            .finally(() => setOauthInProgress(false));
+        // Runs once on mount; the URL params are consumed immediately.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     // Load patterns ONLY when workspace is active (Authenticated OR Guest Mode entered)
     useEffect(() => {
@@ -129,7 +150,11 @@ function MainAppContent() {
             try {
                 const data = await api.getPatterns(activeTrackId);
                 setPatterns(data || []);
-                if (data && data.length > 0) {
+                const wanted = pendingSlug.current && data.find((p) => p.slug === pendingSlug.current);
+                pendingSlug.current = null;
+                if (wanted) {
+                    await fetchPatternDetail(wanted.slug, true);
+                } else if (data && data.length > 0) {
                     await fetchPatternDetail(data[0].slug, false);
                 } else {
                     setSelectedPattern(null);
@@ -158,6 +183,17 @@ function MainAppContent() {
         }
     };
 
+    const openLesson = (slug: string, trackId: string) => {
+        setView('topics');
+        window.scrollTo({ top: 0 });
+        if (trackId === activeTrackId) {
+            void fetchPatternDetail(slug, true);
+        } else {
+            pendingSlug.current = slug;
+            selectTrack(trackId);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
             {/* Header Navbar */}
@@ -166,11 +202,37 @@ function MainAppContent() {
                 selectedSlug={selectedPattern?.slug}
                 onSelectPattern={(slug) => void fetchPatternDetail(slug, true)}
                 isWorkspaceActive={isWorkspaceActive}
+                showTrackSelector={view === 'topics'}
                 onEnterGuestMode={handleEnterGuestMode}
             />
 
             {/* If Active Workspace (Authenticated or Guest Mode): Render Practice Workspace */}
-            {isWorkspaceActive ? (
+            {isWorkspaceActive && (
+                <nav className="max-w-7xl mx-auto px-4 sm:px-6 w-full mt-4 flex gap-2 overflow-x-auto no-scrollbar" aria-label="Sections">
+                    {VIEWS.map((v) => (
+                        <button
+                            key={v.id}
+                            type="button"
+                            onClick={() => setView(v.id)}
+                            className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition ${
+                                view === v.id ? 'bg-white text-slate-900 border-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
+                            }`}
+                        >
+                            {v.label}
+                        </button>
+                    ))}
+                </nav>
+            )}
+
+            {isWorkspaceActive && view === 'roadmap' ? (
+                <main className="max-w-5xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-8">
+                    <RoadmapView onOpenLesson={openLesson} />
+                </main>
+            ) : isWorkspaceActive && view === 'playbook' ? (
+                <main className="max-w-6xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-8">
+                    <PlaybookView />
+                </main>
+            ) : isWorkspaceActive ? (
                 <>
                     {/* Mobile View Toggle Tabs (< md screens) */}
                     <div className="flex md:hidden max-w-7xl mx-auto px-4 w-full mt-3 gap-2">
@@ -214,7 +276,7 @@ function MainAppContent() {
 
                             {/* Problem Detail Panel Column */}
                             <div className={`md:col-span-8 lg:col-span-8 ${mobileTab === 'details' ? 'block' : 'hidden md:block'}`}>
-                                <DetailPanel selectedPattern={selectedPattern} />
+                                <DetailPanel selectedPattern={selectedPattern} onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined} />
                             </div>
                         </div>
                     </main>
@@ -229,13 +291,22 @@ function MainAppContent() {
                 </main>
             )}
 
+            {oauthInProgress && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm text-sm text-slate-200">
+                    <p className="animate-pulse">Signing you in…</p>
+                </div>
+            )}
+
             {/* Auth Modal */}
             <AuthModal
                 isOpen={isAuthModalOpen}
-                onClose={() => setIsAuthModalOpen(false)}
+                onClose={() => { setIsAuthModalOpen(false); setAuthError(null); }}
                 initialTab={authModalTab}
                 onEnterGuestMode={handleEnterGuestMode}
+                externalError={authError}
             />
+
+            {EDITH_ENABLED && <EdithPanel isOpen={isEdithOpen} onClose={() => setIsEdithOpen(false)} topic={selectedPattern} />}
 
             {/* Site Footer */}
             <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 py-6">
@@ -263,7 +334,9 @@ function App() {
         <ErrorBoundary>
             <AuthProvider>
                 <TrackProvider>
-                    <MainAppContent />
+                    <LearningProvider>
+                        <MainAppContent />
+                    </LearningProvider>
                 </TrackProvider>
             </AuthProvider>
         </ErrorBoundary>

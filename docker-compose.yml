@@ -16,16 +16,21 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: .
+      dockerfile: Dockerfile
     ports:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql://dev:dev@db:5432/dsa_tracker
+      JWT_SECRET: local-dev-secret
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
     depends_on:
       db:
         condition: service_healthy
     volumes:
       - ./backend:/app
+      - ./content:/app/content
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:

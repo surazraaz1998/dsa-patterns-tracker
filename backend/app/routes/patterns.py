@@ -3,12 +3,39 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
+import json
+
+from app.content_loader import load_roadmap, track_summaries
 from app.db import get_db
 from app.models import Pattern
 
 logger = logging.getLogger("dsa_patterns_tracker")
 
 router = APIRouter(prefix="/patterns", tags=["patterns"])
+tracks_router = APIRouter(prefix="/tracks", tags=["tracks"])
+roadmap_router = APIRouter(prefix="/roadmap", tags=["roadmap"])
+
+
+@roadmap_router.get("")
+def get_roadmap():
+    """The week-by-week study plan from content/roadmap.json."""
+    return load_roadmap()
+
+
+def _lesson(pattern: Pattern) -> Optional[dict]:
+    if not pattern.lesson_json:
+        return None
+    try:
+        return json.loads(pattern.lesson_json)
+    except ValueError:
+        logger.warning("Invalid lesson JSON for pattern %s", pattern.slug)
+        return None
+
+
+@tracks_router.get("")
+def list_tracks():
+    """Interview tracks, generated from the files in content/."""
+    return track_summaries()
 
 
 def _build_pattern_summary(pattern: Pattern) -> dict:
@@ -18,6 +45,8 @@ def _build_pattern_summary(pattern: Pattern) -> dict:
         "description": pattern.description,
         "track_category": getattr(pattern, "track_category", "dsa"),
         "problem_count": len(pattern.problems),
+        "lesson_status": (_lesson(pattern) or {}).get("status"),
+        "lesson_week": (_lesson(pattern) or {}).get("week"),
     }
 
 
@@ -40,6 +69,7 @@ def _build_pattern_detail(pattern: Pattern) -> dict:
         "description": pattern.description,
         "track_category": getattr(pattern, "track_category", "dsa"),
         "revision_note_md": pattern.revision_note_md,
+        "lesson": _lesson(pattern),
         "problems_by_tier": problems_by_tier,
     }
 

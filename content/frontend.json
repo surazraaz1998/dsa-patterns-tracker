@@ -1,0 +1,198 @@
+{
+  "track": {
+    "id": "frontend",
+    "name": "Frontend & Machine Coding",
+    "description": "JavaScript internals, React, polyfills and UI machine-coding rounds.",
+    "icon": "🎨",
+    "order": 5,
+    "badge": "Hot"
+  },
+  "topics": [
+    {
+      "slug": "javascript-core",
+      "name": "JavaScript Core Concepts",
+      "description": "Closures, the event loop, `this`, prototypes and hoisting — the questions every frontend round starts with.",
+      "revision_note_md": "## JavaScript Core — What interviewers probe\n\n- **Closures**: a function remembers the variables of the scope it was created in, even after that scope returns.\n- **Event loop**: call stack → microtasks (Promises, `queueMicrotask`) drain fully → one macrotask (`setTimeout`, I/O) → render.\n- **`this`**: decided by *how* a function is called (method, plain call, `new`, `call/apply/bind`); arrow functions capture `this` lexically.\n- **Prototypes**: objects delegate missing properties up `__proto__`; `class` is sugar over this.\n- **Hoisting & TDZ**: `var` is hoisted as `undefined`; `let/const` are hoisted but unusable until declared (temporal dead zone).\n\n**Interview tip:** always answer with a tiny code example and the *output* — that is what they check.",
+      "items": [
+        {
+          "title": "Explain closures with a practical example",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Think of a counter function that keeps its count private.",
+            "Mention the classic `var` in a loop with setTimeout bug."
+          ],
+          "explanation": "A closure is a function bundled with references to its outer scope variables; used for data privacy, memoization, and function factories.",
+          "answer_md": "A **closure** is a function plus the lexical environment it was created in.\n\n```js\nfunction makeCounter() {\n  let count = 0;            // private\n  return () => ++count;     // closes over count\n}\nconst c = makeCounter();\nc(); c(); // 2\n```\n\n**Uses:** data privacy, memoize, once(), debounce. **Gotcha:** `for (var i...) setTimeout(() => log(i))` prints the final `i` — fix with `let` (new binding per iteration).",
+          "javascript": "function once(fn) {\n  let done = false, result;\n  return (...args) => {\n    if (!done) { done = true; result = fn(...args); }\n    return result;\n  };\n}"
+        },
+        {
+          "title": "How does the event loop work? Predict the output order",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Order: sync → microtasks → macrotasks.",
+            "Promise.then is a microtask; setTimeout is a macrotask."
+          ],
+          "explanation": "Synchronous code runs first, then all microtasks (promise callbacks), then one macrotask (setTimeout), repeating.",
+          "answer_md": "```js\nconsole.log(1);\nsetTimeout(() => console.log(2));\nPromise.resolve().then(() => console.log(3));\nconsole.log(4);\n// 1 4 3 2\n```\n\n1. Run the call stack (sync code).\n2. Drain the **microtask** queue completely (promises, `await` continuations).\n3. Take **one macrotask** (timers, I/O, events), then microtasks again, then render.\n\nStarving the loop with endless microtasks blocks rendering."
+        },
+        {
+          "title": "Explain `this` binding rules (and arrow functions)",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Precedence: new > bind/call/apply > obj.method() > default.",
+            "Arrow functions have no own this."
+          ],
+          "explanation": "this depends on call site: new binding, explicit call/apply/bind, implicit method call, default (undefined in strict); arrows inherit this lexically.",
+          "answer_md": "Precedence of `this`:\n1. `new Fn()` → the new object\n2. `fn.call(obj)` / `apply` / `bind` → `obj`\n3. `obj.fn()` → `obj`\n4. plain `fn()` → `undefined` (strict) / `globalThis`\n\n**Arrow functions** don't have their own `this`; they use the enclosing scope's — great for callbacks inside methods, bad as object methods."
+        },
+        {
+          "title": "Implement Function.prototype.bind polyfill",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Use apply with the saved context.",
+            "Handle partial application by concatenating args."
+          ],
+          "explanation": "Return a function that calls the original with fixed this and pre-filled args, and works with new.",
+          "answer_md": "Return a wrapper that applies the original function with the captured `this` and merged arguments. Bonus points for supporting `new` (check `this instanceof bound`).",
+          "javascript": "Function.prototype.myBind = function (ctx, ...preset) {\n  const fn = this;\n  function bound(...args) {\n    const self = this instanceof bound ? this : ctx;\n    return fn.apply(self, [...preset, ...args]);\n  }\n  bound.prototype = Object.create(fn.prototype);\n  return bound;\n};"
+        },
+        {
+          "title": "Deep clone an object (handle cycles)",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Use a WeakMap from original → copy.",
+            "Mention structuredClone and its limits (no functions)."
+          ],
+          "explanation": "Recursively copy values, using a WeakMap of seen objects to handle circular references; structuredClone is the modern built-in.",
+          "answer_md": "Mention `structuredClone(obj)` first (handles Dates, Maps, cycles; not functions/DOM). Then implement recursively with a `WeakMap` to break cycles.",
+          "javascript": "function deepClone(v, seen = new WeakMap()) {\n  if (v === null || typeof v !== 'object') return v;\n  if (seen.has(v)) return seen.get(v);\n  const out = Array.isArray(v) ? [] : {};\n  seen.set(v, out);\n  for (const k of Reflect.ownKeys(v)) out[k] = deepClone(v[k], seen);\n  return out;\n}"
+        }
+      ]
+    },
+    {
+      "slug": "debounce-throttle",
+      "name": "Debounce & Throttle Implementation",
+      "description": "Master rate-limiting UI helper functions commonly asked in frontend machine coding rounds.",
+      "revision_note_md": "## Debounce & Throttle Patterns\n\n- **Debounce**: Delays execution of a function until after a specific wait time has elapsed since the last time it was invoked.\n- **Throttle**: Ensures a function is called at most once in a specified time window.\n\n### Use Cases\n- Search auto-complete inputs -> **Debounce**\n- Window resize / scroll listeners -> **Throttle**",
+      "items": [
+        {
+          "title": "Implement basic debounce() function",
+          "tier": 1,
+          "url": "https://leetcode.com/problems/debounce/",
+          "leetcode_number": 2627,
+          "hints": [
+            "Use setTimeout and clearTimeout inside a closure.",
+            "Cancel the previous timer whenever a new call comes in before the delay finishes."
+          ],
+          "explanation": "Return a wrapper function that clears the pending timer and sets a new timer every time it is invoked.",
+          "python": "# Python decorator implementation\nimport threading\n\ndef debounce(wait):\n    def decorator(fn):\n        timer = None\n        def debounced(*args, **kwargs):\n            nonlocal timer\n            if timer:\n                timer.cancel()\n            timer = threading.Timer(wait, fn, args, kwargs)\n            timer.start()\n        return debounced\n    return decorator",
+          "javascript": "function debounce(fn, t) {\n  let timer;\n  return function(...args) {\n    clearTimeout(timer);\n    timer = setTimeout(() => fn.apply(this, args), t);\n  };\n}"
+        },
+        {
+          "title": "Implement throttle() with leading and trailing options",
+          "tier": 1,
+          "url": "https://leetcode.com/problems/throttle/",
+          "leetcode_number": 2676,
+          "hints": [
+            "Track the last execution timestamp or use a flag to defer execution.",
+            "Handle leading calls immediately and trailing calls after the interval."
+          ],
+          "explanation": "Use a timestamp check or a boolean lock to limit execution frequency.",
+          "python": "# Python throttle class\nimport time\nclass Throttle:\n    def __init__(self, interval):\n        self.interval = interval\n        self.last_run = 0\n    def __call__(self, fn, *args):\n        now = time.time()\n        if now - self.last_run >= self.interval:\n            self.last_run = now\n            return fn(*args)",
+          "javascript": "function throttle(fn, t) {\n  let timer = null;\n  let nextArgs = null;\n  return function helper(...args) {\n    if (timer) {\n      nextArgs = args;\n    } else {\n      fn(...args);\n      timer = setTimeout(() => {\n        timer = null;\n        if (nextArgs) {\n          helper(...nextArgs);\n          nextArgs = null;\n        }\n      }, t);\n    }\n  };\n}"
+        },
+        {
+          "title": "Build a Live Search Input with Debounced API Calls",
+          "tier": 2,
+          "url": "https://github.com/topics/frontend-machine-coding",
+          "hints": [
+            "Combine input state with useEffect or custom hook useDebounce.",
+            "Handle API response cancellation to prevent race conditions."
+          ],
+          "explanation": "Create a `useDebounce` hook that yields the debounced search term to trigger API fetches safely.",
+          "python": "# Backend mock for live search endpoint",
+          "javascript": "function useDebounce(value, delay) {\n  const [debouncedValue, setDebouncedValue] = useState(value);\n  useEffect(() => {\n    const handler = setTimeout(() => setDebouncedValue(value), delay);\n    return () => clearTimeout(handler);\n  }, [value, delay]);\n  return debouncedValue;\n}"
+        }
+      ]
+    },
+    {
+      "slug": "custom-promises-async",
+      "name": "Custom Promises & Async Utilities",
+      "description": "Build Promise.all, Promise.race, async queue, and custom event emitters from scratch.",
+      "revision_note_md": "## Async Utilities & Promise Polyfills\n\nUnderstanding how microtasks, Promises, and event loops work under the hood is critical for senior frontend rounds.",
+      "items": [
+        {
+          "title": "Implement Promise.all Polyfill",
+          "tier": 1,
+          "url": "https://leetcode.com/problems/execute-asynchronous-functions-in-parallel/",
+          "leetcode_number": 2721,
+          "hints": [
+            "Track resolved count and result array by index.",
+            "Reject immediately on the first promise failure."
+          ],
+          "explanation": "Iterate through input functions/promises, executing each and waiting for all to resolve before resolving the overall promise.",
+          "python": "import asyncio\nasync def promise_all(futures):\n    return await asyncio.gather(*futures)",
+          "javascript": "function promiseAll(functions) {\n  return new Promise((resolve, reject) => {\n    const results = new Array(functions.length);\n    let count = 0;\n    functions.forEach((fn, i) => {\n      fn().then(res => {\n        results[i] = res;\n        count++;\n        if (count === functions.length) resolve(results);\n      }).catch(reject);\n    });\n  });\n}"
+        }
+      ]
+    },
+    {
+      "slug": "react-essentials",
+      "name": "React Interview Essentials",
+      "description": "Rendering, reconciliation, hooks, memoization and performance — the React questions asked from SDE-1 to senior.",
+      "revision_note_md": "## React — Mental model\n\n- **UI = f(state)**. A state change schedules a re-render of that component and its children.\n- **Reconciliation**: React diffs the new element tree against the old one; `key` tells it which list items are the same.\n- **Hooks rules**: call at the top level, same order every render — state is stored by call order.\n- **Effects** synchronise with *external* systems; derived data belongs in render, not in `useEffect`.\n- **Performance**: `React.memo`, `useMemo`, `useCallback` only help when props are referentially stable — measure first.",
+      "items": [
+        {
+          "title": "What are keys and why does using the index break lists?",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Think of an input inside a list item when you insert at the top.",
+            "Keys must be stable and unique among siblings."
+          ],
+          "explanation": "Keys give list items stable identity during reconciliation; index keys break when items are reordered, inserted, or deleted, mixing up state.",
+          "answer_md": "React matches children between renders by `key`. With index keys, inserting at the top shifts every index, so React **reuses the wrong component instances** — local state (input text, focus) appears on the wrong row. Use a stable id from the data."
+        },
+        {
+          "title": "useEffect vs useLayoutEffect vs useMemo — when to use each?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Which one blocks the browser paint?",
+            "Is memoization a side effect?"
+          ],
+          "explanation": "useEffect runs after paint for side effects, useLayoutEffect runs before paint for DOM measurement, useMemo caches an expensive computed value during render.",
+          "answer_md": "- `useEffect` — after paint; subscriptions, fetching, logging.\n- `useLayoutEffect` — after DOM mutation, **before paint**; measure layout / avoid flicker.\n- `useMemo` — during render; cache an expensive *value* keyed by deps.\n- `useCallback(fn, deps)` = `useMemo(() => fn, deps)`."
+        },
+        {
+          "title": "Build a useFetch hook that avoids race conditions",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Cleanup runs before the next effect.",
+            "AbortController cancels the network request too."
+          ],
+          "explanation": "Track the latest request with an AbortController or an ignore flag in the effect cleanup so stale responses never overwrite newer state.",
+          "answer_md": "Abort the in-flight request in the effect cleanup so a slow old response can't overwrite a newer one.",
+          "javascript": "function useFetch(url) {\n  const [state, set] = useState({ data: null, error: null, loading: true });\n  useEffect(() => {\n    const ctrl = new AbortController();\n    set(s => ({ ...s, loading: true }));\n    fetch(url, { signal: ctrl.signal })\n      .then(r => r.json())\n      .then(data => set({ data, error: null, loading: false }))\n      .catch(e => { if (e.name !== 'AbortError') set({ data: null, error: e, loading: false }); });\n    return () => ctrl.abort();\n  }, [url]);\n  return state;\n}"
+        },
+        {
+          "title": "How would you find and fix a slow React page?",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Measure first: Profiler + Performance tab.",
+            "Colocate state so fewer components re-render."
+          ],
+          "explanation": "Profile with React DevTools Profiler, find unnecessary re-renders, then fix with state colocation, memoization, list virtualization, code splitting, and avoiding expensive work in render.",
+          "answer_md": "1. **Measure**: React Profiler (why did this render?), Chrome Performance, Lighthouse/Web Vitals.\n2. **Reduce renders**: move state down, split context, `React.memo` + stable props.\n3. **Reduce work**: `useMemo` for heavy derivations, virtualize long lists (react-window), debounce inputs.\n4. **Reduce bundle**: `React.lazy` + `Suspense`, tree-shaking, image optimization."
+        }
+      ]
+    }
+  ]
+}

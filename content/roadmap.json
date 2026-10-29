@@ -1,0 +1,533 @@
+{
+  "title": "6-Month Interview Roadmap",
+  "subtitle": "DSA · High & Low-Level Design · Agentic AI — three tracks in parallel, ~14–16 hrs/week (≈6 DSA, 5 design, 4–5 AI).",
+  "phases": [
+    {
+      "id": 1,
+      "name": "Foundations",
+      "weeks": "1-8",
+      "goal": "Strong DSA fundamentals, OOP/SOLID with your first LLD builds, and a working MCP server.",
+      "checkpoint": "You can design Parking Lot and Vending Machine cleanly with patterns named out loud, you're comfortable up to Trees/BST, and your MCP server answers one real query end to end."
+    },
+    {
+      "id": 2,
+      "name": "Core Build",
+      "weeks": "9-16",
+      "goal": "Mid-level LLD/HLD case studies solved confidently, and a live agent with a streaming chat UI.",
+      "checkpoint": "Your assistant runs a real agent over MCP + RAG. You can whiteboard 4 HLD and 6 LLD systems from memory."
+    },
+    {
+      "id": 3,
+      "name": "Interview-Ready",
+      "weeks": "17-24",
+      "goal": "Full interview-loop readiness across all tracks, plus production signals (evals, observability, guardrails) on your AI project.",
+      "checkpoint": "Loop-ready: DSA (brute force → optimised, dry-run discipline), HLD (requirements → estimation → design → scaling), LLD (UML → SOLID → concurrency-aware code), and a shipped, evaluated AI project."
+    }
+  ],
+  "blocks": [
+    {
+      "weeks": "1-2",
+      "phase": 1,
+      "items": [
+        {
+          "id": "w01-dsa",
+          "track": "dsa",
+          "label": "Basics, Sorting, Arrays, Binary Search",
+          "lessons": [
+            "dsa-basics",
+            "sorting",
+            "arrays",
+            "binary-search"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Steps 1–4",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w01-lld",
+          "track": "lld",
+          "label": "OOP refresher, SOLID principles, UML basics",
+          "lessons": [
+            "lld-oop-solid"
+          ],
+          "resource": {
+            "label": "Prateek Narang (LLD & patterns) + Shrayansh Jain (LLD+HLD) on Udemy"
+          }
+        },
+        {
+          "id": "w01-ai",
+          "track": "agentic-ai",
+          "label": "Python for AI primer",
+          "lessons": [
+            "ai-python-primer"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "3-4",
+      "phase": 1,
+      "items": [
+        {
+          "id": "w03-dsa",
+          "track": "dsa",
+          "label": "Strings, Two Pointers, Sliding Window",
+          "lessons": [
+            "strings",
+            "two-pointers",
+            "sliding-window"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Steps 5, 10",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w03-lld",
+          "track": "lld",
+          "label": "Core patterns: Strategy, Observer, Factory, Singleton, State",
+          "lessons": [
+            "lld-design-patterns"
+          ],
+          "resource": {
+            "label": "Prateek Narang (LLD & patterns) + Shrayansh Jain (LLD+HLD) on Udemy"
+          }
+        },
+        {
+          "id": "w03-ai",
+          "track": "agentic-ai",
+          "label": "Claude API — tool calling, structured outputs, context engineering",
+          "lessons": [
+            "ai-claude-api"
+          ],
+          "resource": {
+            "label": "Anthropic Academy",
+            "url": "https://anthropic.skilljar.com/"
+          }
+        }
+      ]
+    },
+    {
+      "weeks": "5-6",
+      "phase": 1,
+      "items": [
+        {
+          "id": "w05-dsa",
+          "track": "dsa",
+          "label": "Linked List, Recursion, Stacks & Queues",
+          "lessons": [
+            "linked-list",
+            "recursion-backtracking",
+            "stack"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Steps 6, 7, 9",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w05-lld",
+          "track": "lld",
+          "label": "Build: Parking Lot, Vending Machine",
+          "lessons": [
+            "lld-parking-lot",
+            "lld-vending-machine"
+          ],
+          "resource": {
+            "label": "Prateek Narang (LLD & patterns) + Shrayansh Jain (LLD+HLD) on Udemy"
+          }
+        },
+        {
+          "id": "w05-ai",
+          "track": "agentic-ai",
+          "label": "MCP fundamentals + build your first MCP server",
+          "lessons": [
+            "ai-mcp-fundamentals"
+          ],
+          "resource": {
+            "label": "Anthropic Academy",
+            "url": "https://anthropic.skilljar.com/"
+          }
+        }
+      ]
+    },
+    {
+      "weeks": "7-8",
+      "phase": 1,
+      "items": [
+        {
+          "id": "w07-dsa",
+          "track": "dsa",
+          "label": "Trees, Binary Search Trees",
+          "lessons": [
+            "trees",
+            "binary-search-trees"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Steps 13, 14",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w07-hld",
+          "track": "system-design",
+          "label": "HLD start: requirements, estimation; first case: Messaging App",
+          "lessons": [
+            "sd-interview-framework",
+            "hld-messaging-app"
+          ],
+          "resource": {
+            "label": "Shrayansh Jain — HLD section (Udemy)"
+          }
+        },
+        {
+          "id": "w07-ai",
+          "track": "agentic-ai",
+          "label": "MCP advanced (transports, auth) + RAG basics with pgvector",
+          "lessons": [
+            "ai-mcp-advanced-rag"
+          ],
+          "resource": {
+            "label": "Anthropic Academy",
+            "url": "https://anthropic.skilljar.com/"
+          }
+        }
+      ]
+    },
+    {
+      "weeks": "9-10",
+      "phase": 2,
+      "items": [
+        {
+          "id": "w09-dsa",
+          "track": "dsa",
+          "label": "Heaps, Greedy",
+          "lessons": [
+            "heap-priority-queue",
+            "greedy"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Steps 11, 12",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w09-lld",
+          "track": "lld",
+          "label": "Build: Rate Limiter, Elevator, Snake & Ladders (concurrency focus)",
+          "lessons": [
+            "lld-rate-limiter",
+            "lld-elevator",
+            "lld-snake-ladders"
+          ],
+          "resource": {
+            "label": "Prateek Narang (LLD & patterns) + Shrayansh Jain (LLD+HLD) on Udemy"
+          }
+        },
+        {
+          "id": "w09-ai",
+          "track": "agentic-ai",
+          "label": "LangGraph fundamentals — stateful graphs, human-in-the-loop",
+          "lessons": [
+            "ai-langgraph-fundamentals"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "11-12",
+      "phase": 2,
+      "items": [
+        {
+          "id": "w11-dsa",
+          "track": "dsa",
+          "label": "Graphs Part 1 — BFS/DFS, topological sort, shortest paths",
+          "lessons": [
+            "graphs"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Step 15 (first half)",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w11-hld",
+          "track": "system-design",
+          "label": "HLD: Ticketing / Hotel Reservation, Instagram",
+          "lessons": [
+            "hld-ticketing-hotel",
+            "hld-instagram"
+          ],
+          "resource": {
+            "label": "Shrayansh Jain — HLD section (Udemy)"
+          }
+        },
+        {
+          "id": "w11-ai",
+          "track": "agentic-ai",
+          "label": "CrewAI exposure + production RAG",
+          "lessons": [
+            "ai-crewai-production-rag"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "13-14",
+      "phase": 2,
+      "items": [
+        {
+          "id": "w13-dsa",
+          "track": "dsa",
+          "label": "Graphs Part 2, Disjoint Set (Union-Find)",
+          "lessons": [
+            "graphs",
+            "disjoint-set"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Step 15 (second half)",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w13-lld",
+          "track": "lld",
+          "label": "Build: Library Management, Movie Booking, Car Rental (UML first)",
+          "lessons": [
+            "lld-library-management",
+            "lld-movie-booking",
+            "lld-car-rental"
+          ],
+          "resource": {
+            "label": "Prateek Narang (LLD & patterns) + Shrayansh Jain (LLD+HLD) on Udemy"
+          }
+        },
+        {
+          "id": "w13-ai",
+          "track": "agentic-ai",
+          "label": "Agentic frontend — streaming chat + tool-call UI",
+          "lessons": [
+            "ai-agentic-frontend"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "15-16",
+      "phase": 2,
+      "items": [
+        {
+          "id": "w15-dsa",
+          "track": "dsa",
+          "label": "Dynamic Programming Part 1",
+          "lessons": [
+            "dynamic-programming"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Step 16 (first half)",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w15-hld",
+          "track": "system-design",
+          "label": "HLD: E-Commerce (Saga, inventory, payments), Proximity Service",
+          "lessons": [
+            "hld-ecommerce",
+            "hld-proximity"
+          ],
+          "resource": {
+            "label": "Shrayansh Jain — HLD section (Udemy)"
+          }
+        },
+        {
+          "id": "w15-ai",
+          "track": "agentic-ai",
+          "label": "Build: multi-step LangGraph agent over your MCP tools",
+          "lessons": [
+            "ai-langgraph-multistep"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "17-18",
+      "phase": 3,
+      "items": [
+        {
+          "id": "w17-dsa",
+          "track": "dsa",
+          "label": "Dynamic Programming Part 2, Tries",
+          "lessons": [
+            "dynamic-programming",
+            "tries"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Step 16 (second half), Step 17",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w17-lld",
+          "track": "lld",
+          "label": "Build: Distributed Job Scheduler, Inventory Management",
+          "lessons": [
+            "lld-job-scheduler",
+            "lld-inventory-management"
+          ],
+          "resource": {
+            "label": "Prateek Narang (LLD & patterns) + Shrayansh Jain (LLD+HLD) on Udemy"
+          }
+        },
+        {
+          "id": "w17-ai",
+          "track": "agentic-ai",
+          "label": "Agent evaluation basics (RAGAS)",
+          "lessons": [
+            "ai-agent-evals"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "19-20",
+      "phase": 3,
+      "items": [
+        {
+          "id": "w19-dsa",
+          "track": "dsa",
+          "label": "Advanced strings, Bit Manipulation; start weekly contests",
+          "lessons": [
+            "advanced-strings",
+            "bit-manipulation"
+          ],
+          "resource": {
+            "label": "Striver's A2Z Sheet — Step 18 + LeetCode contests",
+            "url": "https://takeuforward.org/strivers-a2z-dsa-course/strivers-a2z-dsa-course-sheet-2"
+          }
+        },
+        {
+          "id": "w19-hld",
+          "track": "system-design",
+          "label": "HLD: Tinder, Uber",
+          "lessons": [
+            "hld-tinder",
+            "hld-uber"
+          ],
+          "resource": {
+            "label": "Shrayansh Jain — HLD section (Udemy)"
+          }
+        },
+        {
+          "id": "w19-ai",
+          "track": "agentic-ai",
+          "label": "Observability + cost optimisation",
+          "lessons": [
+            "ai-observability-cost"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "21-22",
+      "phase": 3,
+      "items": [
+        {
+          "id": "w21-dsa",
+          "track": "dsa",
+          "label": "Full revision — pattern-wise practice, timed",
+          "lessons": [
+            "two-pointers",
+            "sliding-window",
+            "binary-search",
+            "trees",
+            "graphs",
+            "dynamic-programming"
+          ],
+          "resource": {
+            "label": "LeetCode — daily, pattern-wise",
+            "url": "https://leetcode.com/problemset/"
+          }
+        },
+        {
+          "id": "w21-hld",
+          "track": "system-design",
+          "label": "HLD: Twitter, Video Streaming (YouTube)",
+          "lessons": [
+            "hld-twitter",
+            "hld-youtube"
+          ],
+          "resource": {
+            "label": "Shrayansh Jain — HLD section (Udemy)"
+          }
+        },
+        {
+          "id": "w21-ai",
+          "track": "agentic-ai",
+          "label": "Guardrails + multi-agent patterns",
+          "lessons": [
+            "ai-guardrails-multiagent"
+          ]
+        }
+      ]
+    },
+    {
+      "weeks": "23-24",
+      "phase": 3,
+      "items": [
+        {
+          "id": "w23-dsa",
+          "track": "dsa",
+          "label": "Full timed mock interviews — brute force → optimise → dry run",
+          "lessons": [],
+          "resource": {
+            "label": "Mock with a peer, Pramp or Interviewing.io"
+          }
+        },
+        {
+          "id": "w23-mock",
+          "track": "lld",
+          "label": "Mock: Ride Sharing App — full HLD + LLD",
+          "lessons": [
+            "lld-ride-sharing",
+            "hld-uber"
+          ]
+        },
+        {
+          "id": "w23-ai",
+          "track": "agentic-ai",
+          "label": "Final polish: ship and document your AI project",
+          "lessons": [
+            "ai-portfolio-project"
+          ]
+        }
+      ]
+    }
+  ],
+  "playbook": {
+    "dsa": [
+      "Start with the brute force.",
+      "Discuss time and space complexity out loud.",
+      "Say clearly why the brute force breaks at large input.",
+      "Optimise step by step from the brute-force baseline.",
+      "Most important: dry-run your code on the given input before submitting."
+    ],
+    "hld": [
+      "Gather functional and non-functional requirements first.",
+      "Most important: back-of-the-envelope estimates early.",
+      "Design a basic working flow, then make it extendable.",
+      "Discuss scaling and cross-region setups in depth — interviewers love this.",
+      "Don't rush into the design; it hurts more than it helps.",
+      "Keep the interviewer involved so they feel part of the design and ask fewer surprise questions."
+    ],
+    "lld": [
+      "Start with a UML class diagram.",
+      "Don't over-ask — the interviewer will usually say yes to everything; make sensible assumptions.",
+      "Start with a basic model, then extend it and make it scalable.",
+      "Explain concurrency while coding — interviewers care most about this.",
+      "Discuss race conditions and add locking where needed.",
+      "Naming matters a lot — make every class and method name obvious."
+    ]
+  }
+}

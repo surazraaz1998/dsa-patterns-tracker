@@ -1,6 +1,22 @@
-import { AuthResponse, PatternDetail, PatternSummary, ProblemStatus, User, UserProgressMap } from '../types';
+import { AuthResponse, PatternDetail, PatternSummary, ProblemStatus, Roadmap, TrackInfo, User, UserProgressMap } from '../types';
 
-const API_BASE_URL =
+export class ApiError extends Error {
+    constructor(message: string, public status: number) {
+        super(message);
+    }
+}
+
+async function errorFrom(response: Response, fallback: string): Promise<ApiError> {
+    const data = await response.json().catch(() => ({}));
+    return new ApiError(typeof data.detail === 'string' ? data.detail : fallback, response.status);
+}
+
+export type VoiceMode = 'teach' | 'test' | 'mock';
+export type VoiceLanguage = 'hinglish' | 'english';
+export type VoiceMessage = { role: 'user' | 'assistant'; content: string };
+export const EDITH_ERROR_MARKER = '[[EDITH_ERROR]]';
+
+export const API_BASE_URL =
     (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_API_BASE_URL?.replace(/\/$/, '') ||
     (import.meta.env.PROD ? 'https://dsa-patterns-tracker-backend.onrender.com' : 'http://localhost:8000');
 
@@ -23,6 +39,35 @@ export const api = {
     clearCache(): void {
         patternListCache.clear();
         patternDetailCache.clear();
+    },
+
+    async getTracks(): Promise<TrackInfo[]> {
+        const response = await fetch(`${API_BASE_URL}/tracks`);
+        if (!response.ok) throw await errorFrom(response, 'Failed to fetch tracks');
+        return response.json();
+    },
+
+    async getRoadmap(): Promise<Roadmap> {
+        const response = await fetch(`${API_BASE_URL}/roadmap`);
+        if (!response.ok) throw await errorFrom(response, 'Failed to load the roadmap');
+        return response.json();
+    },
+
+    // Learning progress (roadmap checkboxes, quiz scores) for signed-in users
+    async getLearning(): Promise<Record<string, unknown>> {
+        const response = await fetch(`${API_BASE_URL}/learning`, { headers: getAuthHeaders() });
+        if (!response.ok) throw await errorFrom(response, 'Failed to load learning progress');
+        return (await response.json()).entries;
+    },
+
+    async updateLearning(entries: Record<string, unknown>): Promise<Record<string, unknown>> {
+        const response = await fetch(`${API_BASE_URL}/learning`, {
+            method: 'PUT',
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ entries }),
+        });
+        if (!response.ok) throw await errorFrom(response, 'Failed to save learning progress');
+        return (await response.json()).entries;
     },
 
     // Patterns API (Cached for instant UI rendering)
@@ -85,70 +130,45 @@ export const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password, username }),
         });
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.detail || 'Authentication failed');
-        }
+        if (!response.ok) throw await errorFrom(response, 'Authentication failed');
         return response.json();
     },
 
-    async getGitHubOAuthUrl(redirectUri?: string): Promise<{ url: string; client_id: string; configured?: boolean }> {
-        const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
-        const response = await fetch(`${API_BASE_URL}/auth/github/url${query}`);
+    async getGitHubOAuthUrl(redirectUri: string, state: string): Promise<{ url: string; client_id: string; configured?: boolean }> {
+        const query = new URLSearchParams({ redirect_uri: redirectUri, state });
+        const response = await fetch(`${API_BASE_URL}/auth/github/url?${query}`);
         if (!response.ok) {
             throw new Error('Failed to get GitHub OAuth URL');
         }
         return response.json();
     },
 
-    async githubAuth(params: { code?: string; redirectUri?: string; githubUsername?: string; email?: string; avatarUrl?: string } | string): Promise<AuthResponse> {
-        const payload = typeof params === 'string'
-            ? { github_username: params, avatar_url: `https://github.com/${params}.png` }
-            : {
-                code: params.code,
-                redirect_uri: params.redirectUri,
-                github_username: params.githubUsername,
-                email: params.email,
-                avatar_url: params.avatarUrl,
-              };
-
+    async githubAuth(params: { code: string; redirectUri: string }): Promise<AuthResponse> {
         const response = await fetch(`${API_BASE_URL}/auth/github`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload),
+            body: JSON.stringify({ code: params.code, redirect_uri: params.redirectUri }),
         });
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.detail || 'GitHub authentication failed');
-        }
+        if (!response.ok) throw await errorFrom(response, 'GitHub authentication failed');
         return response.json();
     },
 
-    async getGoogleOAuthUrl(redirectUri?: string): Promise<{ url: string; client_id: string; configured?: boolean }> {
-        const query = redirectUri ? `?redirect_uri=${encodeURIComponent(redirectUri)}` : '';
-        const response = await fetch(`${API_BASE_URL}/auth/google/url${query}`);
+    async getGoogleOAuthUrl(redirectUri: string, state: string): Promise<{ url: string; client_id: string; configured?: boolean }> {
+        const query = new URLSearchParams({ redirect_uri: redirectUri, state });
+        const response = await fetch(`${API_BASE_URL}/auth/google/url?${query}`);
         if (!response.ok) {
             throw new Error('Failed to get Google OAuth URL');
         }
         return response.json();
     },
 
-    async googleAuth(params: { code?: string; redirectUri?: string; email?: string; name?: string; avatarUrl?: string }): Promise<AuthResponse> {
+    async googleAuth(params: { code: string; redirectUri: string }): Promise<AuthResponse> {
         const response = await fetch(`${API_BASE_URL}/auth/google`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                code: params.code,
-                redirect_uri: params.redirectUri,
-                email: params.email,
-                name: params.name,
-                avatar_url: params.avatarUrl,
-            }),
+            body: JSON.stringify({ code: params.code, redirect_uri: params.redirectUri }),
         });
-        if (!response.ok) {
-            const errData = await response.json().catch(() => ({}));
-            throw new Error(errData.detail || 'Google authentication failed');
-        }
+        if (!response.ok) throw await errorFrom(response, 'Google authentication failed');
         return response.json();
     },
 
@@ -156,9 +176,7 @@ export const api = {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
             headers: getAuthHeaders(token),
         });
-        if (!response.ok) {
-            throw new Error('Unauthorized');
-        }
+        if (!response.ok) throw await errorFrom(response, 'Unauthorized');
         return response.json();
     },
 
@@ -242,5 +260,39 @@ export const api = {
             throw new Error(errData.detail || 'Auto-sync failed');
         }
         return response.json();
+    },
+
+    // EDITH voice tutor
+    async getVoiceStatus(): Promise<{ ai_enabled: boolean; model: string | null }> {
+        const response = await fetch(`${API_BASE_URL}/voice/status`);
+        if (!response.ok) throw await errorFrom(response, 'EDITH status unavailable');
+        return response.json();
+    },
+
+    /** Streams EDITH's reply; `onText` receives each chunk as it arrives. Resolves with the full reply. */
+    async streamVoiceChat(
+        payload: { mode: VoiceMode; language: VoiceLanguage; topic_slug?: string; messages: VoiceMessage[] },
+        onText: (chunk: string) => void,
+        signal?: AbortSignal,
+    ): Promise<string> {
+        const response = await fetch(`${API_BASE_URL}/voice/chat`, {
+            method: 'POST',
+            headers: getAuthHeaders(),
+            body: JSON.stringify(payload),
+            signal,
+        });
+        if (!response.ok || !response.body) throw await errorFrom(response, 'EDITH could not reply');
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let full = '';
+        for (;;) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            const chunk = decoder.decode(value, { stream: true });
+            full += chunk;
+            onText(chunk);
+        }
+        return full;
     },
 };

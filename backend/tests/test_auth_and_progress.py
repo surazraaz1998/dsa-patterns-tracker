@@ -1,162 +1,163 @@
-import pytest
+import uuid
+
 from fastapi.testclient import TestClient
 
 from app.main import app
-from app.db import Base, engine
 from app.seed_data import seed
 
 
-@pytest.fixture(autouse=True)
-def setup_db():
-    Base.metadata.create_all(bind=engine)
-    seed()
+def _email(prefix: str) -> str:
+    return f"{prefix}_{uuid.uuid4().hex[:6]}@example.com"
+
+
+def _signup(client: TestClient, email: str, password: str = "password123") -> str:
+    res = client.post("/auth/email-auth", json={"email": email, "password": password})
+    assert res.status_code == 200, res.text
+    return res.json()["token"]
+
+
+def _first_problem_id(client: TestClient) -> int:
+    slug = client.get("/patterns?track=dsa").json()[0]["slug"]
+    return client.get(f"/patterns/{slug}").json()["problems_by_tier"]["1"][0]["id"]
 
 
 def test_user_registration_and_login():
-    """Verify new user registration, login, and auth/me."""
-    import uuid
     uid = uuid.uuid4().hex[:6]
-    username = f"user_{uid}"
-    email = f"user_{uid}@example.com"
-
+    username, email = f"user_{uid}", f"user_{uid}@example.com"
     with TestClient(app) as client:
-        # Register
-        reg_resp = client.post("/auth/register", json={
-            "username": username,
-            "email": email,
-            "password": "password123"
-        })
-        assert reg_resp.status_code == 200
-        reg_data = reg_resp.json()
-        token = reg_data["token"]
-        assert reg_data["user"]["username"] == username
+        reg = client.post("/auth/register", json={"username": username, "email": email, "password": "password123"})
+        assert reg.status_code == 200
+        token = reg.json()["token"]
 
-        # Fetch me
-        me_resp = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
-        assert me_resp.status_code == 200
-        assert me_resp.json()["username"] == username
+        me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+        assert me.status_code == 200
+        assert me.json()["username"] == username
+
+        assert client.post("/auth/login", json={"username_or_email": email, "password": "password123"}).status_code == 200
+        assert client.post("/auth/login", json={"username_or_email": email, "password": "wrong"}).status_code == 401
 
 
-def test_github_auth():
-    """Verify GitHub OAuth route creates user session."""
+def test_unified_email_auth_requires_correct_password():
+    email = _email("auto")
     with TestClient(app) as client:
-        response = client.post("/auth/github", json={
-            "github_username": "surazraaz1998",
-            "email": "suraz@example.com",
-            "avatar_url": "https://github.com/surazraaz1998.png"
-        })
-        assert response.status_code == 200
-        data = response.json()
-        assert data["user"]["username"] == "surazraaz1998"
-        assert data["user"]["auth_provider"] == "github"
+        res1 = client.post("/auth/email-auth", json={"email": email, "password": "secret123"})
+        assert res1.status_code == 200
+        user_id = res1.json()["user"]["id"]
+
+        res2 = client.post("/auth/email-auth", json={"email": email, "password": "secret123"})
+        assert res2.status_code == 200
+        assert res2.json()["user"]["id"] == user_id
+
+        # Regression: an existing account must never be accessible with only the email.
+        assert client.post("/auth/email-auth", json={"email": email}).status_code == 400
+        assert client.post("/auth/email-auth", json={"email": email, "password": "nope"}).status_code == 401
+
+
+def test_new_account_needs_reasonable_password():
+    with TestClient(app) as client:
+        assert client.post("/auth/email-auth", json={"email": _email("short"), "password": "123"}).status_code == 400
+
+
+def test_forged_tokens_are_rejected():
+    with TestClient(app) as client:
+        for token in ("legacy_1", "token_1_abc", "a.b.c"):
+            assert client.get("/auth/me", headers={"Authorization": f"Bearer {token}"}).status_code == 401
+
+
+def test_oauth_requires_authorization_code():
+    """Regression: OAuth endpoints used to trust a client-supplied username/email."""
+    with TestClient(app) as client:
+        gh = client.post("/auth/github", json={"github_username": "someone", "email": "victim@example.com"})
+        assert gh.status_code == 400
+        google = client.post("/auth/google", json={"email": "victim@example.com"})
+        assert google.status_code == 400
+
+
+def test_oauth_url_includes_state(monkeypatch):
+    monkeypatch.setenv("GOOGLE_CLIENT_ID", "cid")
+    with TestClient(app) as client:
+        res = client.get("/auth/google/url", params={"redirect_uri": "http://localhost:5173", "state": "google.abc"})
+        url = res.json()["url"]
+        assert "state=google.abc" in url
+        assert "redirect_uri=http%3A%2F%2Flocalhost%3A5173" in url
 
 
 def test_user_progress_tracking():
-    """Verify marking problem as solved updates counter."""
-    import uuid
-    email = f"track_{uuid.uuid4().hex[:6]}@example.com"
     with TestClient(app) as client:
-        reg_resp = client.post("/auth/email-auth", json={"email": email})
-        token = reg_resp.json()["token"]
-
-        # Get patterns to find problem ID
-        patterns_resp = client.get("/patterns?track=dsa")
-        assert patterns_resp.status_code == 200
-        pattern_slug = patterns_resp.json()[0]["slug"]
-
-        detail_resp = client.get(f"/patterns/{pattern_slug}")
-        assert detail_resp.status_code == 200
-        problems_by_tier = detail_resp.json()["problems_by_tier"]
-
-        # Pick tier 1 problem
-        prob = problems_by_tier["1"][0]
-        prob_id = prob.get("id", 1)
-
-        # Update progress to solved
-        prog_resp = client.post(
+        token = _signup(client, _email("track"))
+        prog = client.post(
             "/progress",
-            json={"problem_id": prob_id, "status": "solved"},
-            headers={"Authorization": f"Bearer {token}"}
+            json={"problem_id": _first_problem_id(client), "status": "solved"},
+            headers={"Authorization": f"Bearer {token}"},
         )
-        assert prog_resp.status_code == 200
-        assert prog_resp.json()["status"] == "solved"
-        assert prog_resp.json()["total_solved_count"] >= 1
+        assert prog.status_code == 200
+        assert prog.json()["total_solved_count"] == 1
+
+
+def test_reseeding_keeps_user_progress():
+    """Regression: seed() used to delete every DSA problem (and its progress) on each restart."""
+    with TestClient(app) as client:
+        token = _signup(client, _email("persist"))
+        headers = {"Authorization": f"Bearer {token}"}
+        client.post("/progress", json={"problem_id": _first_problem_id(client), "status": "solved"}, headers=headers)
+
+        seed()
+
+        progress = client.get("/progress", headers=headers).json()["progress"]
+        assert len(progress) == 1
+        assert client.get("/auth/me", headers=headers).json()["solved_count"] == 1
 
 
 def test_auto_sync_and_submitted_code():
-    """Verify auto-syncing submitted code and updating profile."""
-    import uuid
-    email = f"sync_{uuid.uuid4().hex[:6]}@example.com"
     with TestClient(app) as client:
-        reg_resp = client.post("/auth/email-auth", json={"email": email})
-        token = reg_resp.json()["token"]
+        token = _signup(client, _email("sync"))
+        headers = {"Authorization": f"Bearer {token}"}
 
-        # Update Profile
-        prof_resp = client.put(
-            "/auth/profile",
-            json={"leetcode_username": "suraz_leetcode"},
-            headers={"Authorization": f"Bearer {token}"}
-        )
-        assert prof_resp.status_code == 200
-        assert prof_resp.json()["leetcode_username"] == "suraz_leetcode"
+        prof = client.put("/auth/profile", json={"leetcode_username": "suraz_leetcode"}, headers=headers)
+        assert prof.status_code == 200
+        assert prof.json()["leetcode_username"] == "suraz_leetcode"
 
-        # Auto sync code submission
-        sync_resp = client.post(
+        sync = client.post(
             "/progress/auto-sync",
             json={
                 "problem_title": "Two Sum II",
                 "status": "solved",
                 "submitted_code": "def twoSum(nums, target): return [1, 2]",
-                "submitted_language": "python"
+                "submitted_language": "python",
             },
-            headers={"Authorization": f"Bearer {token}"}
+            headers=headers,
         )
-        assert sync_resp.status_code == 200
-        assert sync_resp.json()["status"] == "success"
+        assert sync.status_code == 200
 
-        # Check progress details
-        prog_resp = client.get("/progress", headers={"Authorization": f"Bearer {token}"})
-        assert prog_resp.status_code == 200
-        progress = prog_resp.json()["progress"]
-        assert any("Two Sum" in title for title in progress.keys())
+        progress = client.get("/progress", headers=headers).json()["progress"]
+        assert any("Two Sum" in title for title in progress)
 
 
-def test_unified_email_auth():
-    """Verify unified email auth registers new user and logs in existing user."""
-    import uuid
-    email = f"auto_{uuid.uuid4().hex[:6]}@example.com"
+def test_seed_removes_duplicate_problems_and_keeps_progress():
+    """Regression: the old seeder left thousands of duplicate rows per topic on SQLite."""
+    from app.db import SessionLocal
+    from app.models import Pattern, Problem, UserProgress
+
     with TestClient(app) as client:
-        # First call: Auto-registers
-        res1 = client.post("/auth/email-auth", json={"email": email})
-        assert res1.status_code == 200
-        data1 = res1.json()
-        assert "token" in data1
-        assert data1["user"]["email"] == email
+        token = _signup(client, _email("dupes"))
+        headers = {"Authorization": f"Bearer {token}"}
+        user_id = client.get("/auth/me", headers=headers).json()["id"]
 
-        # Second call: Auto-logs in
-        res2 = client.post("/auth/email-auth", json={"email": email})
-        assert res2.status_code == 200
-        data2 = res2.json()
-        assert data2["user"]["id"] == data1["user"]["id"]
+        db = SessionLocal()
+        pattern = db.query(Pattern).filter_by(slug="two-pointers").first()
+        original = sorted(pattern.problems, key=lambda p: p.id)[0]
+        title = original.title
+        copies = [Problem(pattern_id=pattern.id, title=original.title, tier=original.tier) for _ in range(3)]
+        db.add_all(copies)
+        db.flush()
+        # progress recorded against a duplicate row must survive the cleanup
+        db.add(UserProgress(user_id=user_id, problem_id=copies[1].id, status="solved"))
+        db.commit()
+        db.close()
 
+        seed()
 
-def test_google_auth():
-    """Verify Google OAuth route creates user session."""
-    import uuid
-    email = f"google_{uuid.uuid4().hex[:6]}@gmail.com"
-    with TestClient(app) as client:
-        url_res = client.get("/auth/google/url")
-        assert url_res.status_code == 200
-        assert "url" in url_res.json()
-
-        auth_res = client.post("/auth/google", json={
-            "email": email,
-            "name": "Google User",
-            "avatar_url": "https://lh3.googleusercontent.com/a/photo.jpg"
-        })
-        assert auth_res.status_code == 200
-        data = auth_res.json()
-        assert data["user"]["email"] == email
-        assert data["user"]["auth_provider"] == "google"
-
-
+        detail = client.get("/patterns/two-pointers").json()
+        titles = [p["title"] for tier in detail["problems_by_tier"].values() for p in tier]
+        assert len(titles) == len(set(titles))
+        assert client.get("/progress", headers=headers).json()["progress"][title]["status"] == "solved"

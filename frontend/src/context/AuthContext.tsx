@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { api } from '../services/api';
+import { api, ApiError } from '../services/api';
 import { ProblemProgressDetail, ProblemStatus, User, UserProgressMap } from '../types';
 
 type AuthContextType = {
@@ -12,8 +12,8 @@ type AuthContextType = {
     login: (username: string, pass: string) => Promise<User>;
     register: (username: string, email: string, pass: string) => Promise<User>;
     unifiedEmailAuth: (email: string, pass?: string, username?: string) => Promise<User>;
-    githubLogin: (payload?: { code?: string; redirectUri?: string; githubUsername?: string } | string) => Promise<User>;
-    googleLogin: (payload: { code?: string; redirectUri?: string; email?: string; name?: string }) => Promise<User>;
+    githubLogin: (payload: { code: string; redirectUri: string }) => Promise<User>;
+    googleLogin: (payload: { code: string; redirectUri: string }) => Promise<User>;
     logout: () => void;
     toggleProblemSolved: (problemTitle: string, problemId?: number) => Promise<void>;
     saveSubmittedCode: (problemTitle: string, code: string, language: string, problemId?: number) => Promise<void>;
@@ -26,6 +26,10 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const LOCAL_STORAGE_PROGRESS_KEY = 'dsa_tracker_guest_progress';
+// The free-tier backend can take ~30-60s to wake up; keep the session and retry instead of logging out.
+const SESSION_RETRY_DELAYS_MS = [2000, 5000, 10000, 20000];
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     const [user, setUser] = useState<User | null>(null);
@@ -39,7 +43,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const savedToken = localStorage.getItem('dsa_tracker_token');
             if (savedToken) {
                 try {
-                    const currentUser = await api.getCurrentUser(savedToken);
+                    let currentUser: User | null = null;
+                    for (let attempt = 0; ; attempt++) {
+                        try {
+                            currentUser = await api.getCurrentUser(savedToken);
+                            break;
+                        } catch (err) {
+                            const expired = err instanceof ApiError && err.status === 401;
+                            if (expired || attempt >= SESSION_RETRY_DELAYS_MS.length) throw err;
+                            await sleep(SESSION_RETRY_DELAYS_MS[attempt]);
+                        }
+                    }
                     setUser(currentUser);
                     setToken(savedToken);
 
@@ -55,8 +69,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                         }).catch(() => {});
                     }
                 } catch (err) {
-                    console.warn('Session expired or backend offline:', err);
-                    localStorage.removeItem('dsa_tracker_token');
+                    console.warn('Could not restore session:', err);
+                    if (err instanceof ApiError && err.status === 401) {
+                        localStorage.removeItem('dsa_tracker_token');
+                    }
                     setToken(null);
                     setUser(null);
                     loadLocalGuestProgress();
@@ -106,19 +122,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
             }
 
-            let prog = await api.getProgress();
-            setUserProgress(prog);
+            setUserProgress(await api.getProgress());
 
+            // LeetCode sync can take several seconds — run it in the background so login returns immediately.
             if (authUser.leetcode_username) {
-                try {
-                    const syncRes = await api.syncLeetCode(authUser.leetcode_username);
-                    prog = await api.getProgress();
-                    setUserProgress(prog);
-                    authUser = { ...authUser, solved_count: syncRes.total_solved_count };
-                    setUser(authUser);
-                } catch (syncErr) {
-                    console.warn('Auto-sync LeetCode questions failed:', syncErr);
-                }
+                void api.syncLeetCode(authUser.leetcode_username)
+                    .then(async (syncRes) => {
+                        setUserProgress(await api.getProgress());
+                        setUser((prev) => (prev ? { ...prev, solved_count: syncRes.total_solved_count } : prev));
+                    })
+                    .catch((syncErr) => console.warn('Auto-sync LeetCode questions failed:', syncErr));
             }
         } catch (err) {
             console.warn('Could not sync user progress', err);
@@ -141,12 +154,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return await handleAuthSuccess(res.token, res.user);
     };
 
-    const githubLogin = async (payload?: { code?: string; redirectUri?: string; githubUsername?: string } | string): Promise<User> => {
-        const res = await api.githubAuth(payload || {});
+    const githubLogin = async (payload: { code: string; redirectUri: string }): Promise<User> => {
+        const res = await api.githubAuth(payload);
         return await handleAuthSuccess(res.token, res.user);
     };
 
-    const googleLogin = async (payload: { code?: string; redirectUri?: string; email?: string; name?: string }): Promise<User> => {
+    const googleLogin = async (payload: { code: string; redirectUri: string }): Promise<User> => {
         const res = await api.googleAuth(payload);
         return await handleAuthSuccess(res.token, res.user);
     };

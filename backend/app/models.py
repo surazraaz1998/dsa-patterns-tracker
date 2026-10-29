@@ -22,7 +22,8 @@ class Pattern(Base):
     description = Column(Text)
     revision_note_md = Column(Text)  # the markdown revision note, rendered client-side
     display_order = Column(Integer, default=0)
-    track_category = Column(String(50), default="dsa", nullable=False)  # 'dsa' | 'frontend' | 'sde1'
+    track_category = Column(String(50), default="dsa", nullable=False)  # track id from content/<track>.json
+    lesson_json = Column(Text, nullable=True)  # structured lesson (explanation, dry run, template, quiz), see CONTRIBUTING.md
 
     problems = relationship("Problem", back_populates="pattern", cascade="all, delete-orphan")
 
@@ -42,6 +43,7 @@ class Problem(Base):
     guide_explanation = Column(Text, nullable=True)
     guide_python = Column(Text, nullable=True)
     guide_javascript = Column(Text, nullable=True)
+    guide_answer_md = Column(Text, nullable=True)  # written answer for theory / design / behavioral questions
 
     pattern = relationship("Pattern", back_populates="problems")
     user_progress = relationship("UserProgress", back_populates="problem", cascade="all, delete-orphan")
@@ -65,9 +67,10 @@ class Problem(Base):
                 hints = [self.guide_hints_json]
         return {
             "hints": hints or ["Read the problem statement carefully and identify the core pattern."],
-            "explanation": self.guide_explanation or "Use a structured approach to break the problem into smaller steps before coding the solution.",
-            "python": self.guide_python or "# Add a Python solution here",
-            "javascript": self.guide_javascript or "// Add a JavaScript solution here",
+            "explanation": self.guide_explanation or "",
+            "answer_md": self.guide_answer_md or "",
+            "python": self.guide_python or "",
+            "javascript": self.guide_javascript or "",
         }
 
 
@@ -86,6 +89,18 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     progress_entries = relationship("UserProgress", back_populates="user", cascade="all, delete-orphan")
+
+
+class LearningState(Base):
+    """Per-user key/value learning progress: roadmap checkboxes ("roadmap:<id>") and quiz scores ("quiz:<slug>")."""
+    __tablename__ = "learning_state"
+    __table_args__ = (UniqueConstraint("user_id", "key", name="uq_user_learning_key"),)
+
+    id = Column(Integer, primary_key=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    key = Column(String(200), nullable=False)
+    value_json = Column(Text, nullable=False)
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class UserProgress(Base):

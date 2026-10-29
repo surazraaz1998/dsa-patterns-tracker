@@ -49,7 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
-                    placeholder="Search pattern..."
+                    placeholder="Search topics..."
                     className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
                 />
             </div>
@@ -96,6 +96,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 </div>
 
                                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{pattern.description}</p>
+                                {(pattern.lesson_status || pattern.lesson_week) && (
+                                    <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
+                                        {pattern.lesson_week && <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300">Weeks {pattern.lesson_week}</span>}
+                                        {pattern.lesson_status === 'full' && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300">Full lesson</span>}
+                                        {pattern.lesson_status === 'outline' && <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Outline</span>}
+                                    </div>
+                                )}
                             </button>
                         );
                     })}

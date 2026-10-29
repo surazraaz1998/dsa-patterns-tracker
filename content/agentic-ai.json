@@ -1,0 +1,1908 @@
+{
+  "track": {
+    "id": "agentic-ai",
+    "name": "Agentic AI",
+    "description": "LLM APIs, MCP, RAG, LangGraph agents, evals and guardrails — build and ship an AI assistant.",
+    "icon": "🤖",
+    "order": 4,
+    "badge": "New"
+  },
+  "topics": [
+    {
+      "slug": "ai-python-primer",
+      "name": "Python for AI Primer",
+      "description": "Just enough Python to build AI apps: environments, Jupyter, dicts/JSON, HTTP calls, pandas and async.",
+      "revision_note_md": "## Python for AI — the 20% you use 80% of the time\n\n- `python -m venv .venv` + `pip install` per project.\n- Jupyter for experiments; scripts/FastAPI for real apps.\n- **dicts and lists** ↔ JSON (`json.loads` / `json.dumps`) — every LLM API speaks JSON.\n- `httpx` / `requests` for HTTP, `pandas` for tabular data, `async`/`await` for many concurrent calls.",
+      "lesson": {
+        "status": "full",
+        "simple": "AI engineering in Python is mostly **plumbing**: read data, turn it into text or JSON, call an API, and parse the reply. You don't need advanced Python — you need to be fluent with **dicts, lists, JSON, functions, HTTP calls and a little pandas**.\n\nSet up a virtual environment per project, experiment in Jupyter, and move working code into scripts or a FastAPI service.",
+        "analogy": "Python is the kitchen and the LLM is a guest chef: you prepare the ingredients (clean data, a clear prompt as JSON), hand them over, and plate what comes back (parse the response).",
+        "concepts": [
+          {
+            "title": "Project setup that won't bite you later",
+            "body": "- **One virtual environment per project:** `python -m venv .venv` then `source .venv/bin/activate` (or use `uv venv`). Packages for one project never break another.\n- **Pin dependencies** in `requirements.txt` or `pyproject.toml` so the code runs the same next month and on a teammate's laptop.\n- **Secrets in environment variables**, never in code: `ANTHROPIC_API_KEY` in a `.env` file loaded with `python-dotenv`, and `.env` listed in `.gitignore`. The official SDKs read the key from the environment automatically.\n- **Notebook → script → service:** explore in Jupyter, then move working code into functions in a `.py` module, then expose it through FastAPI. Notebooks are for trying ideas, not for running production.",
+            "videos": [
+              {
+                "id": "Y21OR1OPC9A",
+                "title": "Python Virtual Environments - Full Tutorial for Beginners",
+                "channel": "Tech With Tim"
+              }
+            ]
+          },
+          {
+            "title": "Data in and out: dicts, JSON and validation",
+            "body": "LLM work is mostly converting between **Python objects** and **text/JSON**:\n\n```python\nimport json\npayload = {\"city\": \"Pune\", \"days\": 3}\ntext = json.dumps(payload)        # dict → JSON string\nback = json.loads(text)           # JSON string → dict\n```\n\nModel output is **untrusted input**: it can be missing fields, use the wrong types, or wrap JSON in extra text. Validate it with **Pydantic**:\n\n```python\nfrom pydantic import BaseModel, ValidationError\n\nclass Trip(BaseModel):\n    city: str\n    days: int\n\ntry:\n    trip = Trip.model_validate_json(model_reply)\nexcept ValidationError as e:\n    ...   # retry with the error message, or fail clearly\n```\n\nPydantic models also give you **JSON Schema** for free (`Trip.model_json_schema()`) — exactly what tool definitions and structured outputs need.",
+            "videos": [
+              {
+                "id": "XIdQ6gO3Anc",
+                "title": "Pydantic Tutorial • Solving Python's Biggest Problem",
+                "channel": "pixegami"
+              }
+            ]
+          },
+          {
+            "title": "HTTP calls, timeouts, retries and concurrency",
+            "body": "Every API call can be slow or fail. Production habits:\n\n- **Timeouts** on every request (`httpx.get(url, timeout=10)`) — a hung call shouldn't hang your app.\n- **Retries with exponential backoff** for temporary errors (429 rate limit, 5xx, network errors) — wait 1 s, 2 s, 4 s… with a little randomness. Don't retry 4xx errors like 400/401; they won't fix themselves. The Anthropic SDKs already retry transient errors for you (configurable with `max_retries`).\n- **Concurrency with asyncio** when you have many independent calls (summarise 50 documents):\n\n```python\nimport asyncio\nfrom anthropic import AsyncAnthropic\n\nclient = AsyncAnthropic()\nsem = asyncio.Semaphore(5)                 # at most 5 requests in flight\n\nasync def summarise(doc):\n    async with sem:\n        msg = await client.messages.create(model=\"claude-opus-5-5\", max_tokens=500,\n                                           messages=[{\"role\": \"user\", \"content\": f\"Summarise:\\n{doc}\"}])\n        return msg.content[0].text\n\nresults = await asyncio.gather(*(summarise(d) for d in docs))\n```\nThe semaphore keeps you under rate limits while still running calls in parallel.",
+            "videos": [
+              {
+                "id": "Qb9s3UiMSTA",
+                "title": "Asyncio in Python - Full Tutorial",
+                "channel": "Tech With Tim"
+              }
+            ]
+          },
+          {
+            "title": "pandas for preparing data",
+            "body": "Before data goes into a prompt or an embedding job, you usually clean it. The pandas you'll use most:\n\n```python\nimport pandas as pd\ndf = pd.read_csv(\"tickets.csv\")\ndf = df.dropna(subset=[\"text\"]).drop_duplicates(\"text\")\ndf[\"text\"] = df[\"text\"].str.strip()\ndf = df[df[\"text\"].str.len() > 20]              # drop tiny rows\ncounts = df.groupby(\"category\").size().sort_values(ascending=False)\nrecords = df[[\"id\", \"text\"]].to_dict(\"records\")  # → list of dicts for the API\n```\n\nThink of a DataFrame as a table you filter with conditions instead of loops. Two habits: look at a sample (`df.head()`, `df.sample(5)`) before and after each cleaning step, and keep an **id** column so model results can be joined back to the original rows.",
+            "videos": [
+              {
+                "id": "EXIgjIBu4EU",
+                "title": "Learn Pandas in 30 Minutes - Python Pandas Tutorial",
+                "channel": "Tech With Tim",
+                "start": 125,
+                "label": "DataFrames, filtering and cleaning"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Before the Claude API / MCP / RAG lessons — everything after uses these basics.",
+          "Cleaning CSV/JSON datasets before feeding them to an LLM.",
+          "Writing small evaluation scripts for prompts."
+        ],
+        "mistakes": [
+          "Installing packages globally instead of in a venv.",
+          "Building prompts with string concatenation of Python objects instead of `json.dumps`.",
+          "Calling an API 1,000 times sequentially when `asyncio.gather` could run them concurrently (respect rate limits).",
+          "Committing API keys — read them from environment variables."
+        ],
+        "interview_tips": [
+          "Keep secrets in `.env` and load them; never hard-code keys.",
+          "Mention you validate model output (json.loads in try/except, or schema validation).",
+          "Show small, typed functions — reviewers read AI code like any other code."
+        ],
+        "quiz": [
+          {
+            "q": "Which converts a Python dict to a JSON string?",
+            "options": [
+              "json.loads",
+              "json.dumps",
+              "dict.to_json",
+              "str()"
+            ],
+            "answer": 1,
+            "why": "dumps = dump to string; loads = load from string."
+          },
+          {
+            "q": "Why use a virtual environment?",
+            "options": [
+              "Faster code",
+              "Isolated, reproducible dependencies per project",
+              "Required by Jupyter",
+              "To use GPUs"
+            ],
+            "answer": 1,
+            "why": "Different projects can need different package versions."
+          },
+          {
+            "q": "Making 50 independent HTTP calls quickly in Python is best done with…",
+            "options": [
+              "A for loop with time.sleep",
+              "asyncio.gather with an async client",
+              "Recursion",
+              "pandas"
+            ],
+            "answer": 1,
+            "why": "Concurrent I/O instead of waiting one by one."
+          }
+        ],
+        "week": "1-2",
+        "dry_run": {
+          "title": "Turn a CSV row into an LLM-ready JSON payload",
+          "input": "sales.csv: city,month,revenue → Pune,Jan,120000",
+          "columns": [
+            "Step",
+            "Code",
+            "Value"
+          ],
+          "steps": [
+            [
+              "1",
+              "df = pd.read_csv('sales.csv')",
+              "DataFrame with 1 row"
+            ],
+            [
+              "2",
+              "row = df.iloc[0].to_dict()",
+              "{'city': 'Pune', 'month': 'Jan', 'revenue': 120000}"
+            ],
+            [
+              "3",
+              "prompt = f\"Summarise: {json.dumps(row)}\"",
+              "a string with JSON inside"
+            ],
+            [
+              "4",
+              "send prompt to the API, get text back",
+              "\"Pune earned ₹1.2L in January\" ✅"
+            ]
+          ],
+          "takeaway": "Data → dict → JSON string → model → text. That loop is most of AI app code."
+        },
+        "template": {
+          "python": "# python -m venv .venv && source .venv/bin/activate\n# pip install pandas httpx jupyter\nimport asyncio, json\nimport httpx\nimport pandas as pd\n\ndf = pd.read_csv(\"sales.csv\")\ntop = df.sort_values(\"revenue\", ascending=False).head(3)\nrecords = top.to_dict(orient=\"records\")      # list of dicts\npayload = json.dumps(records, indent=2)        # JSON text for a prompt\n\nasync def fetch_all(urls: list[str]) -> list[dict]:\n    async with httpx.AsyncClient(timeout=10) as client:\n        responses = await asyncio.gather(*(client.get(u) for u in urls))\n    return [r.json() for r in responses]",
+          "javascript": "// The same ideas in JS/TS (Node 18+ has fetch built in)\nconst records = [{ city: 'Pune', revenue: 120000 }, { city: 'Delhi', revenue: 98000 }];\nconst payload = JSON.stringify(records, null, 2);\n\nasync function fetchAll(urls) {\n  const responses = await Promise.all(urls.map((u) => fetch(u)));\n  return Promise.all(responses.map((r) => r.json()));\n}"
+        },
+        "complexity": "Not about Big-O — about clean, reproducible scripts. Pin dependencies in requirements.txt.",
+        "resources": [
+          {
+            "label": "Python docs — tutorial",
+            "url": "https://docs.python.org/3/tutorial/"
+          },
+          {
+            "label": "pandas — 10 minutes to pandas",
+            "url": "https://pandas.pydata.org/docs/user_guide/10min.html"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Load a CSV with pandas and print the top 5 rows by a column",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "pd.read_csv, sort_values, head."
+          ],
+          "explanation": "Read, sort descending, take head(5), convert to records."
+        },
+        {
+          "title": "Write a script that reads an API key from the environment",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "os.environ.get('NAME').",
+            "Fail with a clear message if missing."
+          ],
+          "explanation": "Load configuration from environment variables, never from code."
+        },
+        {
+          "title": "Fetch 10 URLs concurrently with httpx and asyncio",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "AsyncClient + asyncio.gather."
+          ],
+          "explanation": "Use one async client and gather the requests; handle failures per request."
+        }
+      ]
+    },
+    {
+      "slug": "ai-claude-api",
+      "name": "Claude API: Tools, Structured Output, Context",
+      "description": "Call an LLM from code, let it use your functions (tool calling), get reliable JSON back, and design the context it sees.",
+      "revision_note_md": "## LLM API essentials\n\n- A request = **system prompt** + **messages** (user/assistant turns) + optional **tools**.\n- **Tool calling**: you describe functions with a JSON schema; the model replies with a `tool_use` block; *your code* runs the function and sends back a `tool_result`.\n- **Structured output**: ask for JSON matching a schema and validate it.\n- **Context engineering**: give the model exactly the information it needs — clear instructions, relevant data, examples — and nothing noisy.",
+      "lesson": {
+        "status": "full",
+        "simple": "An LLM API is a function: you send text, you get text back. Three skills make it useful in real apps:\n\n1. **Tool calling** — the model can't access your database, but it can *ask you* to run a function. You list tools (name, description, input schema). When the model needs one, it returns a `tool_use` request; your code runs it and sends the result back; the model continues.\n2. **Structured outputs** — ask for JSON that matches a schema so your code can use the reply safely.\n3. **Context engineering** — the model only knows what's in the request. Good context = clear role and rules, the relevant data, an example of the output, and nothing irrelevant.",
+        "analogy": "The model is a smart new teammate on a phone call. They can't open your laptop, but they can say \"please look up order 123 for me\". You look it up and read it out (tool result), and they continue the answer.",
+        "concepts": [
+          {
+            "title": "How a Messages API call works",
+            "body": "The API is **stateless**: every request contains everything the model should see.\n\n- `system` — instructions and role (\"You are a support assistant for…; answer only from the provided policy\").\n- `messages` — the conversation as alternating `user` and `assistant` turns. To \"remember\" a chat, you send the whole history each time.\n- `max_tokens` — the most the model may write in this reply.\n- `tools` — functions it may ask to call.\n\nThe response has `content` (a list of blocks: `text`, `tool_use`, …), `usage` (input and output tokens — this is what you pay for) and `stop_reason`:\n- `end_turn` — finished normally;\n- `tool_use` — wants you to run a tool;\n- `max_tokens` — cut off; raise the limit or ask for shorter output.\n\nAlways check `stop_reason` before trusting the output.",
+            "videos": [
+              {
+                "id": "W68VEFHCsLc",
+                "title": "Claude 3.5 API in Python • Explore AWESOME Use Cases!",
+                "channel": "pixegami",
+                "start": 187,
+                "end": 413,
+                "label": "setup and a chat call (older model, same API)"
+              }
+            ]
+          },
+          {
+            "title": "The tool-use loop in detail",
+            "body": "1. You send `tools=[{name, description, input_schema}]`. The **description** is the most important part — it's how the model decides when to use the tool and what to pass.\n2. The model replies with one or more `tool_use` blocks, each with an `id`, `name` and `input`, and `stop_reason == \"tool_use\"`.\n3. You append the assistant's message **unchanged** to `messages`, run each tool, then send **one user message** containing a `tool_result` block per call, each with the matching `tool_use_id`.\n4. Repeat until `stop_reason` isn't `tool_use`.\n\nDetails that matter:\n- The model may request **several tools at once** (parallel calls). Return all results together in one message.\n- If a tool fails, return a `tool_result` with `is_error: true` and a helpful message (\"order id not found\") — the model can recover, retry or ask the user.\n- **Validate tool inputs** against your schema before running anything, and never let a tool do something dangerous without checks — the model chose the arguments, not your user.\n- Cap the number of loop rounds so a confused run can't loop forever.",
+            "videos": [
+              {
+                "id": "W68VEFHCsLc",
+                "title": "Claude 3.5 API in Python • Explore AWESOME Use Cases!",
+                "channel": "pixegami",
+                "start": 413,
+                "end": 983,
+                "label": "tool use: define, call, return results"
+              }
+            ]
+          },
+          {
+            "title": "Getting reliable structured output",
+            "body": "When your code needs data, not prose, don't parse free text with regex. Options, from most to least robust:\n\n1. **Structured outputs / a JSON schema** — constrain the reply to a schema you define (see the API docs for the current parameters). Generate the schema from a Pydantic model.\n2. **A \"tool\" used as an output format** — define a tool like `record_result` whose `input_schema` is your schema, and force the model to call it with `tool_choice`. The tool's input *is* your structured data.\n3. **Instructions + an example + validation** — ask for JSON matching an example, then validate with Pydantic and retry once with the validation error if it fails.\n\nWhichever you use, **validate** before using the data, and keep the schema small: fewer fields, clear names, enums instead of free text where possible (`\"sentiment\": \"positive\" | \"neutral\" | \"negative\"`).",
+            "videos": [
+              {
+                "id": "XIdQ6gO3Anc",
+                "title": "Pydantic Tutorial • Solving Python's Biggest Problem",
+                "channel": "pixegami",
+                "start": 304,
+                "end": 529,
+                "label": "validating model output with Pydantic"
+              }
+            ]
+          },
+          {
+            "title": "Context engineering and cost",
+            "body": "The model only knows what's in the request, so **what you put in the context decides the quality**:\n\n- **Role and rules** in the system prompt: who it is, what it must and mustn't do, the output format.\n- **Relevant data only** — retrieved passages, the user's record — not your whole database. Irrelevant text distracts the model and costs tokens.\n- **Examples** of good output for tricky formats.\n- **Clear structure** — wrap documents in tags (`<policy>…</policy>`) so instructions and data don't blur.\n\nCost and latency scale with tokens:\n- Long, unchanging prefixes (system prompt, tool definitions, reference docs) can use **prompt caching** (`cache_control` on those blocks), which makes repeated requests cheaper and faster.\n- Trim chat history (summarise old turns) instead of sending everything forever.\n- Use a smaller, faster model for simple steps (classification, routing) and a stronger one for hard reasoning.\n- Log `usage` per request so you know where tokens go.",
+            "videos": [
+              {
+                "id": "_0uiiJfsBPI",
+                "title": "How and When to Use Anthropic's Prompt Caching Feature (with code examples)",
+                "channel": "Mark Kashef"
+              },
+              {
+                "id": "u57EnkQaUTY",
+                "title": "What is Prompt Caching? Optimize LLM Latency with AI Transformers",
+                "channel": "IBM Technology"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Chatbots that answer from your data (\"Ask PulseBoard\"-style assistants).",
+          "Extracting structured fields from messy text (invoices, resumes).",
+          "Agents that take actions through your APIs."
+        ],
+        "mistakes": [
+          "Expecting the model to call your function by itself — your code must run tools and return results.",
+          "Sending each tool result in a separate message — return all results for a turn in one user message.",
+          "Parsing JSON from free text without validation or error handling.",
+          "Stuffing everything into the prompt; irrelevant context lowers quality and raises cost.",
+          "Hard-coding the API key in source code."
+        ],
+        "interview_tips": [
+          "Explain the loop clearly: request → tool_use → run → tool_result → repeat until end_turn.",
+          "Write tool descriptions like docs for a teammate: when to use it, what each field means.",
+          "Mention evaluation: you test prompts on a fixed set of examples before shipping changes."
+        ],
+        "quiz": [
+          {
+            "q": "Who executes a tool when the model returns a tool_use block?",
+            "options": [
+              "The model",
+              "Your application code",
+              "The API automatically",
+              "The browser"
+            ],
+            "answer": 1,
+            "why": "Client tools run in your code; you send back a tool_result."
+          },
+          {
+            "q": "What tells you the model wants a tool?",
+            "options": [
+              "stop_reason == 'tool_use'",
+              "HTTP 302",
+              "An empty response",
+              "max_tokens reached"
+            ],
+            "answer": 0,
+            "why": "Then run the requested tools and continue the loop."
+          },
+          {
+            "q": "Good context engineering means…",
+            "options": [
+              "Sending all your data every time",
+              "Clear instructions + only relevant data + examples",
+              "Very short prompts only",
+              "Using the biggest model"
+            ],
+            "answer": 1,
+            "why": "Relevant, well-structured context beats more context."
+          }
+        ],
+        "week": "3-4",
+        "dry_run": {
+          "title": "\"What's the weather in Pune?\" with one tool",
+          "input": "tools = [get_weather(city)]",
+          "columns": [
+            "Turn",
+            "Who",
+            "Content"
+          ],
+          "steps": [
+            [
+              "1",
+              "user → model",
+              "What's the weather in Pune?"
+            ],
+            [
+              "2",
+              "model → you",
+              "tool_use: get_weather({city: 'Pune'}), stop_reason = tool_use"
+            ],
+            [
+              "3",
+              "your code",
+              "runs get_weather('Pune') → {temp_c: 31}"
+            ],
+            [
+              "4",
+              "you → model",
+              "tool_result {temp_c: 31}"
+            ],
+            [
+              "5",
+              "model → user",
+              "It's about 31°C in Pune right now. ✅ (stop_reason = end_turn)"
+            ]
+          ],
+          "takeaway": "The model never runs code. Your loop runs tools until stop_reason is no longer tool_use."
+        },
+        "template": {
+          "python": "# pip install anthropic   (reads ANTHROPIC_API_KEY from the environment)\nimport json\nimport anthropic\n\nclient = anthropic.Anthropic()\n\ntools = [{\n    \"name\": \"get_weather\",\n    \"description\": \"Get the current weather for a city.\",\n    \"input_schema\": {\n        \"type\": \"object\",\n        \"properties\": {\"city\": {\"type\": \"string\"}},\n        \"required\": [\"city\"],\n    },\n}]\n\ndef get_weather(city: str) -> dict:\n    return {\"city\": city, \"temp_c\": 31}          # call a real API here\n\nmessages = [{\"role\": \"user\", \"content\": \"What's the weather in Pune?\"}]\nwhile True:\n    response = client.messages.create(\n        model=\"claude-opus-5-5\",\n        max_tokens=16000,\n        system=\"You are a concise travel assistant.\",\n        tools=tools,\n        messages=messages,\n    )\n    messages.append({\"role\": \"assistant\", \"content\": response.content})\n    if response.stop_reason != \"tool_use\":\n        break\n    results = []\n    for block in response.content:\n        if block.type == \"tool_use\":\n            output = get_weather(**block.input)\n            results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n    messages.append({\"role\": \"user\", \"content\": results})   # all results in one message\n\nprint(\"\".join(b.text for b in response.content if b.type == \"text\"))",
+          "javascript": "// npm install @anthropic-ai/sdk   (reads ANTHROPIC_API_KEY)\nimport Anthropic from '@anthropic-ai/sdk';\n\nconst client = new Anthropic();\nconst tools = [{\n  name: 'get_weather',\n  description: 'Get the current weather for a city.',\n  input_schema: { type: 'object', properties: { city: { type: 'string' } }, required: ['city'] },\n}];\nconst getWeather = ({ city }) => ({ city, temp_c: 31 });\n\nconst messages = [{ role: 'user', content: \"What's the weather in Pune?\" }];\nlet response;\nwhile (true) {\n  response = await client.messages.create({\n    model: 'claude-opus-5-5', max_tokens: 16000, tools, messages,\n  });\n  messages.push({ role: 'assistant', content: response.content });\n  if (response.stop_reason !== 'tool_use') break;\n  const results = response.content\n    .filter((b) => b.type === 'tool_use')\n    .map((b) => ({ type: 'tool_result', tool_use_id: b.id, content: JSON.stringify(getWeather(b.input)) }));\n  messages.push({ role: 'user', content: results });\n}\nconsole.log(response.content.filter((b) => b.type === 'text').map((b) => b.text).join(''));"
+        },
+        "complexity": "Cost and latency grow with tokens in and out. Keep context focused; cache long, stable prefixes (prompt caching) when you reuse them.",
+        "resources": [
+          {
+            "label": "Anthropic Academy (free courses: Claude API, MCP, AI Fluency)",
+            "url": "https://anthropic.skilljar.com/"
+          },
+          {
+            "label": "Claude API docs",
+            "url": "https://platform.claude.com/docs"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Call the API and print a reply",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Set ANTHROPIC_API_KEY.",
+            "messages.create with one user message."
+          ],
+          "explanation": "A single request with a system prompt and one user message."
+        },
+        {
+          "title": "Add one tool and implement the tool loop",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Loop while stop_reason == 'tool_use'.",
+            "Return tool_result with the matching tool_use_id."
+          ],
+          "explanation": "Describe the function with a JSON schema, run it on tool_use, return results, repeat."
+        },
+        {
+          "title": "Extract invoice fields as validated JSON",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Define a schema: vendor, date, total.",
+            "Validate and retry on bad output."
+          ],
+          "explanation": "Ask for JSON matching a schema and validate it in code before using it."
+        }
+      ]
+    },
+    {
+      "slug": "ai-mcp-fundamentals",
+      "name": "MCP Fundamentals: Build Your First Server",
+      "description": "Model Context Protocol: expose your app's data and actions as tools any AI client can use.",
+      "revision_note_md": "## MCP in one page\n\n- **MCP** is an open standard that lets AI apps (clients) connect to tools and data (servers) the same way everywhere.\n- A server exposes **tools** (actions), **resources** (readable data) and **prompts** (templates).\n- Transports: **stdio** (local process) and **streamable HTTP** (remote).\n- Write the server once → use it from Claude Desktop, Claude Code, IDEs and your own agents.",
+      "lesson": {
+        "status": "full",
+        "simple": "Tool calling (last lesson) wires tools into *one* app. **MCP (Model Context Protocol)** makes tools reusable: you build an **MCP server** that exposes your app's functions, and any **MCP client** — Claude Desktop, Claude Code, an IDE, or your own agent — can discover and call them.\n\nA server offers three things:\n- **Tools** — functions the model can call (`search_orders`, `create_ticket`).\n- **Resources** — data the client can read (files, records).\n- **Prompts** — reusable prompt templates.\n\nYour first project: wrap 2–3 endpoints of an existing backend as MCP tools.",
+        "analogy": "MCP is like USB-C for AI. Before, every device needed its own cable (custom integration per app). Now one standard port lets any AI app plug into any tool server.",
+        "concepts": [
+          {
+            "title": "Hosts, clients and servers",
+            "body": "MCP has three roles:\n\n- **Host** — the AI application the user interacts with: Claude Desktop, Claude Code, an IDE, or your own agent.\n- **Client** — a connector inside the host that talks to **one** server. A host can run many clients.\n- **Server** — your program that exposes capabilities (tools, resources, prompts) over the protocol.\n\nMessages are **JSON-RPC 2.0** (requests with an id, responses, notifications) carried over a **transport**:\n- **stdio** — the host starts your server as a subprocess and talks over stdin/stdout. Great for local tools; no network or auth needed.\n- **Streamable HTTP** — your server runs as a web service; clients connect over HTTP. Needed for remote/shared servers, and it needs authentication.\n\nThe model never talks to your server directly. It asks the host to use a tool; the host's client makes the MCP call; the result goes back into the model's context.",
+            "videos": [
+              {
+                "id": "eur8dUO9mvE",
+                "title": "What is MCP? Integrate AI Agents with Databases & APIs",
+                "channel": "IBM Technology"
+              },
+              {
+                "id": "tzrwxLNHtRY",
+                "title": "Model Context Protocol Clearly Explained | MCP Beyond the Hype",
+                "channel": "codebasics",
+                "start": 46,
+                "end": 337,
+                "label": "why MCP: the glue-code problem"
+              }
+            ]
+          },
+          {
+            "title": "The connection lifecycle",
+            "body": "1. **Initialize** — the client sends `initialize` with its protocol version and capabilities; the server replies with its own (e.g. \"I offer tools and resources\"). The client confirms with an `initialized` notification.\n2. **Discovery** — `tools/list`, `resources/list`, `prompts/list` return what's available, with names, descriptions and JSON schemas.\n3. **Use** — `tools/call {name, arguments}` runs a tool; `resources/read {uri}` fetches data; `prompts/get` returns a template.\n4. **Notifications** — the server can announce that its tool list changed, or send progress and log messages.\n5. **Shutdown** — the client closes the connection (or the subprocess exits).\n\nSDKs (Python `mcp`, TypeScript `@modelcontextprotocol/sdk`) handle all of this; you write normal functions with decorators. Knowing the lifecycle helps when debugging (\"my tools don't show up\" → check `tools/list` in the MCP Inspector).",
+            "videos": [
+              {
+                "id": "tzrwxLNHtRY",
+                "title": "Model Context Protocol Clearly Explained | MCP Beyond the Hype",
+                "channel": "codebasics",
+                "start": 337,
+                "end": 669,
+                "label": "how MCP works technically"
+              }
+            ]
+          },
+          {
+            "title": "Tools, resources and prompts: who's in control",
+            "body": "| Primitive | Controlled by | What it is | Example |\n|---|---|---|---|\n| **Tools** | the **model** decides when to call | functions with side effects or lookups | `search_orders`, `create_ticket` |\n| **Resources** | the **application/user** chooses what to attach | read-only data identified by a URI | `notes://kafka`, a file, a DB record |\n| **Prompts** | the **user** picks them (often as slash commands) | reusable prompt templates with arguments | \"Summarise this PR\", \"Draft a release note\" |\n\nRule of thumb: if the model should decide on its own to fetch or change something, make it a **tool**. If a human (or the app) should choose which data goes into context, make it a **resource**. If it's a workflow people trigger by name, make it a **prompt**.",
+            "videos": [
+              {
+                "id": "tzrwxLNHtRY",
+                "title": "Model Context Protocol Clearly Explained | MCP Beyond the Hype",
+                "channel": "codebasics",
+                "start": 669,
+                "label": "capabilities and schemas"
+              }
+            ]
+          },
+          {
+            "title": "Designing tools models use well",
+            "body": "The model chooses tools from their names, descriptions and schemas — treat them like an API for a smart but literal colleague:\n\n- **Names** — verbs plus nouns: `search_notes`, `get_order_status`. Avoid near-duplicates (`get_order` vs `fetch_order`).\n- **Descriptions** — what it does, when to use it, what it returns, and limits (\"returns at most 20 results, newest first\").\n- **Inputs** — typed and narrow: enums for fixed choices, required vs optional clearly marked, formats described (`date as YYYY-MM-DD`).\n- **Outputs** — compact and relevant. Return ids plus the few fields that matter; paginate big results. Huge outputs waste the context window.\n- **Errors** — clear messages the model can act on: \"No order with id A9. Ask the user to check the id.\"\n- **Safety** — read-only tools are low risk; destructive ones (delete, pay, send) need confirmation in the host, authorisation checks in the server, and input validation.\n\nTest with the **MCP Inspector** (`npx @modelcontextprotocol/inspector`), then add the server to Claude Desktop or Claude Code and try real prompts.",
+            "videos": [
+              {
+                "id": "-8k9lGpGQ6g",
+                "title": "Build Anything With a CUSTOM MCP Server - Python Tutorial",
+                "channel": "Tech With Tim",
+                "start": 249,
+                "label": "build and connect a custom MCP server"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "You want your product's data usable from AI assistants without building a chatbot yourself.",
+          "Several agents/apps need the same tools.",
+          "Portfolio project: \"I exposed my FastAPI backend as an MCP server\"."
+        ],
+        "mistakes": [
+          "Vague tool names/descriptions — the model picks tools from these, so write them clearly.",
+          "Exposing dangerous actions (delete, payments) without confirmation or auth.",
+          "Returning huge payloads; return what the model needs, paginate the rest.",
+          "Printing logs to stdout in a stdio server — it corrupts the protocol stream; log to stderr."
+        ],
+        "interview_tips": [
+          "Explain MCP vs plain tool calling: MCP standardises discovery and transport so tools are reusable across clients.",
+          "Demo it: run your server in Claude Desktop or Claude Code and show a real query end-to-end.",
+          "Talk about security: least-privilege tools, input validation, auth for remote servers."
+        ],
+        "quiz": [
+          {
+            "q": "What problem does MCP solve?",
+            "options": [
+              "Training models faster",
+              "A standard way for AI apps to connect to tools and data",
+              "Replacing REST APIs",
+              "Storing embeddings"
+            ],
+            "answer": 1,
+            "why": "Build a server once, use it from any MCP client."
+          },
+          {
+            "q": "Which is NOT an MCP server primitive?",
+            "options": [
+              "Tools",
+              "Resources",
+              "Prompts",
+              "Embeddings"
+            ],
+            "answer": 3,
+            "why": "Servers expose tools, resources and prompts."
+          },
+          {
+            "q": "Why must a stdio MCP server avoid printing logs to stdout?",
+            "options": [
+              "It's slow",
+              "stdout carries the protocol messages",
+              "Logs are secret",
+              "Python forbids it"
+            ],
+            "answer": 1,
+            "why": "Use stderr for logs."
+          }
+        ],
+        "week": "5-6",
+        "dry_run": {
+          "title": "An AI client uses your 'search_notes' tool",
+          "input": "MCP server 'notes' with tool search_notes(query)",
+          "columns": [
+            "Step",
+            "Between",
+            "Message"
+          ],
+          "steps": [
+            [
+              "1",
+              "client → server",
+              "initialize (agree on protocol version and capabilities)"
+            ],
+            [
+              "2",
+              "client → server",
+              "tools/list → [search_notes]"
+            ],
+            [
+              "3",
+              "user → model",
+              "\"Find my notes about Kafka\""
+            ],
+            [
+              "4",
+              "client → server",
+              "tools/call search_notes {query: 'Kafka'}"
+            ],
+            [
+              "5",
+              "server → client",
+              "result: 2 notes → model answers the user ✅"
+            ]
+          ],
+          "takeaway": "The model decides to use the tool; the client does the protocol; your server just runs a normal function."
+        },
+        "template": {
+          "python": "# pip install \"mcp[cli]\"   — official Python SDK\nfrom mcp.server.fastmcp import FastMCP\n\nmcp = FastMCP(\"notes\")\nNOTES = {\"kafka\": \"Partitions give ordering per key.\", \"redis\": \"Use TTLs for cache keys.\"}\n\n@mcp.tool()\ndef search_notes(query: str) -> list[str]:\n    \"\"\"Search saved notes by keyword. Returns matching note texts.\"\"\"\n    q = query.lower()\n    return [text for title, text in NOTES.items() if q in title or q in text.lower()]\n\n@mcp.tool()\ndef add_note(title: str, text: str) -> str:\n    \"\"\"Save a note under a short title.\"\"\"\n    NOTES[title.lower()] = text\n    return f\"Saved '{title}'\"\n\n@mcp.resource(\"notes://{title}\")\ndef read_note(title: str) -> str:\n    \"\"\"Read one note by title.\"\"\"\n    return NOTES.get(title.lower(), \"not found\")\n\nif __name__ == \"__main__\":\n    mcp.run()            # stdio transport by default",
+          "javascript": "// npm install @modelcontextprotocol/sdk zod   — official TypeScript SDK\n// (API names can change between SDK versions; check the SDK README.)\nimport { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';\nimport { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';\nimport { z } from 'zod';\n\nconst notes = new Map([['kafka', 'Partitions give ordering per key.']]);\nconst server = new McpServer({ name: 'notes', version: '1.0.0' });\n\nserver.registerTool(\n  'search_notes',\n  { description: 'Search saved notes by keyword.', inputSchema: { query: z.string() } },\n  async ({ query }) => {\n    const hits = [...notes.entries()].filter(([t, v]) => t.includes(query) || v.includes(query));\n    return { content: [{ type: 'text', text: JSON.stringify(hits) }] };\n  },\n);\n\nawait server.connect(new StdioServerTransport());"
+        },
+        "complexity": "Each tool call is a normal function call in your server — keep tools fast, scoped and safe (validate inputs, check permissions).",
+        "resources": [
+          {
+            "label": "Anthropic Academy (free courses: Claude API, MCP, AI Fluency)",
+            "url": "https://anthropic.skilljar.com/"
+          },
+          {
+            "label": "Model Context Protocol docs",
+            "url": "https://modelcontextprotocol.io"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build an MCP server with 2 tools and test it in an MCP client",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "FastMCP + @mcp.tool().",
+            "Connect it to Claude Desktop or Claude Code."
+          ],
+          "explanation": "Expose two small functions as tools and verify a real query uses them."
+        },
+        {
+          "title": "Wrap 2–3 endpoints of your own backend as MCP tools",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Call your existing service layer, not raw SQL.",
+            "Validate inputs."
+          ],
+          "explanation": "Each tool calls existing backend logic and returns a compact result."
+        }
+      ]
+    },
+    {
+      "slug": "ai-mcp-advanced-rag",
+      "name": "MCP Advanced + RAG Basics (pgvector)",
+      "description": "Remote MCP transports and auth, then Retrieval-Augmented Generation: embeddings, vector search in Postgres, and grounded answers.",
+      "revision_note_md": "## RAG in one page\n\n1. **Chunk** documents into small passages.\n2. **Embed** each chunk into a vector (a list of numbers capturing meaning).\n3. **Store** vectors (Postgres + `pgvector`).\n4. At question time: embed the question → **find the nearest chunks** → put them in the prompt → the model answers *from those chunks*, citing them.\n\nMCP advanced: streamable HTTP transport for remote servers, authentication, sampling (server asks the client's model to generate).",
+      "lesson": {
+        "status": "full",
+        "simple": "Models don't know your private data. **RAG (Retrieval-Augmented Generation)** fixes that: before answering, you **search your own documents** for the most relevant passages and give them to the model as context.\n\nThe search is by *meaning*, not keywords: each passage is turned into an **embedding** (a vector of numbers), and similar meanings have nearby vectors. `pgvector` lets Postgres store these vectors and find the nearest ones with SQL.\n\nOn the MCP side, you move from a local (stdio) server to a **remote server over HTTP** with authentication, so others can use it.",
+        "analogy": "An open-book exam: instead of answering from memory, the student first flips to the 3 most relevant pages of the textbook, then writes the answer using them — and cites the pages.",
+        "concepts": [
+          {
+            "title": "Embeddings and similarity, intuitively",
+            "body": "An **embedding model** turns text into a vector — a list of a few hundred to a few thousand numbers. Texts with similar meaning get vectors pointing in similar directions: \"How do I get a refund?\" lands close to \"Return and refund policy\", even with no words in common.\n\n**Similarity** is measured with:\n- **Cosine similarity** — the angle between vectors (1 = same direction). The usual choice for text.\n- **Dot product** — same as cosine when vectors are normalised to length 1.\n- **Euclidean (L2) distance** — straight-line distance.\n\nImportant rules:\n- Use the **same embedding model** for documents and queries; vectors from different models aren't comparable.\n- Embeddings capture *topic and meaning* well but are weak at exact tokens (ids, codes, rare names) — that's why production systems add keyword search (next lesson's hybrid retrieval).\n- Anthropic doesn't offer an embedding model; pick one from an embedding provider (Voyage AI is the one Anthropic recommends) or an open-source model, and record which one you used.",
+            "videos": [
+              {
+                "id": "wgfSDrqYMJ4",
+                "title": "What are Word Embeddings?",
+                "channel": "IBM Technology"
+              },
+              {
+                "id": "gl1r1XV0SLw",
+                "title": "What is a Vector Database? Powering Semantic Search & AI Applications",
+                "channel": "IBM Technology"
+              }
+            ]
+          },
+          {
+            "title": "pgvector in practice",
+            "body": "```sql\nCREATE EXTENSION IF NOT EXISTS vector;\nCREATE TABLE chunks (\n  id bigserial PRIMARY KEY,\n  doc_id text, tenant_id text, content text,\n  embedding vector(1024)                 -- must match your model's dimension\n);\nCREATE INDEX ON chunks USING hnsw (embedding vector_cosine_ops);\n\nSELECT id, content\nFROM chunks\nWHERE tenant_id = $1\nORDER BY embedding <=> $2               -- <=> cosine distance, <-> L2, <#> negative inner product\nLIMIT 5;\n```\n\n**Indexes:** without one, every query compares against every row (exact but slow at scale).\n- **HNSW** — a graph index; fast and accurate queries, slower to build, more memory. The common default.\n- **IVFFlat** — clusters vectors into lists; faster to build, needs a training step after loading data and tuning of `lists`/`probes`.\n\nBoth are **approximate** — they trade a little recall for speed. Keep metadata columns (tenant, date, source) next to the vector so you can filter in the same query.",
+            "videos": [
+              {
+                "id": "j1QcPSLj7u0",
+                "title": "PGVector: Turn PostgreSQL Into A Vector Database",
+                "channel": "NeuralNine",
+                "start": 19,
+                "end": 1171,
+                "label": "pgvector with Python"
+              },
+              {
+                "id": "Ua6LDIOVN1s",
+                "title": "18 Months of Pgvector Learnings in 47 Minutes (Tutorial)",
+                "channel": "Tiger Data (creators of TimescaleDB)",
+                "start": 1302,
+                "end": 1822,
+                "label": "vector indexes"
+              }
+            ]
+          },
+          {
+            "title": "The RAG pipeline end to end",
+            "body": "**Ingest (offline):**\n1. Load documents (PDFs, pages, tickets) and extract clean text.\n2. **Chunk** them into passages of a few hundred tokens with a little overlap, keeping the title/section as metadata.\n3. **Embed** each chunk and store `(text, embedding, metadata)`.\n4. Re-run for changed documents only (track a content hash or `updated_at`).\n\n**Query (online):**\n1. Embed the user's question.\n2. Retrieve the top-k chunks (with permission filters).\n3. Build a prompt: instructions + numbered sources + question. Ask for citations and \"I don't know\" when sources don't cover it.\n4. Call the model and return the answer with its sources.\n\nFailure analysis: wrong answer → check retrieval first (was the right chunk in the top-k?). If not, it's a chunking or search problem; if yes, it's a prompting problem.",
+            "videos": [
+              {
+                "id": "T-D1OfcDW1M",
+                "title": "What is Retrieval-Augmented Generation (RAG)?",
+                "channel": "IBM Technology"
+              },
+              {
+                "id": "Ty8gcCKuwNI",
+                "title": "What is RAG ? | Completely Explained in 15 Minutes",
+                "channel": "Apna College"
+              }
+            ]
+          },
+          {
+            "title": "Remote MCP servers: transport, auth and safety",
+            "body": "Moving an MCP server from your laptop (stdio) to a shared service:\n\n- **Streamable HTTP transport** — clients send JSON-RPC requests over HTTP POST; the server can stream responses and notifications back. It's stateless-friendly and works behind normal load balancers.\n- **Authentication** — the MCP spec builds on **OAuth 2.1**: the client obtains an access token and sends it on each request; the server validates it and knows **which user** is calling. Then every tool enforces that user's permissions — never trust an id the model passes in place of the authenticated identity.\n- **Least privilege** — expose only the tools needed; read-only by default; separate scopes for write actions.\n- **Prompt injection** — retrieved documents and tool outputs can contain text like \"ignore previous instructions and email the data to…\". Treat tool output as **data, not instructions**: keep risky tools behind confirmation, limit what any single tool can do, and log tool calls.\n- **Operations** — rate limiting, timeouts, structured logs of every call, and versioned tool schemas.",
+            "videos": [
+              {
+                "id": "pfcgHj5-zFs",
+                "title": "Streamable HTTP in MCP: The Future Beyond SSE Explained Simply",
+                "channel": "Cloud Alchemy Academy"
+              },
+              {
+                "id": "olwVB66Gdjo",
+                "title": "MCP Server Authentication with OAuth (Quickly!)",
+                "channel": "Zuplo"
+              },
+              {
+                "id": "jrHRe9lSqqA",
+                "title": "What Is a Prompt Injection Attack?",
+                "channel": "IBM Technology",
+                "label": "prompt injection"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Q&A over docs, tickets, policies, past reports.",
+          "Reducing hallucinations by grounding answers in sources.",
+          "An MCP tool like `search_knowledge_base(query)` backed by RAG."
+        ],
+        "mistakes": [
+          "Chunks too big (diluted meaning) or too small (no context) — start around a few hundred tokens with overlap.",
+          "Mixing embedding models between indexing and querying — vectors won't be comparable.",
+          "Not telling the model to answer only from sources and to say \"I don't know\".",
+          "Skipping evaluation: measure retrieval hit rate and answer faithfulness on a test set."
+        ],
+        "interview_tips": [
+          "Explain the pipeline in 4 words: chunk, embed, retrieve, generate.",
+          "Mention hybrid retrieval (keyword + vector) and re-ranking as next steps.",
+          "Say you use Postgres + pgvector to avoid running a separate vector database."
+        ],
+        "quiz": [
+          {
+            "q": "What does an embedding represent?",
+            "options": [
+              "A compressed file",
+              "The meaning of text as a vector of numbers",
+              "A database index",
+              "A prompt template"
+            ],
+            "answer": 1,
+            "why": "Similar meanings → nearby vectors."
+          },
+          {
+            "q": "In pgvector, `ORDER BY embedding <=> q` sorts by…",
+            "options": [
+              "Alphabetical order",
+              "Cosine distance to the query vector",
+              "Insert time",
+              "Random"
+            ],
+            "answer": 1,
+            "why": "<=> is cosine distance; smaller = more similar."
+          },
+          {
+            "q": "Main benefit of RAG?",
+            "options": [
+              "Cheaper training",
+              "Answers grounded in your own, up-to-date data",
+              "No need for prompts",
+              "Faster GPUs"
+            ],
+            "answer": 1,
+            "why": "The model reads relevant sources at question time."
+          }
+        ],
+        "week": "7-8",
+        "dry_run": {
+          "title": "\"What is our refund window?\"",
+          "input": "3 chunks stored with embeddings",
+          "columns": [
+            "Step",
+            "Action",
+            "Result"
+          ],
+          "steps": [
+            [
+              "1",
+              "embed the question",
+              "vector q"
+            ],
+            [
+              "2",
+              "SELECT … ORDER BY embedding <=> q LIMIT 3",
+              "chunks: refund-policy#2, faq#7, terms#4"
+            ],
+            [
+              "3",
+              "build prompt: question + 3 chunks + 'answer only from these, cite them'",
+              "~1,500 tokens"
+            ],
+            [
+              "4",
+              "model answers",
+              "\"Refunds within 30 days of delivery [refund-policy#2]\" ✅"
+            ]
+          ],
+          "takeaway": "Quality depends mostly on retrieval: good chunks in → good answer out."
+        },
+        "template": {
+          "python": "# Postgres with the pgvector extension\nSCHEMA = \"\"\"\nCREATE EXTENSION IF NOT EXISTS vector;\nCREATE TABLE chunks (\n  id bigserial PRIMARY KEY,\n  source text,\n  content text,\n  embedding vector(1024)          -- match your embedding model's size\n);\n\"\"\"\n\nSEARCH = \"\"\"\nSELECT source, content\nFROM chunks\nORDER BY embedding <=> %(q)s      -- cosine distance\nLIMIT 5;\n\"\"\"\n\ndef answer(question, embed, db, llm):\n    \"\"\"embed: your embedding model; db: a cursor; llm: a function that calls the model.\"\"\"\n    q = embed(question)\n    db.execute(SEARCH, {\"q\": str(q)})\n    context = \"\\n\\n\".join(f\"[{src}] {text}\" for src, text in db.fetchall())\n    prompt = (\n        \"Answer using ONLY the sources below. Cite sources in [brackets]. \"\n        \"If the answer isn't there, say you don't know.\\n\\n\"\n        f\"Sources:\\n{context}\\n\\nQuestion: {question}\"\n    )\n    return llm(prompt)",
+          "javascript": "// Same flow in Node with node-postgres (pg)\nasync function answer(question, { embed, pool, llm }) {\n  const q = await embed(question);                 // number[]\n  const { rows } = await pool.query(\n    'SELECT source, content FROM chunks ORDER BY embedding <=> $1 LIMIT 5',\n    [JSON.stringify(q)],\n  );\n  const context = rows.map((r) => `[${r.source}] ${r.content}`).join('\\n\\n');\n  return llm(\n    `Answer using ONLY these sources and cite them in [brackets].\\n\\n${context}\\n\\nQuestion: ${question}`,\n  );\n}"
+        },
+        "complexity": "Exact vector search is O(n); add an HNSW or IVFFlat index in pgvector for approximate nearest neighbours at scale.",
+        "resources": [
+          {
+            "label": "Anthropic Academy (free courses: Claude API, MCP, AI Fluency)",
+            "url": "https://anthropic.skilljar.com/"
+          },
+          {
+            "label": "pgvector",
+            "url": "https://github.com/pgvector/pgvector"
+          },
+          {
+            "label": "Supabase AI & vectors guide",
+            "url": "https://supabase.com/docs/guides/ai"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Store 50 document chunks in pgvector and search them",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "CREATE EXTENSION vector.",
+            "ORDER BY embedding <=> q LIMIT 5."
+          ],
+          "explanation": "Chunk, embed, insert, then nearest-neighbour search with SQL."
+        },
+        {
+          "title": "Expose RAG search as an MCP tool",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Tool: search_knowledge_base(query) → top chunks with sources."
+          ],
+          "explanation": "Wrap the retrieval function as an MCP tool so any client can ground answers."
+        },
+        {
+          "title": "Move your MCP server to streamable HTTP with auth",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Remote transport instead of stdio.",
+            "Require a token/OAuth for remote clients."
+          ],
+          "explanation": "Serve MCP over HTTP behind authentication so remote clients can connect safely."
+        }
+      ]
+    },
+    {
+      "slug": "ai-langgraph-fundamentals",
+      "name": "LangGraph Fundamentals",
+      "description": "Build agents as graphs: nodes (steps), edges (what runs next) and shared state, with human-in-the-loop pauses.",
+      "revision_note_md": "## LangGraph in one page\n\n- An agent is a **graph**: **nodes** are steps (call the model, run tools), **edges** say what runs next.\n- **State** is a typed dict every node reads and updates (usually a `messages` list).\n- **Conditional edges** branch on state: \"did the model ask for a tool?\" → tools node, else end.\n- **Checkpointer** saves state after every step, keyed by `thread_id` → memory across turns, resume after crashes.\n- **interrupt()** pauses the graph for a human (approve a refund, edit a draft); resume with `Command(resume=...)`.",
+      "lesson": {
+        "status": "full",
+        "simple": "In the Claude API lesson you wrote the agent loop by hand: call the model → if it asks for a tool, run it → call again. That's fine for small agents. As they grow (several tools, approvals, retries, memory), the loop becomes spaghetti.\n\n**LangGraph** lets you draw the loop as a **graph**:\n- **Nodes** — plain functions: `agent` (call the model), `tools` (run the requested tools).\n- **Edges** — what runs next. A **conditional edge** after `agent` says: *\"tool requested? go to `tools`; otherwise stop.\"*\n- **State** — a dict passed through the graph (the conversation messages).\n\nTwo features you get almost for free:\n- **Checkpointing** — state is saved after each step per `thread_id`, so the agent remembers past turns and can resume.\n- **Human-in-the-loop** — call `interrupt()` before a risky action (cancel order, send email); the run pauses until a person approves.",
+        "analogy": "A flowchart on the office wall for handling customer complaints. Each box is a step, arrows say what comes next, some arrows depend on a question (\"refund over ₹5,000? → ask the manager\"). LangGraph is that flowchart, but executable, with a notebook (checkpoint) that records where each case is.",
+        "concepts": [
+          {
+            "title": "State and reducers",
+            "body": "A LangGraph graph passes one **state** object (a `TypedDict` or Pydantic model) from node to node. Each node returns a **partial update** — only the keys it changed — and LangGraph merges it into the state.\n\nHow a key is merged is decided by its **reducer**:\n- **No reducer** → the new value **replaces** the old one (good for `plan`, `answer`, `status`).\n- **`add_messages`** → new messages are **appended** (and messages with the same id are updated). That's why chat state is `messages: Annotated[list, add_messages]`.\n- **`operator.add`** → lists are concatenated (useful for collecting step results).\n\nDesign state like a small database schema: what does every node need to read, and what does each one write? Keep large data (documents, files) out of state when you can and store references instead — state is saved at every step.",
+            "videos": [
+              {
+                "id": "cUfLrn3TM3M",
+                "title": "LangGraph Explained for Beginners",
+                "channel": "KodeKloud",
+                "start": 141,
+                "end": 350,
+                "label": "StateGraph and the workflow"
+              },
+              {
+                "id": "jGg_1h0qzaM",
+                "title": "LangGraph Complete Course for Beginners – Complex AI Agents with Python",
+                "channel": "freeCodeCamp.org",
+                "start": 84,
+                "end": 1119,
+                "label": "type annotations and graph elements"
+              }
+            ]
+          },
+          {
+            "title": "Nodes, edges and control flow",
+            "body": "- **Node** — a function `state → partial update`. It can call a model, run tools, query a database, or just transform data.\n- **Normal edge** — `add_edge(\"a\", \"b\")`: after a, always run b.\n- **Conditional edge** — `add_conditional_edges(\"agent\", route)`: `route(state)` returns the name of the next node (or `END`). The prebuilt `tools_condition` routes to `\"tools\"` when the last message contains tool calls.\n- **START / END** — the entry and exit points.\n- **Cycles are allowed** — the `agent ⇄ tools` loop is a cycle; `recursion_limit` caps how many steps a run may take.\n\n`compile()` checks the graph (no missing nodes, every node reachable) and returns a runnable with `invoke`, `stream` and their async versions. You can also nest a compiled graph as a node in another graph — that's how the multi-step lesson reuses this agent as its \"executor\".",
+            "videos": [
+              {
+                "id": "cUfLrn3TM3M",
+                "title": "LangGraph Explained for Beginners",
+                "channel": "KodeKloud",
+                "start": 457,
+                "end": 687,
+                "label": "nodes, edges, routing and loops"
+              }
+            ]
+          },
+          {
+            "title": "Checkpointers, threads and memory",
+            "body": "A **checkpointer** saves the state after every step. Each conversation or job gets a **thread id**:\n\n```python\ngraph = builder.compile(checkpointer=MemorySaver())\nconfig = {\"configurable\": {\"thread_id\": \"customer-42\"}}\ngraph.invoke({\"messages\": [(\"user\", \"Hi\")]}, config)\ngraph.invoke({\"messages\": [(\"user\", \"What did I just say?\")]}, config)  # remembers\n```\n\nWhat this gives you:\n- **Short-term memory** — the conversation continues across calls on the same thread.\n- **Resume after failure** — a crashed run can continue from the last checkpoint.\n- **Human-in-the-loop** — a paused run waits safely in the checkpoint until someone responds.\n- **Time travel** — inspect earlier states (`get_state_history`) to debug, or replay from one.\n\n`MemorySaver` keeps everything in RAM (lost on restart) — fine for learning. In production use a durable checkpointer (Postgres or SQLite packages). Long-term memory across threads (user preferences) is a separate **store**, not the checkpointer.",
+            "videos": [
+              {
+                "id": "_IPP7_Bi8uA",
+                "title": "Persistence in LangGraph | Time Travel in LangGraph | CampusX",
+                "channel": "CampusX",
+                "start": 63,
+                "end": 2285,
+                "label": "persistence, checkpointers and threads"
+              },
+              {
+                "id": "_IPP7_Bi8uA",
+                "title": "Persistence in LangGraph | Time Travel in LangGraph | CampusX",
+                "channel": "CampusX",
+                "start": 2856,
+                "end": 3450,
+                "label": "time travel"
+              }
+            ]
+          },
+          {
+            "title": "Human-in-the-loop with interrupt and Command",
+            "body": "Call `interrupt(payload)` inside a node (or a tool) when you need a person:\n\n1. The run **pauses**; the state is checkpointed; `invoke` returns with an `__interrupt__` entry containing your payload (e.g. \"Cancel order A1?\").\n2. Your app shows that to a human — a button in the UI, a Slack message, a review queue.\n3. Resume with `graph.invoke(Command(resume=answer), config)`. The node re-runs from its start, and this time `interrupt()` returns the human's answer.\n\nBecause the node **re-executes** on resume, put side effects *after* the interrupt (or make them idempotent) — otherwise anything before it runs twice.\n\nPatterns: **approve/reject** an action, **edit** a draft before sending, **provide missing information** the agent can't get itself. This is safer than telling the model \"ask before cancelling\" in the prompt — code enforces it every time.",
+            "videos": [
+              {
+                "id": "6t7YJcEFUIY",
+                "title": "LangGraph interrupt: Making it easier to build human-in-the-loop agents",
+                "channel": "LangChain"
+              },
+              {
+                "id": "xxqZzVZ4gE0",
+                "title": "Human in the loop (HITL) using LangGraph | CampusX",
+                "channel": "CampusX",
+                "start": 861,
+                "end": 2382,
+                "label": "HITL in LangGraph with code"
+              }
+            ]
+          },
+          {
+            "title": "Streaming and when not to use LangGraph",
+            "body": "**Streaming** shows progress while the graph runs:\n- `stream_mode=\"updates\"` — what each node changed, as it finishes;\n- `stream_mode=\"messages\"` — model tokens as they're generated (for chat UIs);\n- `stream_mode=\"values\"` — the full state after each step.\n\n**When LangGraph helps:** branching flows, several tools, retries, approvals, long-running jobs, memory per thread, and the need to inspect each step.\n\n**When it doesn't:** a single model call, or a simple tool loop of 20 lines. The plain SDK loop from the Claude API lesson is easier to read and has fewer moving parts. Also note that agent frameworks change quickly — pin versions and keep your business logic in plain functions the graph calls, so switching frameworks later is cheap.",
+            "videos": [
+              {
+                "id": "qAF1NjEVHhY",
+                "title": "LangChain vs LangGraph: A Tale of Two Frameworks",
+                "channel": "IBM Technology"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Your agent needs more than one tool, branching, retries or approval steps.",
+          "You need memory across turns or the ability to pause and resume (approvals, long tasks).",
+          "Interview/portfolio: \"I built a LangGraph agent with human approval before irreversible actions.\""
+        ],
+        "mistakes": [
+          "Overwriting messages instead of appending — use the `add_messages` reducer (or MessagesAnnotation in JS).",
+          "No checkpointer → no memory between invocations and `interrupt()` can't resume.",
+          "Reusing one `thread_id` for every user — conversations leak into each other.",
+          "Putting approval logic in the prompt (\"ask before cancelling\") instead of enforcing it in code with `interrupt()`.",
+          "Using LangGraph for a single model call — plain SDK code is simpler."
+        ],
+        "interview_tips": [
+          "Draw your graph on the whiteboard: nodes, edges, where state is saved, where a human approves.",
+          "Explain why a framework: explicit control flow, persistence, human-in-the-loop, streaming of intermediate steps.",
+          "Mention you'd swap MemorySaver for a durable checkpointer (Postgres) in production.",
+          "Be honest about trade-offs: more abstraction, fast-moving APIs; plain loops are fine for small agents."
+        ],
+        "quiz": [
+          {
+            "q": "In LangGraph, what decides whether to run the tools node after the model?",
+            "options": [
+              "A fixed edge",
+              "A conditional edge that checks for tool calls",
+              "The user",
+              "Random"
+            ],
+            "answer": 1,
+            "why": "`tools_condition` routes to tools if the last message has tool calls, else ends."
+          },
+          {
+            "q": "What does a checkpointer give you?",
+            "options": [
+              "Faster models",
+              "Saved state per thread: memory, resume, human-in-the-loop",
+              "Cheaper tokens",
+              "Embeddings"
+            ],
+            "answer": 1,
+            "why": "State is persisted after every step, keyed by thread_id."
+          },
+          {
+            "q": "How do you pause for a human before an irreversible action?",
+            "options": [
+              "Tell the model in the prompt",
+              "Call interrupt() and resume with Command(resume=...)",
+              "sleep()",
+              "Use a second model"
+            ],
+            "answer": 1,
+            "why": "Code-enforced approval can't be talked around by the model."
+          },
+          {
+            "q": "Why does the messages field use the add_messages reducer?",
+            "options": [
+              "To delete old messages",
+              "So each node's new messages are appended to the history",
+              "For speed",
+              "It's required for tools"
+            ],
+            "answer": 1,
+            "why": "Without it, a node's return value would replace the whole list."
+          }
+        ],
+        "week": "9-10",
+        "dry_run": {
+          "title": "\"Where is order A1? If it's late, cancel it.\"",
+          "input": "nodes: agent, tools; cancel_order calls interrupt() for approval",
+          "columns": [
+            "Step",
+            "Node",
+            "What happens",
+            "Next"
+          ],
+          "steps": [
+            [
+              "1",
+              "agent",
+              "model asks for get_order_status(A1)",
+              "tools (tool call present)"
+            ],
+            [
+              "2",
+              "tools",
+              "returns \"3 days late\"",
+              "agent"
+            ],
+            [
+              "3",
+              "agent",
+              "model asks for cancel_order(A1)",
+              "tools"
+            ],
+            [
+              "4",
+              "tools",
+              "cancel_order → interrupt(\"Cancel A1?\") — run pauses, state checkpointed",
+              "waits for a human"
+            ],
+            [
+              "5",
+              "(resume)",
+              "human sends Command(resume=\"yes\") → tool returns \"cancelled\"",
+              "agent"
+            ],
+            [
+              "6",
+              "agent",
+              "model replies \"Your order was late, so I cancelled it.\"",
+              "END ✅"
+            ]
+          ],
+          "takeaway": "The graph is the same loop you wrote by hand, plus a saved checkpoint at every step — that's what makes the pause in step 4 possible."
+        },
+        "template": {
+          "python": "# pip install langgraph langchain-anthropic   (LangGraph moves fast — check the docs for your version)\nfrom typing import Annotated, TypedDict\n\nfrom langchain_anthropic import ChatAnthropic\nfrom langchain_core.tools import tool\nfrom langgraph.checkpoint.memory import MemorySaver\nfrom langgraph.graph import START, StateGraph\nfrom langgraph.graph.message import add_messages\nfrom langgraph.prebuilt import ToolNode, tools_condition\nfrom langgraph.types import Command, interrupt\n\n@tool\ndef get_order_status(order_id: str) -> str:\n    \"\"\"Look up the delivery status of an order by its id.\"\"\"\n    return {\"A1\": \"3 days late\"}.get(order_id, \"not found\")\n\n@tool\ndef cancel_order(order_id: str) -> str:\n    \"\"\"Cancel an order. A human must approve first.\"\"\"\n    answer = interrupt({\"question\": f\"Cancel order {order_id}?\"})   # pauses the run\n    return f\"Order {order_id} cancelled\" if answer == \"yes\" else \"Cancellation not approved\"\n\ntools = [get_order_status, cancel_order]\nmodel = ChatAnthropic(model=\"claude-opus-5-5\").bind_tools(tools)\n\nclass State(TypedDict):\n    messages: Annotated[list, add_messages]     # new messages are appended, not replaced\n\ndef agent(state: State):\n    return {\"messages\": [model.invoke(state[\"messages\"])]}\n\nbuilder = StateGraph(State)\nbuilder.add_node(\"agent\", agent)\nbuilder.add_node(\"tools\", ToolNode(tools))\nbuilder.add_edge(START, \"agent\")\nbuilder.add_conditional_edges(\"agent\", tools_condition)   # tool call → \"tools\", else END\nbuilder.add_edge(\"tools\", \"agent\")\ngraph = builder.compile(checkpointer=MemorySaver())        # use a Postgres/SQLite saver in production\n\nconfig = {\"configurable\": {\"thread_id\": \"customer-42\"}}\nresult = graph.invoke({\"messages\": [(\"user\", \"Where is order A1? If it's late, cancel it.\")]}, config)\nif \"__interrupt__\" in result:                              # paused for approval\n    print(result[\"__interrupt__\"][0].value)\n    result = graph.invoke(Command(resume=\"yes\"), config)  # a human said yes\nprint(result[\"messages\"][-1].content)",
+          "javascript": "// npm install @langchain/langgraph @langchain/anthropic @langchain/core zod\nimport { MemorySaver, MessagesAnnotation, START, StateGraph } from '@langchain/langgraph';\nimport { ToolNode, toolsCondition } from '@langchain/langgraph/prebuilt';\nimport { ChatAnthropic } from '@langchain/anthropic';\nimport { tool } from '@langchain/core/tools';\nimport { z } from 'zod';\n\nconst getOrderStatus = tool(\n  async ({ orderId }) => ({ A1: '3 days late' })[orderId] ?? 'not found',\n  { name: 'get_order_status', description: 'Look up the delivery status of an order by its id.', schema: z.object({ orderId: z.string() }) },\n);\n\nconst tools = [getOrderStatus];\nconst model = new ChatAnthropic({ model: 'claude-opus-5-5' }).bindTools(tools);\n\nconst graph = new StateGraph(MessagesAnnotation)\n  .addNode('agent', async (state) => ({ messages: [await model.invoke(state.messages)] }))\n  .addNode('tools', new ToolNode(tools))\n  .addEdge(START, 'agent')\n  .addConditionalEdges('agent', toolsCondition) // tool call → 'tools', else END\n  .addEdge('tools', 'agent')\n  .compile({ checkpointer: new MemorySaver() });\n\nconst config = { configurable: { thread_id: 'customer-42' } };\nconst result = await graph.invoke({ messages: [{ role: 'user', content: 'Where is order A1?' }] }, config);\nconsole.log(result.messages.at(-1).content);"
+        },
+        "complexity": "Each loop round = one model call (+ tool time). Cap rounds with `recursion_limit` (default 25) so a confused agent can't loop forever and burn tokens.",
+        "resources": [
+          {
+            "label": "DeepLearning.AI — AI Agents in LangGraph",
+            "url": "https://www.deeplearning.ai/short-courses/ai-agents-in-langgraph/"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: LangGraph Fundamentals",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "State = a typed dict passed between nodes.",
+            "Conditional edges route based on state (e.g. 'needs tool?')."
+          ],
+          "explanation": "Build agents as graphs: nodes (steps), edges (what runs next) and shared state, with human-in-the-loop pauses."
+        },
+        {
+          "title": "Add a 'human approves refunds over ₹5,000' step to a LangGraph agent",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Check the amount inside the tool or a dedicated approval node.",
+            "Small refunds skip the interrupt."
+          ],
+          "explanation": "Only call interrupt() when the amount crosses the threshold; small refunds go straight through.",
+          "answer_md": "```python\n@tool\ndef refund(order_id: str, amount: int) -> str:\n    \"\"\"Refund an order (INR).\"\"\"\n    if amount > 5000:\n        if interrupt({\"approve_refund\": order_id, \"amount\": amount}) != \"yes\":\n            return \"Refund rejected by a human reviewer\"\n    return payments.refund(order_id, amount)\n```\n\nThe rule lives in code, so the model can't skip it; the checkpointer keeps the paused run until someone answers."
+        }
+      ]
+    },
+    {
+      "slug": "ai-crewai-production-rag",
+      "name": "CrewAI + Production RAG",
+      "description": "Try a second agent framework and make RAG production-grade: chunking strategy, hybrid retrieval, re-ranking.",
+      "revision_note_md": "## Production RAG + CrewAI\n\n- **Chunking**: split by structure (headings, paragraphs), ~300–800 tokens, small overlap; keep metadata (source, section, date, owner).\n- **Hybrid retrieval**: vector search (meaning) + keyword search (exact terms, codes, names) → merge with **Reciprocal Rank Fusion**.\n- **Re-rank** the top ~20 with a cross-encoder / re-ranker, keep ~5.\n- **Filters**: tenant/user permissions and dates in the WHERE clause — never rely on the model to hide data.\n- **Answer with citations**, and say \"I don't know\" when sources don't cover it.\n- **CrewAI**: agents with roles + tasks; good for role-based pipelines (researcher → writer → reviewer).",
+      "lesson": {
+        "status": "full",
+        "simple": "Basic RAG (embed chunks, find the nearest ones, put them in the prompt) works in a demo and then disappoints in production. Four upgrades fix most problems:\n\n1. **Better chunks** — split along the document's structure (headings, paragraphs), not every 500 characters. Store metadata: source, section, date, who can see it.\n2. **Hybrid search** — vector search finds *meaning* (\"return policy\" ≈ \"refunds\"), but misses exact terms like order ids, error codes or product names. Run **keyword search too** and merge the two lists (Reciprocal Rank Fusion).\n3. **Re-ranking** — take the top ~20 candidates and let a re-ranker model score how well each actually answers the question; keep the best ~5.\n4. **Grounded answers** — tell the model to answer only from the sources, **cite them**, and say \"I don't know\" otherwise.\n\n**CrewAI** is a second agent framework worth knowing: you define **agents with roles** (Researcher, Writer) and **tasks**, and the crew runs them in order — handy for content pipelines on top of your RAG search.",
+        "analogy": "A good librarian. Basic RAG is a librarian who only searches by topic. A production librarian also searches the exact title you mumbled, pulls 20 books, skims them to keep the 5 best, and tells you which page each fact came from — or admits the library doesn't have it.",
+        "concepts": [
+          {
+            "title": "Chunking strategies compared",
+            "body": "| Strategy | How | Good for | Watch out |\n|---|---|---|---|\n| **Fixed size** | every N tokens with overlap | quick baseline | cuts sentences, tables, code |\n| **Recursive / structural** | split by headings → paragraphs → sentences until under the size limit | docs, wikis, markdown | needs clean text extraction |\n| **Semantic** | split where the topic changes (embedding similarity drops) | long, loosely structured text | slower to build |\n| **Document-specific** | one FAQ entry, one ticket, one function per chunk | FAQs, code, records | custom code per source |\n\nPractical defaults: 300–800 tokens, 10–15% overlap, never split tables or code blocks, and **prepend context** to each chunk (document title + section heading) so a chunk still makes sense on its own (\"Footwear › Returns: …\"). Store metadata (source URL, section, updated_at, tenant, access level) for filtering and citations.",
+            "videos": [
+              {
+                "id": "9ztE_pX7Ltc",
+                "title": "Only 5% Engineers Understand Chunking for RAG | AI Interview Series",
+                "channel": "Think in Models"
+              },
+              {
+                "id": "pIGRwMjhMaQ",
+                "title": "Chunking Strategies in RAG: Optimising Data for Advanced AI Responses",
+                "channel": "Mervin Praison"
+              }
+            ]
+          },
+          {
+            "title": "Hybrid retrieval and Reciprocal Rank Fusion",
+            "body": "Vector search and keyword search fail in different ways:\n- **Vector** finds paraphrases (\"money back\" ↔ \"refund\") but misses exact tokens: `SH-2291`, `ERR_CONN_RESET`, a rare surname.\n- **Keyword (BM25 / Postgres full-text)** nails exact tokens but misses paraphrases.\n\nRun both and merge. Their scores aren't comparable (cosine distance vs BM25 score), so merge by **rank** with **Reciprocal Rank Fusion**:\n\n`score(d) = Σ over each result list of 1 / (k + rank of d in that list)`, with k ≈ 60.\n\nA document ranked #1 by vectors and #3 by keywords scores 1/61 + 1/63 ≈ 0.032; one that appears only once at #1 scores 1/61 ≈ 0.016. Agreement between methods pushes documents up, and k damps the effect of a single high rank. It needs no tuning, which is why it's a popular default.",
+            "videos": [
+              {
+                "id": "6dDvfGrxFns",
+                "title": "Understanding Reciprocal Rank Fusion in Hybrid Search [Advanced RAG]",
+                "channel": "TechViz - The Data Science Guy"
+              },
+              {
+                "id": "XvKiTfd6Xvo",
+                "title": "The Complete Guide to Hybrid Search in RAG (BM25 + Embeddings + Reranker)",
+                "channel": "Dave Ebbelaar",
+                "start": 2232,
+                "end": 2636,
+                "label": "reciprocal rank fusion in code"
+              }
+            ]
+          },
+          {
+            "title": "Re-ranking: why a second model helps",
+            "body": "First-stage retrieval uses **bi-encoders**: the query and each document are embedded **separately**, so comparing them is a cheap vector operation — fast enough to search millions of chunks, but it never looks at the query and document *together*.\n\nA **re-ranker (cross-encoder)** reads the query and one candidate **together** and outputs a relevance score. It's far more accurate but too slow to run on the whole corpus — so run it on the top 20–50 candidates and keep the best 3–8.\n\nThe pipeline then is: **cheap and wide → precise and narrow**:\n```text\nhybrid search (top 50) → re-rank (top 5) → prompt with numbered sources\n```\nRe-ranking often gives the biggest quality jump per line of code. Hosted re-rankers (from embedding providers such as Voyage AI or Cohere) or open-source cross-encoders both work; measure before and after.",
+            "videos": [
+              {
+                "id": "tA85v3aGBIU",
+                "title": "RAG Reranking Explained: Bi-Encoder vs Cross-Encoder (with benchmarking code)",
+                "channel": "Abid Saudagar"
+              },
+              {
+                "id": "XvKiTfd6Xvo",
+                "title": "The Complete Guide to Hybrid Search in RAG (BM25 + Embeddings + Reranker)",
+                "channel": "Dave Ebbelaar",
+                "start": 2636,
+                "end": 2976,
+                "label": "adding the re-ranker"
+              }
+            ]
+          },
+          {
+            "title": "Measuring RAG quality",
+            "body": "You can't improve what you don't measure. Build a small **evaluation set** first: 20–100 real questions, each with the chunk(s) that contain the answer and a reference answer.\n\n**Retrieval metrics:**\n- **Hit rate @k** — is a correct chunk in the top k?\n- **MRR** (mean reciprocal rank) — 1/rank of the first correct chunk, averaged; rewards putting it at #1.\n\n**Answer metrics:**\n- **Faithfulness / groundedness** — is every claim supported by the retrieved sources?\n- **Answer relevance / correctness** — does it answer the question, compared with the reference?\n- **Citation accuracy** — do the cited sources actually contain the claims?\n\nAnswer metrics are often scored by an **LLM judge** with a clear rubric, spot-checked by a human. Run the set on every change (chunk size, hybrid, re-ranker, prompt) and keep a results table — that table is great interview material. (Week 17's evals lesson goes deeper with RAGAS.)",
+            "videos": [
+              {
+                "id": "7_LTU0LA374",
+                "title": "RAG Evaluation: Precision, Recall, Faithfulness, RAGAS Explained Clearly",
+                "channel": "Logical Lenses",
+                "start": 310,
+                "label": "RAG metrics and RAGAS"
+              },
+              {
+                "id": "XvKiTfd6Xvo",
+                "title": "The Complete Guide to Hybrid Search in RAG (BM25 + Embeddings + Reranker)",
+                "channel": "Dave Ebbelaar",
+                "start": 2976,
+                "end": 3267,
+                "label": "evaluating retrieval quality"
+              }
+            ]
+          },
+          {
+            "title": "CrewAI's model: agents, tasks, crews",
+            "body": "- **Agent** — an LLM with a `role`, `goal` and `backstory` (a persona that shapes its behaviour), optional **tools**, and settings like the model to use.\n- **Task** — a unit of work: `description`, `expected_output` (be specific — it's the agent's definition of done), the agent that does it, and `context` (other tasks whose outputs it receives).\n- **Crew** — agents + tasks + a **process**:\n  - `sequential` — tasks run in order, each passing output forward;\n  - `hierarchical` — a manager agent delegates tasks and reviews results.\n- `kickoff(inputs={...})` fills `{placeholders}` in goals and descriptions and runs the crew.\n\n**CrewAI vs LangGraph:** CrewAI is quick for role-based pipelines (research → write → review) where the flow is simple and the work is mostly the LLM's. LangGraph gives explicit control over state, branching, retries and approvals. Many teams prototype with CrewAI and move complex, production flows to explicit graphs — knowing both lets you explain that choice.",
+            "videos": [
+              {
+                "id": "G42J2MSKyc8",
+                "title": "CrewAI Tutorial | Agentic AI Tutorial",
+                "channel": "codebasics",
+                "start": 714,
+                "end": 2130,
+                "label": "agents, tools and crews"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Your RAG demo answers wrongly on names, ids or exact phrases → add keyword search (hybrid).",
+          "Right documents are found but in the wrong order → add re-ranking.",
+          "Multi-tenant data (each customer sees only theirs) → metadata filters in the query.",
+          "Role-based pipelines (research → draft → review) → CrewAI or a LangGraph graph."
+        ],
+        "mistakes": [
+          "Fixed-size chunks that cut tables and sentences in half; no overlap; no metadata.",
+          "Vector-only search — misses exact ids, codes and rare names.",
+          "Sending 20+ chunks to the model 'just in case' — slower, costlier and often less accurate.",
+          "Relying on the prompt to hide other customers' data — filter by tenant/permissions in SQL.",
+          "No evaluation set — you can't tell if a change helped (see the evals lesson)."
+        ],
+        "interview_tips": [
+          "Describe the pipeline as stages: ingest → chunk → embed → hybrid retrieve → re-rank → generate with citations.",
+          "Give a concrete failure and fix: \"Order ids weren't found by vectors, so I added Postgres full-text search with RRF.\"",
+          "Compare frameworks honestly: CrewAI = fast role-based crews; LangGraph = explicit control flow and state.",
+          "Mention freshness: re-embed changed documents incrementally, keep a `updated_at` filter."
+        ],
+        "quiz": [
+          {
+            "q": "Vector search misses the exact product code 'SH-2291'. Best fix?",
+            "options": [
+              "Bigger embeddings",
+              "Add keyword search and merge (hybrid)",
+              "Lower temperature",
+              "More chunks in the prompt"
+            ],
+            "answer": 1,
+            "why": "Keyword search excels at exact tokens; fuse the two result lists."
+          },
+          {
+            "q": "Reciprocal Rank Fusion scores a document by…",
+            "options": [
+              "Its embedding length",
+              "Summing 1/(k + rank) across result lists",
+              "Word count",
+              "Random"
+            ],
+            "answer": 1,
+            "why": "Documents ranked well by several searches rise to the top."
+          },
+          {
+            "q": "Where should 'customer A can't see customer B's docs' be enforced?",
+            "options": [
+              "In the system prompt",
+              "As a filter in the retrieval query",
+              "In the re-ranker",
+              "Nowhere"
+            ],
+            "answer": 1,
+            "why": "Data the model never receives can't leak."
+          },
+          {
+            "q": "CrewAI organises work as…",
+            "options": [
+              "Graphs of nodes and edges",
+              "Agents with roles collaborating on tasks",
+              "SQL queries",
+              "Embeddings"
+            ],
+            "answer": 1,
+            "why": "You define role-based agents and the tasks they perform."
+          }
+        ],
+        "week": "11-12",
+        "dry_run": {
+          "title": "\"Can I return shoes bought 40 days ago? Order SH-2291\"",
+          "input": "knowledge base: policy docs + order FAQs (pgvector + Postgres full-text)",
+          "columns": [
+            "Step",
+            "Stage",
+            "Output"
+          ],
+          "steps": [
+            [
+              "1",
+              "Vector search (top 20)",
+              "chunks about returns, refunds, exchanges"
+            ],
+            [
+              "2",
+              "Keyword search (top 20)",
+              "chunk mentioning 'SH-' footwear orders + '30-day window'"
+            ],
+            [
+              "3",
+              "Reciprocal Rank Fusion",
+              "one merged list; chunks found by both rise to the top"
+            ],
+            [
+              "4",
+              "Re-rank, keep 5",
+              "'Footwear: 30-day return window' ranked #1"
+            ],
+            [
+              "5",
+              "Prompt with numbered sources",
+              "\"Footwear can be returned within 30 days [2], so 40 days is outside the window. You can request an exception [4].\" ✅"
+            ]
+          ],
+          "takeaway": "Neither search alone found the best pair of chunks; fusion + re-ranking did."
+        },
+        "template": {
+          "python": "# Hybrid retrieval with Postgres: pgvector for meaning, full-text search for exact words.\nVECTOR_SQL = \"\"\"\nSELECT id FROM chunks\nWHERE tenant_id = %(tenant)s                      -- permission filter in SQL, not in the prompt\nORDER BY embedding <=> %(query_embedding)s        -- cosine distance (pgvector)\nLIMIT 20\"\"\"\nKEYWORD_SQL = \"\"\"\nSELECT id FROM chunks\nWHERE tenant_id = %(tenant)s AND tsv @@ websearch_to_tsquery('english', %(q)s)\nORDER BY ts_rank(tsv, websearch_to_tsquery('english', %(q)s)) DESC\nLIMIT 20\"\"\"\n\ndef reciprocal_rank_fusion(*ranked_lists, k=60):\n    \"\"\"Merge ranked id lists: score = sum of 1 / (k + rank). Items found by several lists rise.\"\"\"\n    scores = {}\n    for ranked in ranked_lists:\n        for rank, doc_id in enumerate(ranked, start=1):\n            scores[doc_id] = scores.get(doc_id, 0) + 1 / (k + rank)\n    return sorted(scores, key=scores.get, reverse=True)\n\ndef grounded_prompt(question, chunks):\n    sources = \"\\n\".join(f\"[{i}] {c['text']} (source: {c['source']})\" for i, c in enumerate(chunks, 1))\n    return (\"Answer using ONLY the sources below. Cite them like [2]. \"\n            \"If they don't contain the answer, say you don't know.\\n\\n\"\n            f\"Sources:\\n{sources}\\n\\nQuestion: {question}\")\n\nvector_hits = ['returns-general', 'refund-timeline', 'footwear-policy', 'exchanges']\nkeyword_hits = ['footwear-policy', 'order-id-format', 'returns-general']\nprint(reciprocal_rank_fusion(vector_hits, keyword_hits))\n# ['returns-general', 'footwear-policy', ...]  — found by both lists → ranked first\n\n# --- CrewAI: role-based agents on top of the same search (pip install crewai) ---\ndef build_support_crew(search_fn):\n    from crewai import Agent, Crew, Process, Task\n    from crewai.tools import tool\n\n    @tool(\"Knowledge base search\")\n    def kb_search(query: str) -> str:\n        \"\"\"Search the help-centre knowledge base. Returns numbered passages with sources.\"\"\"\n        return search_fn(query)\n\n    researcher = Agent(role=\"Support researcher\", goal=\"Find the policy facts needed to answer {question}\",\n                       backstory=\"You only trust the knowledge base.\", tools=[kb_search], llm=\"anthropic/claude-opus-5-5\")\n    writer = Agent(role=\"Support writer\", goal=\"Write a short, friendly, cited reply\",\n                   backstory=\"You never invent policy.\", llm=\"anthropic/claude-opus-5-5\")\n    research = Task(description=\"Research: {question}\", expected_output=\"Bullet facts, each with its [source]\", agent=researcher)\n    reply = Task(description=\"Write the customer reply from the facts only.\", expected_output=\"A 3-5 sentence cited reply\",\n                 agent=writer, context=[research])\n    return Crew(agents=[researcher, writer], tasks=[research, reply], process=Process.sequential)\n\n# build_support_crew(my_search).kickoff(inputs={\"question\": \"Can I return shoes after 40 days?\"})",
+          "javascript": "// Reciprocal Rank Fusion + structure-aware chunking helpers\nfunction reciprocalRankFusion(rankedLists, k = 60) {\n  const scores = new Map();\n  for (const ranked of rankedLists) {\n    ranked.forEach((id, i) => scores.set(id, (scores.get(id) ?? 0) + 1 / (k + i + 1)));\n  }\n  return [...scores.entries()].sort((a, b) => b[1] - a[1]).map(([id]) => id);\n}\n\n// Split markdown by headings first, then by size, keeping the heading as metadata.\nfunction chunkMarkdown(doc, source, maxChars = 2000) {\n  const chunks = [];\n  for (const section of doc.split(/\\n(?=#{1,3} )/)) {\n    const heading = section.match(/^#{1,3} (.*)/)?.[1] ?? '';\n    for (let i = 0; i < section.length; i += maxChars - 200) {   // 200-char overlap\n      chunks.push({ text: section.slice(i, i + maxChars), source, heading });\n    }\n  }\n  return chunks;\n}\n\nconsole.log(reciprocalRankFusion([\n  ['returns-general', 'refund-timeline', 'footwear-policy', 'exchanges'],\n  ['footwear-policy', 'order-id-format', 'returns-general'],\n]));"
+        },
+        "complexity": "Two indexed searches (~10–50 ms each) + a re-rank call (~100–300 ms) + one model call. Re-rank 20–50 candidates, send the model ~5 chunks: better answers and fewer tokens than stuffing 20.",
+        "resources": [
+          {
+            "label": "CrewAI docs",
+            "url": "https://docs.crewai.com"
+          },
+          {
+            "label": "Supabase AI guide",
+            "url": "https://supabase.com/docs/guides/ai"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: CrewAI + Production RAG",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "CrewAI: agents with roles collaborating on tasks.",
+            "Chunking: size, overlap, structure-aware splits."
+          ],
+          "explanation": "Try a second agent framework and make RAG production-grade: chunking strategy, hybrid retrieval, re-ranking."
+        },
+        {
+          "title": "Add hybrid search + re-ranking to your RAG project and measure the difference",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Postgres full-text (tsvector) next to pgvector.",
+            "Make 20 test questions with known answers first."
+          ],
+          "explanation": "Build a small labelled question set, then compare vector-only vs hybrid vs hybrid + re-rank on hit rate.",
+          "answer_md": "1. Write 20 questions whose answer chunk you know.\n2. Measure **hit@5** (is the right chunk in the top 5?) for vector-only.\n3. Add a `tsv tsvector` column + GIN index, run keyword search, merge with RRF → measure again.\n4. Add a re-ranker over the top 20 → measure again.\n5. Put the table in your README — real numbers make the project interview-ready."
+        },
+        {
+          "title": "Build a 2-agent CrewAI crew (researcher + writer) on top of your search",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Wrap your search function as a CrewAI tool.",
+            "Pass the research task as context to the writing task."
+          ],
+          "explanation": "A researcher agent uses your search tool to collect cited facts; a writer agent turns them into a reply using only those facts.",
+          "answer_md": "See the `build_support_crew` template above. Keep the writer **without** tools so it can only use the researcher's facts, and ask for `[source]` citations in both tasks' `expected_output`."
+        }
+      ]
+    },
+    {
+      "slug": "ai-agentic-frontend",
+      "name": "Agentic Frontend: Streaming & Tool-Call UI",
+      "description": "Build a chat UI that streams tokens and shows which tools the agent is calling.",
+      "revision_note_md": "## Agentic frontend\n\n- **Stream** tokens from server to browser (Server-Sent Events or a fetch stream) so users see text instantly.\n- Send **typed events**, not just text: `text`, `tool_start`, `tool_result`, `error`, `done`.\n- Render a message as **parts**: text blocks and **tool cards** (\"Searching orders…\" → \"Found 3 orders\").\n- Always handle **stop/cancel** (AbortController), errors and retries.\n- Keep API keys on the server; the browser only talks to your backend.",
+      "lesson": {
+        "status": "full",
+        "simple": "An agent that thinks for 20 seconds behind a spinner feels broken. A good agent UI shows progress **as it happens**:\n- text appears word by word (**streaming**),\n- each tool call shows as a small card (*\"Searching orders…\"* → *\"Found 3 orders ✓\"*),\n- the user can **stop** it at any time.\n\nThe trick is to stream **typed events** from your backend instead of raw text: `text` (a few new words), `tool_start` (name + id), `tool_result` (output), `done`, `error`. The frontend keeps a list of **message parts** and updates it as events arrive.\n\nYour backend calls Claude with streaming, runs the tools, and forwards events using **Server-Sent Events (SSE)** — a simple one-way stream over HTTP. The API key never reaches the browser.",
+        "analogy": "Tracking a food delivery. You don't stare at a blank screen for 40 minutes — you see \"Order accepted → Being prepared → Picked up → 2 km away\". Tool cards are those status updates for your agent.",
+        "concepts": [
+          {
+            "title": "Transport choices: SSE, fetch streams and WebSockets",
+            "body": "| Option | Direction | Good for | Notes |\n|---|---|---|---|\n| **Server-Sent Events (SSE)** | server → client | streaming one answer | plain HTTP, `text/event-stream`, events named `event:` + `data:` lines |\n| **fetch + ReadableStream** | server → client | SSE-formatted responses to a **POST** | the browser `EventSource` API only does GET without a body, so chat apps usually read the stream with `fetch` |\n| **WebSockets** | both ways | multiplayer, live collaboration, interrupting mid-stream with new input | needs connection management, reconnect logic, sticky sessions |\n\nFor a chat agent, **POST + an SSE-formatted stream** is the sweet spot: one request per turn, works through most proxies, easy to debug with `curl -N`. Disable response buffering in proxies (e.g. `X-Accel-Buffering: no` for nginx) or tokens arrive in big lumps.",
+            "videos": [
+              {
+                "id": "X_DdIXrmWOo",
+                "title": "Server-Sent Events vs WebSockets | System Design",
+                "channel": "System Design School"
+              },
+              {
+                "id": "WS352jTTkPU",
+                "title": "WebSockets vs Polling vs Server Sent Events",
+                "channel": "Piyush Garg",
+                "start": 1404,
+                "end": 1540,
+                "label": "Server-Sent Events"
+              }
+            ]
+          },
+          {
+            "title": "Designing the event protocol",
+            "body": "Stream **typed events**, not raw text, so the UI knows what's happening:\n\n| Event | Payload | UI |\n|---|---|---|\n| `text` | `{delta}` | append to the current text part |\n| `tool_start` | `{id, name, input?}` | add a tool card: ⏳ \"Searching orders…\" |\n| `tool_result` | `{id, output or summary, error?}` | card turns ✓ or ✗ |\n| `approval_required` | `{id, question}` | show Approve / Reject buttons |\n| `error` | `{message, retryable}` | inline error with Retry |\n| `done` | `{usage?, message_id}` | re-enable input |\n\nVersion the protocol (`v: 1`) and give every event the **message id** it belongs to. Send short **summaries** of tool results to the browser rather than raw payloads — the UI rarely needs a 50 KB JSON, and it may contain data the user shouldn't see.",
+            "videos": [
+              {
+                "id": "4HlNv1qpZFY",
+                "title": "Server-Sent Events Crash Course",
+                "channel": "Hussein Nasser",
+                "start": 300,
+                "end": 1080,
+                "label": "SSE format, use cases and code"
+              }
+            ]
+          },
+          {
+            "title": "Client state: messages as a list of parts",
+            "body": "Model each assistant message as an ordered list of **parts**: text, tool calls, errors, approvals. Each event updates exactly one part with a small, pure function (the `applyEvent` reducer in the template). Benefits:\n\n- Rendering is trivial: map parts to components (`<TextPart>`, `<ToolCard>`, `<ErrorNotice>`).\n- It's easy to test without a server: feed a list of events, assert the parts.\n- Only the last message changes while streaming, so React re-renders little. Keep finished messages memoised.\n\nOther UX details: auto-scroll only if the user is already at the bottom; render markdown progressively (incomplete code fences are fine); show a typing indicator before the first token; keep the input focused for the next question.",
+            "videos": [
+              {
+                "id": "i7GlWbAFDtY",
+                "title": "Streaming OpenAI Responses | ReactJS + FastAPI",
+                "channel": "Irtiza Hafiz",
+                "label": "React + FastAPI streaming (OpenAI example)"
+              }
+            ]
+          },
+          {
+            "title": "Cancel, errors, retries and reconnects",
+            "body": "- **Stop button** — an `AbortController` cancels the fetch; the server should notice the closed connection and stop calling the model and tools (otherwise you keep paying for tokens no one sees).\n- **Errors** — distinguish *retryable* (network blip, 429, overloaded) from *final* (bad input, permission denied). Show a Retry button for the first kind; retry with backoff.\n- **Partial answers** — if a stream breaks halfway, keep what arrived, mark it incomplete, and offer to regenerate.\n- **Reconnect / resume** — for long tasks, give each run an id and store events server-side, so a refreshed page can fetch what it missed (`GET /runs/{id}/events?after=42`).\n- **Double submits** — disable the send button while a run is active, and use an idempotency key on the request.",
+            "videos": [
+              {
+                "id": "VdAlFWBUGV4",
+                "title": "Abort Fetch API Requests using AbortController",
+                "channel": "Colby Fayock"
+              }
+            ]
+          },
+          {
+            "title": "Human approval and security in the UI",
+            "body": "When the agent wants to do something risky (send an email, refund, delete), the backend pauses (e.g. LangGraph `interrupt`) and streams `approval_required`. The UI shows **exactly what will happen** — recipient, amount, the draft text — with Approve / Edit / Reject. The decision goes back to the server, which resumes the run. Never let the browser execute tools directly.\n\nSecurity checklist:\n- API keys and tool credentials **only on the server**.\n- Authenticate every chat request; tools act as the logged-in user, with their permissions.\n- Treat model output as untrusted when rendering: sanitize HTML, don't auto-open links, be careful with markdown images (they can leak data through URLs).\n- Rate-limit per user to protect your budget.",
+            "videos": [
+              {
+                "id": "YmAaKKlDy7k",
+                "title": "LangGraph Agents - Human-In-The-Loop - User Feedback",
+                "channel": "LangChain"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Any chat or copilot UI on top of an agent (support bot, coding assistant, data assistant).",
+          "Long-running agent tasks where users need to see progress and be able to cancel.",
+          "Portfolio: pairs well with your MCP/LangGraph backend to make a demo people can actually use."
+        ],
+        "mistakes": [
+          "Calling the Claude API directly from the browser — leaks your API key.",
+          "Streaming only text, so tool calls look like a frozen UI.",
+          "Splitting the stream on every chunk instead of buffering until a full `\\n\\n` frame arrives.",
+          "No Stop button / AbortController — users can't cancel a runaway answer.",
+          "Re-rendering the whole chat history on every token — update only the last message's parts."
+        ],
+        "interview_tips": [
+          "Show the event protocol you designed (text, tool_start, tool_result, done, error) — it's the core of the design.",
+          "Talk about UX states: empty, streaming, tool running, error with retry, cancelled.",
+          "Mention ready-made options (Vercel AI SDK) and why you built it by hand once: to understand the protocol.",
+          "Accessibility: announce new messages with `aria-live`, keep focus on the input."
+        ],
+        "quiz": [
+          {
+            "q": "Why stream tokens to the UI?",
+            "options": [
+              "It's cheaper",
+              "Users see the answer start within a second instead of waiting",
+              "Models require it",
+              "Better accuracy"
+            ],
+            "answer": 1,
+            "why": "Streaming improves perceived latency; token cost is unchanged."
+          },
+          {
+            "q": "Where should the Claude API key live?",
+            "options": [
+              "In the React bundle",
+              "On your backend only",
+              "In localStorage",
+              "In the URL"
+            ],
+            "answer": 1,
+            "why": "The browser talks to your backend, which talks to the API."
+          },
+          {
+            "q": "A tool call should appear in the UI as…",
+            "options": [
+              "Nothing",
+              "A status card that updates from running to done",
+              "A popup alert",
+              "A page reload"
+            ],
+            "answer": 1,
+            "why": "Users see what the agent is doing and why it's taking time."
+          },
+          {
+            "q": "What lets the user cancel a streaming request?",
+            "options": [
+              "Closing the tab only",
+              "An AbortController passed to fetch",
+              "setTimeout",
+              "A new API key"
+            ],
+            "answer": 1,
+            "why": "Aborting the fetch closes the stream; the server stops sending."
+          }
+        ],
+        "week": "13-14",
+        "dry_run": {
+          "title": "User asks \"What's the weather in Pune?\"",
+          "input": "events streamed from POST /chat over SSE",
+          "columns": [
+            "#",
+            "Event from server",
+            "UI shows"
+          ],
+          "steps": [
+            [
+              "1",
+              "tool_start {id: t1, name: get_weather}",
+              "card: ⏳ get_weather…"
+            ],
+            [
+              "2",
+              "tool_result {id: t1, output: {temp_c: 31}}",
+              "card: ✓ get_weather → 31 °C"
+            ],
+            [
+              "3",
+              "text {delta: \"It's \"}",
+              "\"It's \""
+            ],
+            [
+              "4",
+              "text {delta: \"31 °C in Pune.\"}",
+              "\"It's 31 °C in Pune.\""
+            ],
+            [
+              "5",
+              "done",
+              "input enabled again ✅"
+            ]
+          ],
+          "takeaway": "Every event updates a small piece of state; the UI is just a render of the parts list."
+        },
+        "template": {
+          "python": "# pip install fastapi uvicorn anthropic\nimport json\n\nfrom anthropic import AsyncAnthropic\nfrom fastapi import FastAPI\nfrom fastapi.responses import StreamingResponse\n\napp = FastAPI()\nclient = AsyncAnthropic()                   # API key stays on the server\nTOOLS = [{\n    \"name\": \"get_weather\",\n    \"description\": \"Current weather for a city.\",\n    \"input_schema\": {\"type\": \"object\", \"properties\": {\"city\": {\"type\": \"string\"}}, \"required\": [\"city\"]},\n}]\n\ndef run_tool(name: str, args: dict) -> dict:\n    if name == \"get_weather\":\n        return {\"city\": args[\"city\"], \"temp_c\": 31}\n    raise ValueError(f\"unknown tool {name}\")\n\ndef sse(event: str, data) -> str:\n    return f\"event: {event}\\ndata: {json.dumps(data)}\\n\\n\"\n\n@app.post(\"/chat\")\nasync def chat(body: dict):\n    async def events():\n        messages = body[\"messages\"]\n        try:\n            for _ in range(5):                  # cap tool rounds\n                async with client.messages.stream(model=\"claude-opus-5-5\", max_tokens=4096,\n                                                  tools=TOOLS, messages=messages) as stream:\n                    async for event in stream:\n                        if event.type == \"content_block_start\" and event.content_block.type == \"tool_use\":\n                            yield sse(\"tool_start\", {\"id\": event.content_block.id, \"name\": event.content_block.name})\n                        elif event.type == \"content_block_delta\" and event.delta.type == \"text_delta\":\n                            yield sse(\"text\", {\"delta\": event.delta.text})\n                    final = await stream.get_final_message()\n                messages = messages + [{\"role\": \"assistant\", \"content\": final.content}]\n                if final.stop_reason != \"tool_use\":\n                    break\n                results = []\n                for block in final.content:\n                    if block.type == \"tool_use\":\n                        output = run_tool(block.name, block.input)\n                        yield sse(\"tool_result\", {\"id\": block.id, \"output\": output})\n                        results.append({\"type\": \"tool_result\", \"tool_use_id\": block.id, \"content\": json.dumps(output)})\n                messages = messages + [{\"role\": \"user\", \"content\": results}]\n            yield sse(\"done\", {})\n        except Exception as e:                  # tell the UI instead of silently dying\n            yield sse(\"error\", {\"message\": str(e)})\n\n    return StreamingResponse(events(), media_type=\"text/event-stream\")",
+          "javascript": "// Frontend: read the SSE stream with fetch, turn events into message parts.\n// parts = [{ type: 'text', text } | { type: 'tool', id, name, status: 'running' | 'done', output }]\nexport function applyEvent(parts, event, data) {\n  switch (event) {\n    case 'text': {\n      const last = parts.at(-1);\n      return last?.type === 'text'\n        ? [...parts.slice(0, -1), { ...last, text: last.text + data.delta }]\n        : [...parts, { type: 'text', text: data.delta }];\n    }\n    case 'tool_start':\n      return [...parts, { type: 'tool', id: data.id, name: data.name, status: 'running' }];\n    case 'tool_result':\n      return parts.map((p) => (p.type === 'tool' && p.id === data.id ? { ...p, status: 'done', output: data.output } : p));\n    case 'error':\n      return [...parts, { type: 'error', text: data.message }];\n    default:\n      return parts;\n  }\n}\n\nexport async function streamChat(messages, onParts, signal) {\n  const res = await fetch('/chat', {\n    method: 'POST',\n    headers: { 'Content-Type': 'application/json' },\n    body: JSON.stringify({ messages }),\n    signal,                                    // AbortController → Stop button\n  });\n  const reader = res.body.pipeThrough(new TextDecoderStream()).getReader();\n  let buffer = '', parts = [];\n  for (;;) {\n    const { value, done } = await reader.read();\n    if (done) break;\n    buffer += value;\n    const frames = buffer.split('\\n\\n');\n    buffer = frames.pop();                     // keep an incomplete frame for later\n    for (const frame of frames) {\n      const event = frame.match(/^event: (.*)$/m)?.[1];\n      const data = JSON.parse(frame.match(/^data: (.*)$/m)?.[1] ?? '{}');\n      parts = applyEvent(parts, event, data);\n      onParts(parts);                          // e.g. React setState\n    }\n  }\n}\n\n// React usage:\n// const [parts, setParts] = useState([]);\n// const ctrl = useRef(null);\n// const send = (msgs) => { ctrl.current = new AbortController(); streamChat(msgs, setParts, ctrl.current.signal); };\n// <button onClick={() => ctrl.current?.abort()}>Stop</button>"
+        },
+        "complexity": "Time to first token drops from 'whole answer' (seconds) to a few hundred ms. Events are tiny; the cost is the same model tokens — streaming changes perceived speed, not price.",
+        "resources": [
+          {
+            "label": "AI SDK docs",
+            "url": "https://ai-sdk.dev/docs"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: Agentic Frontend: Streaming & Tool-Call UI",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Stream responses so users see text immediately.",
+            "Render tool calls as status chips (\"Searching data…\")."
+          ],
+          "explanation": "Build a chat UI that streams tokens and shows which tools the agent is calling."
+        },
+        {
+          "title": "Build a streaming chat UI with tool cards and a Stop button",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "SSE events: text, tool_start, tool_result, done, error.",
+            "AbortController for Stop."
+          ],
+          "explanation": "A FastAPI SSE endpoint streams typed events from Claude; a React component renders text and tool cards and can abort.",
+          "answer_md": "Use the backend and `applyEvent` / `streamChat` from the template. Render parts: text → `<p>`, tool → a small card with a spinner (running) or ✓ and a short summary (done), error → a red notice with **Retry**. Disable the input while streaming and wire **Stop** to `abort()`."
+        }
+      ]
+    },
+    {
+      "slug": "ai-langgraph-multistep",
+      "name": "Multi-Step Agent over MCP Tools",
+      "description": "Rebuild your assistant as a LangGraph flow that plans, calls several MCP tools, and checks its work.",
+      "revision_note_md": "## Multi-step agent over MCP tools\n\n- Load tools from your **MCP server(s)** into the agent (langchain-mcp-adapters).\n- **Plan → execute → check → answer**: a planner writes 3–6 steps; an executor runs each with tools; a final node summarises.\n- Guardrails: max steps, `recursion_limit`, per-run token/time budget, tool allow-list, approval for writes.\n- Log every step (input, tool calls, output, tokens) — debugging agents is reading traces.",
+      "lesson": {
+        "status": "full",
+        "simple": "This is the build that ties the last months together: your **MCP server** (Weeks 5–8) provides the tools, **LangGraph** (Weeks 9–10) provides the control flow, and the agent handles a goal that needs **several steps**.\n\nA simple, reliable shape is **plan-and-execute**:\n1. **Plan** — the model turns the goal into 3–6 short steps (as structured output, not free text).\n2. **Execute** — for each step, a tool-using agent (the graph from the LangGraph lesson) does the work with your MCP tools.\n3. **Finish** — the model writes the final answer from the step results.\n\nThen add the things that make it production-worthy: a **maximum number of steps**, a **recursion limit**, **approval before write actions**, and a **log line for every step** so you can see why it did what it did.",
+        "analogy": "A new team member given a task. A good one writes a short checklist first, works through it item by item using the company's tools, and ends with a summary for the manager — and asks before doing anything risky.",
+        "concepts": [
+          {
+            "title": "Plan-and-execute vs a single ReAct loop",
+            "body": "**ReAct** (reason + act) is the loop from the Claude API and LangGraph lessons: the model looks at the conversation, decides on a tool call, sees the result, decides again… until it answers. Flexible and simple, but on long tasks it can wander, forget the goal or repeat itself.\n\n**Plan-and-execute** splits the work:\n1. A **planner** writes a short list of steps up front (structured output).\n2. An **executor** — a small ReAct agent — does one step at a time with only the context it needs.\n3. A **finisher** writes the answer from the step results (optionally a **checker** verifies it).\n\n| | ReAct | Plan-and-execute |\n|---|---|---|\n| Predictability | lower | higher — you can show and log the plan |\n| Adapting to surprises | good | needs re-planning |\n| Cost | can grow unbounded | bounded by the number of steps |\n| Debugging | read one long trace | inspect each step separately |\n\nMany production agents combine them: plan, execute with ReAct per step, re-plan if a step fails.",
+            "videos": [
+              {
+                "id": "vFdIrZyKEwQ",
+                "title": "ReAct AI Agents, clearly explained!",
+                "channel": "Akshay Pachaar",
+                "label": "ReAct"
+              },
+              {
+                "id": "uRya4zRrRx4",
+                "title": "LangGraph: Planning Agents",
+                "channel": "LangChain",
+                "start": 53,
+                "end": 628,
+                "label": "ReAct vs plan-and-execute"
+              }
+            ]
+          },
+          {
+            "title": "Designing the state and the context per step",
+            "body": "The run state in the template:\n```text\ngoal   — the user's request (never changes)\nplan   — the list of steps\ndone   — [(step, result), …] appended by each execution\nanswer — the final reply\n```\n\nThe key design choice is **what each step sees**. Don't pass the whole history of every tool call into every step — it grows fast, costs tokens and distracts the model. Give each step:\n- the original goal,\n- a **short summary** of results so far,\n- the **current step** only.\n\nStore full tool outputs elsewhere (logs, a store keyed by run id) and keep summaries in state. This is \"context engineering\" applied to agents: each model call gets exactly what it needs.",
+            "videos": [
+              {
+                "id": "vpD9kf5Xwo0",
+                "title": "Agent Design Patterns - Plan and Execute - Hands-on coding in LangGraph ",
+                "channel": "AI Bites",
+                "start": 363,
+                "end": 1271,
+                "label": "planner, replanner and graph"
+              }
+            ]
+          },
+          {
+            "title": "Guardrails that make agents safe to run",
+            "body": "Put limits **in code**, not just in the prompt:\n\n- **Step budget** — `MAX_STEPS` for the plan, `recursion_limit` for each step's tool loop.\n- **Time and token budget** — stop a run after N seconds or N tokens; record usage per run.\n- **Tool allow-list** — each step (or agent) gets only the tools it needs; read-only tools by default.\n- **Approval for write actions** — `interrupt()` before sending, paying, deleting or changing data.\n- **Input validation** — check tool arguments against schemas and business rules before executing.\n- **Output checks** — validate structured outputs; for the final answer, optionally a checker pass (\"does this answer the goal using only the step results?\").\n\nWhen a guardrail triggers, end with an **honest partial answer** (\"I found your notes but couldn't create the reminder: the calendar tool timed out\"), never a made-up success.",
+            "videos": [
+              {
+                "id": "MZyuD67otHg",
+                "title": "What are Agentic Guardrails ?",
+                "channel": "New Machina"
+              }
+            ]
+          },
+          {
+            "title": "Observability: traces, logs and evals",
+            "body": "Debugging an agent means reading what it did. Log a **trace** per run:\n- the plan;\n- for each step: the prompt (or a hash of it), tool calls with arguments, tool results (or summaries), duration, tokens;\n- the final answer and the stop reason.\n\nTools: structured JSON logs to start; LangSmith, Langfuse or OpenTelemetry-based tracing to visualise runs as trees.\n\nThen **evaluate**: a set of 20–50 representative goals with expected outcomes. Track success rate, steps per run, tool errors, cost and latency per run. Re-run the set when you change prompts, models or tools — agent behaviour shifts in surprising ways, and the eval set is how you notice before your users do.",
+            "videos": [
+              {
+                "id": "Iyc80hY2yYk",
+                "title": "LangSmith 101 for AI Observability | Full Walkthrough",
+                "channel": "James Briggs"
+              }
+            ]
+          },
+          {
+            "title": "Using MCP tools from LangGraph",
+            "body": "The adapter (`langchain-mcp-adapters` in Python, `@langchain/mcp-adapters` in JS) connects to one or more MCP servers and turns their tools into LangChain tool objects:\n\n```python\nclient = MultiServerMCPClient({\n    \"notes\": {\"command\": \"python\", \"args\": [\"notes_server.py\"], \"transport\": \"stdio\"},\n    \"crm\": {\"url\": \"https://crm.example.com/mcp\", \"transport\": \"streamable_http\"},\n})\ntools = await client.get_tools()      # names, descriptions and schemas come from the servers\n```\n\nWhy this is a good architecture:\n- **Tools live in servers** you can reuse from Claude Desktop, Claude Code and this agent.\n- **The agent is just orchestration** — plan, call tools, summarise.\n- You can swap or add servers without changing graph code.\n\nThings to handle: server start-up failures (fail fast with a clear message), tool name clashes across servers (prefix them), timeouts on slow tools, and auth headers for remote servers.",
+            "videos": [
+              {
+                "id": "OX89LkTvNKQ",
+                "title": "Using MCP with LangGraph agents",
+                "channel": "LangChain"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Goals that need several tools in sequence: \"summarise my notes on Kafka and create a revision task for Friday\".",
+          "You already have an MCP server and want an agent that uses it end-to-end.",
+          "Portfolio centrepiece: MCP server + LangGraph agent + streaming UI + evals."
+        ],
+        "mistakes": [
+          "No step or time limit — a confused agent loops and burns money.",
+          "Letting the agent call write tools (delete, send, pay) without approval.",
+          "Free-text plans parsed with regex — use structured output (a Pydantic schema).",
+          "Passing the whole history to every step — send the goal, a short summary of results so far, and the current step.",
+          "No logs/traces — when it goes wrong you can't tell which step or tool failed."
+        ],
+        "interview_tips": [
+          "Demo it live with your own MCP server; show the trace of each step.",
+          "Explain the guardrails you added (max steps, recursion limit, approvals, allow-listed tools) — that's what senior interviewers probe.",
+          "Compare plan-and-execute vs a single ReAct loop: plans are more predictable; ReAct adapts faster to surprises.",
+          "Next steps you'd add: evals on 20 goals, cost tracking per run, re-planning when a step fails."
+        ],
+        "quiz": [
+          {
+            "q": "In plan-and-execute, what does the planner output?",
+            "options": [
+              "The final answer",
+              "A short ordered list of steps (structured output)",
+              "Tool results",
+              "Embeddings"
+            ],
+            "answer": 1,
+            "why": "The executor then works through the steps one by one."
+          },
+          {
+            "q": "How do MCP tools get into a LangGraph agent?",
+            "options": [
+              "Copy-paste their code",
+              "An MCP adapter client loads them as LangChain tools",
+              "They can't",
+              "Via embeddings"
+            ],
+            "answer": 1,
+            "why": "e.g. MultiServerMCPClient(...).get_tools()."
+          },
+          {
+            "q": "Best protection against an agent looping forever?",
+            "options": [
+              "A longer prompt",
+              "Max steps / recursion limit and a time budget",
+              "A bigger model",
+              "Temperature 0"
+            ],
+            "answer": 1,
+            "why": "Hard limits in code, not hopes in the prompt."
+          },
+          {
+            "q": "Why log every step?",
+            "options": [
+              "Required by MCP",
+              "To debug and evaluate which step or tool went wrong",
+              "To slow it down",
+              "For the model's memory"
+            ],
+            "answer": 1,
+            "why": "Agent debugging is mostly reading traces."
+          }
+        ],
+        "week": "15-16",
+        "dry_run": {
+          "title": "Goal: \"Summarise my Kafka notes and add a revision reminder for Friday\"",
+          "input": "MCP tools: search_notes, add_note (from your notes server)",
+          "columns": [
+            "Step",
+            "Node",
+            "What happens"
+          ],
+          "steps": [
+            [
+              "1",
+              "plan",
+              "steps = [search Kafka notes, summarise them, add a reminder note for Friday]"
+            ],
+            [
+              "2",
+              "execute (1/3)",
+              "calls search_notes('kafka') → 2 notes"
+            ],
+            [
+              "3",
+              "execute (2/3)",
+              "no tool needed → 3-bullet summary"
+            ],
+            [
+              "4",
+              "execute (3/3)",
+              "calls add_note('Revise Kafka — Friday', summary)"
+            ],
+            [
+              "5",
+              "finish",
+              "\"Here's your summary… I added a reminder for Friday.\" — 3 steps, 2 tool calls logged ✅"
+            ]
+          ],
+          "takeaway": "The plan makes the run predictable and easy to debug; each step is a small, separately logged agent run."
+        },
+        "template": {
+          "python": "# pip install langgraph langchain-anthropic langchain-mcp-adapters\nimport asyncio, logging, operator\nfrom typing import Annotated, TypedDict\n\nfrom langchain_anthropic import ChatAnthropic\nfrom langchain_mcp_adapters.client import MultiServerMCPClient\nfrom langgraph.graph import END, START, StateGraph\nfrom langgraph.graph.message import add_messages\nfrom langgraph.prebuilt import ToolNode, tools_condition\nfrom pydantic import BaseModel, Field\n\nlog = logging.getLogger(\"agent\")\nMAX_STEPS = 6\n\nclass Plan(BaseModel):\n    steps: list[str] = Field(description=\"3-6 short, ordered steps\")\n\nclass RunState(TypedDict):\n    goal: str\n    plan: list[str]\n    done: Annotated[list[tuple[str, str]], operator.add]    # (step, result), appended\n    answer: str\n\ndef text_of(message) -> str:\n    c = message.content\n    return c if isinstance(c, str) else \"\".join(b.get(\"text\", \"\") for b in c if isinstance(b, dict))\n\ndef tool_agent(model, tools):\n    \"\"\"The agent ⇄ tools loop from the LangGraph lesson, used to execute one step.\"\"\"\n    class S(TypedDict):\n        messages: Annotated[list, add_messages]\n    bound = model.bind_tools(tools)\n    async def agent(state: S):\n        return {\"messages\": [await bound.ainvoke(state[\"messages\"])]}\n    g = StateGraph(S)\n    g.add_node(\"agent\", agent)\n    g.add_node(\"tools\", ToolNode(tools))\n    g.add_edge(START, \"agent\")\n    g.add_conditional_edges(\"agent\", tools_condition)\n    g.add_edge(\"tools\", \"agent\")\n    return g.compile()\n\ndef build(tools):\n    model = ChatAnthropic(model=\"claude-opus-5-5\")\n    planner = model.with_structured_output(Plan)\n    worker = tool_agent(model, tools)\n\n    async def plan(state: RunState):\n        p = await planner.ainvoke(f\"Break this goal into 3-6 concrete steps: {state['goal']}\")\n        log.info(\"plan %s\", p.steps)\n        return {\"plan\": p.steps[:MAX_STEPS]}\n\n    async def execute(state: RunState):\n        step = state[\"plan\"][len(state[\"done\"])]\n        context = \"\\n\".join(f\"- {s}: {r}\" for s, r in state[\"done\"]) or \"(nothing yet)\"\n        out = await worker.ainvoke(\n            {\"messages\": [(\"user\", f\"Goal: {state['goal']}\\nDone so far:\\n{context}\\n\\nNow do only this step: {step}\")]},\n            {\"recursion_limit\": 12})                       # bound each step's tool loop\n        result = text_of(out[\"messages\"][-1])\n        log.info(\"step %r -> %s\", step, result[:200])\n        return {\"done\": [(step, result)]}\n\n    def next_node(state: RunState) -> str:\n        return \"execute\" if len(state[\"done\"]) < len(state[\"plan\"]) else \"finish\"\n\n    async def finish(state: RunState):\n        notes = \"\\n\".join(f\"- {s}: {r}\" for s, r in state[\"done\"])\n        reply = await model.ainvoke(f\"Goal: {state['goal']}\\nStep results:\\n{notes}\\n\\nWrite the final answer for the user.\")\n        return {\"answer\": text_of(reply)}\n\n    g = StateGraph(RunState)\n    g.add_node(\"plan\", plan)\n    g.add_node(\"execute\", execute)\n    g.add_node(\"finish\", finish)\n    g.add_edge(START, \"plan\")\n    g.add_conditional_edges(\"plan\", next_node)\n    g.add_conditional_edges(\"execute\", next_node)\n    g.add_edge(\"finish\", END)\n    return g.compile()\n\nasync def main():\n    client = MultiServerMCPClient({\n        \"notes\": {\"command\": \"python\", \"args\": [\"notes_server.py\"], \"transport\": \"stdio\"},   # your MCP server\n    })\n    tools = await client.get_tools()                      # MCP tools → LangChain tools\n    graph = build(tools)\n    result = await graph.ainvoke({\"goal\": \"Summarise my Kafka notes and add a revision reminder for Friday\", \"done\": []})\n    print(result[\"answer\"])\n\nif __name__ == \"__main__\":\n    logging.basicConfig(level=logging.INFO)\n    asyncio.run(main())",
+          "javascript": "// npm install @langchain/langgraph @langchain/anthropic @langchain/mcp-adapters\n// Shorter variant: one prebuilt ReAct agent over MCP tools, with hard limits.\nimport { MultiServerMCPClient } from '@langchain/mcp-adapters';\nimport { createReactAgent } from '@langchain/langgraph/prebuilt';\nimport { ChatAnthropic } from '@langchain/anthropic';\n\nconst client = new MultiServerMCPClient({\n  mcpServers: {\n    notes: { transport: 'stdio', command: 'python', args: ['notes_server.py'] },\n  },\n});\nconst tools = await client.getTools();\n\nconst agent = createReactAgent({\n  llm: new ChatAnthropic({ model: 'claude-opus-5-5' }),\n  tools,\n  prompt: 'First write a short numbered plan, then do each step with the tools, then give a final summary.',\n});\n\nconst controller = new AbortController();\nsetTimeout(() => controller.abort(), 60_000);           // time budget per run\n\nconst result = await agent.invoke(\n  { messages: [{ role: 'user', content: 'Summarise my Kafka notes and add a revision reminder for Friday' }] },\n  { recursionLimit: 20, signal: controller.signal },    // step budget per run\n);\nconsole.log(result.messages.at(-1).content);\nawait client.close();"
+        },
+        "complexity": "Model calls ≈ 1 (plan) + steps × (1 + tool rounds) + 1 (finish). Six steps with one tool each ≈ 14 calls — this is why step limits, smaller models for easy steps and caching matter.",
+        "resources": [
+          {
+            "label": "LangGraph docs",
+            "url": "https://langchain-ai.github.io/langgraph/"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: Multi-Step Agent over MCP Tools",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Plan → act (tools) → observe → answer loop.",
+            "Load MCP tools into the agent."
+          ],
+          "explanation": "Rebuild your assistant as a LangGraph flow that plans, calls several MCP tools, and checks its work."
+        },
+        {
+          "title": "Add re-planning when a step fails",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Record step failures in state.",
+            "Route to the planner again with what failed, at most twice."
+          ],
+          "explanation": "If a step's result signals failure, route back to the planner with the failure, cap re-plans at 2, then finish with an honest partial answer.",
+          "answer_md": "- Add `replans: int` and `failed: str | None` to the state.\n- In `execute`, catch tool errors (or detect \"couldn't\" results) and set `failed`.\n- `next_node`: if `failed` and `replans < 2` → `plan` (prompt includes what failed and what's done); if `failed` and the cap is hit → `finish` with a partial answer.\n- Log every re-plan; count them in your evals as a quality signal."
+        }
+      ]
+    },
+    {
+      "slug": "ai-agent-evals",
+      "name": "Agent Evaluation Basics",
+      "description": "Measure quality before and after every change instead of eyeballing outputs.",
+      "revision_note_md": "## Key points\n\n- Build a fixed test set of real questions + expected facts.\n- RAG metrics: faithfulness, answer relevancy, context precision/recall.\n- Automate runs in CI; track scores over time.\n- Use an LLM judge carefully — spot-check it.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Measure quality before and after every change instead of eyeballing outputs.",
+        "key_points": [
+          "Build a fixed test set of real questions + expected facts.",
+          "RAG metrics: faithfulness, answer relevancy, context precision/recall.",
+          "Automate runs in CI; track scores over time.",
+          "Use an LLM judge carefully — spot-check it."
+        ],
+        "week": "17-18",
+        "resources": [
+          {
+            "label": "RAGAS docs",
+            "url": "https://docs.ragas.io"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: Agent Evaluation Basics",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Build a fixed test set of real questions + expected facts.",
+            "RAG metrics: faithfulness, answer relevancy, context precision/recall."
+          ],
+          "explanation": "Measure quality before and after every change instead of eyeballing outputs."
+        }
+      ]
+    },
+    {
+      "slug": "ai-observability-cost",
+      "name": "Observability & Cost Optimisation",
+      "description": "Trace every LLM call, see latency and cost per request, and cut spend without losing quality.",
+      "revision_note_md": "## Key points\n\n- Trace prompts, tool calls, tokens and latency (Langfuse).\n- Prompt caching for long, repeated prefixes.\n- Smaller context, fewer retries, batch where possible.\n- Alerts on error rate and cost spikes.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Trace every LLM call, see latency and cost per request, and cut spend without losing quality.",
+        "key_points": [
+          "Trace prompts, tool calls, tokens and latency (Langfuse).",
+          "Prompt caching for long, repeated prefixes.",
+          "Smaller context, fewer retries, batch where possible.",
+          "Alerts on error rate and cost spikes."
+        ],
+        "week": "19-20",
+        "resources": [
+          {
+            "label": "Langfuse docs",
+            "url": "https://langfuse.com/docs"
+          },
+          {
+            "label": "Claude prompt caching",
+            "url": "https://platform.claude.com/docs/en/build-with-claude/prompt-caching"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: Observability & Cost Optimisation",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Trace prompts, tool calls, tokens and latency (Langfuse).",
+            "Prompt caching for long, repeated prefixes."
+          ],
+          "explanation": "Trace every LLM call, see latency and cost per request, and cut spend without losing quality."
+        }
+      ]
+    },
+    {
+      "slug": "ai-guardrails-multiagent",
+      "name": "Guardrails & Multi-Agent Patterns",
+      "description": "Make agents safe (prompt injection, data leaks, excessive agency) and know when multiple agents actually help.",
+      "revision_note_md": "## Key points\n\n- OWASP LLM Top 10: prompt injection, insecure output handling, excessive agency…\n- Treat tool outputs and retrieved docs as untrusted data.\n- Human approval for destructive actions.\n- Multi-agent: supervisor + specialists only when one agent's context gets overloaded.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Make agents safe (prompt injection, data leaks, excessive agency) and know when multiple agents actually help.",
+        "key_points": [
+          "OWASP LLM Top 10: prompt injection, insecure output handling, excessive agency…",
+          "Treat tool outputs and retrieved docs as untrusted data.",
+          "Human approval for destructive actions.",
+          "Multi-agent: supervisor + specialists only when one agent's context gets overloaded."
+        ],
+        "week": "21-22",
+        "resources": [
+          {
+            "label": "OWASP Top 10 for LLM Applications",
+            "url": "https://genai.owasp.org/llm-top-10/"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: Guardrails & Multi-Agent Patterns",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "OWASP LLM Top 10: prompt injection, insecure output handling, excessive agency…",
+            "Treat tool outputs and retrieved docs as untrusted data."
+          ],
+          "explanation": "Make agents safe (prompt injection, data leaks, excessive agency) and know when multiple agents actually help."
+        }
+      ]
+    },
+    {
+      "slug": "ai-portfolio-project",
+      "name": "Portfolio Project: Ship an AI Assistant",
+      "description": "Turn the track into one project you can demo: your own data → MCP server → agent → streaming UI → evals → observability.",
+      "revision_note_md": "## Key points\n\n- Pick a dataset you understand (your app, public data).\n- MCP server with 2–4 tools + RAG search.\n- Agent + streaming chat UI with tool-call display.\n- README with architecture, eval scores and a dashboard screenshot.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Turn the track into one project you can demo: your own data → MCP server → agent → streaming UI → evals → observability.",
+        "key_points": [
+          "Pick a dataset you understand (your app, public data).",
+          "MCP server with 2–4 tools + RAG search.",
+          "Agent + streaming chat UI with tool-call display.",
+          "README with architecture, eval scores and a dashboard screenshot."
+        ],
+        "week": "23-24",
+        "resources": [
+          {
+            "label": "Anthropic Academy (free courses: Claude API, MCP, AI Fluency)",
+            "url": "https://anthropic.skilljar.com/"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Build: Portfolio Project: Ship an AI Assistant",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Pick a dataset you understand (your app, public data).",
+            "MCP server with 2–4 tools + RAG search."
+          ],
+          "explanation": "Turn the track into one project you can demo: your own data → MCP server → agent → streaming UI → evals → observability."
+        }
+      ]
+    }
+  ]
+}

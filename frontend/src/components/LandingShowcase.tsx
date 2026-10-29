@@ -28,11 +28,11 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                 </div>
 
                 <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-tight">
-                    Master <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">DSA Patterns & Machine Coding</span> Like a Pro
+                    Your <span className="bg-gradient-to-r from-blue-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">6-month roadmap</span> to interview-ready
                 </h1>
 
                 <p className="text-sm md:text-base text-slate-300 leading-relaxed font-normal">
-                    Stop grinding 500+ random LeetCode questions. AlgoTrack organizes technical preparation into core reusable patterns, curated machine coding challenges, and SDE 1 interview architectures.
+                    DSA, High-Level Design, Low-Level Design and Agentic AI — week by week, with simple lessons, dry runs, templates, practice lists and quick quizzes. Free, and works without an account.
                 </p>
 
                 {/* Primary CTA Buttons */}

@@ -1,0 +1,1651 @@
+{
+  "track": {
+    "id": "system-design",
+    "name": "High-Level Design",
+    "description": "Requirements → estimation → design → scaling, with the must-do HLD case studies.",
+    "icon": "🏗️",
+    "order": 2,
+    "badge": null
+  },
+  "topics": [
+    {
+      "slug": "sd-interview-framework",
+      "name": "HLD Start: Requirements & Estimation",
+      "description": "A repeatable 45-minute structure: requirements, estimation, API, data model, high-level design, deep dive.",
+      "revision_note_md": "## The 45-minute framework\n\n1. **Clarify requirements (5 min)** — functional (what it does) and non-functional (scale, latency, consistency, availability).\n2. **Estimate (3 min)** — QPS, storage, bandwidth. Round aggressively: 1 day ≈ 10⁵ seconds.\n3. **API design (5 min)** — the 3–5 endpoints that matter.\n4. **Data model (5 min)** — entities, access patterns, SQL vs NoSQL.\n5. **High-level design (10 min)** — client → LB → services → cache → DB → queues.\n6. **Deep dive (15 min)** — the hardest part: hot keys, fan-out, consistency, failure modes.\n7. **Wrap up** — bottlenecks, monitoring, what you'd do with more time.\n\n**Golden rule:** state trade-offs out loud. There is no single right answer — there is a *reasoned* answer.",
+      "items": [
+        {
+          "title": "Back-of-the-envelope estimation for a social app",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "1 day ≈ 86,400 s ≈ 10⁵ s.",
+            "Peak QPS ≈ 2–3× average."
+          ],
+          "explanation": "Convert DAU and actions per user into QPS (divide by ~1e5 seconds per day), multiply object size by writes for storage, and keep peak at 2-3x average.",
+          "answer_md": "Example: 10M DAU, each posts 2 times and reads 50 times a day.\n\n- Writes: 20M/day ÷ 10⁵ ≈ **200 QPS** (peak ~600)\n- Reads: 500M/day ÷ 10⁵ ≈ **5,000 QPS** → read-heavy → cache!\n- Storage: 20M posts × 1 KB ≈ 20 GB/day ≈ **7 TB/year** (+ media separately in object storage).\n\nSay the numbers, then say what they *imply* for the design."
+        },
+        {
+          "title": "Functional vs non-functional requirements — what to ask first",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Ask about users, scale, read/write ratio.",
+            "Ask whether strong consistency is required."
+          ],
+          "explanation": "Functional requirements define features; non-functional define scale, latency, availability, consistency and durability; clarify both before designing.",
+          "answer_md": "Ask: *Who are the users? Core features (pick 2–3)? DAU/scale? Read vs write ratio? Latency target? Can we tolerate stale data? Global or single region?*\n\nWrite them on the board; refer back when you make trade-offs."
+        }
+      ],
+      "lesson": {
+        "status": "full",
+        "simple": "High-level design (HLD) interviews give you a vague prompt — *\"Design WhatsApp\"* — and watch how you **think**. The winning habit is a fixed order:\n\n1. **Requirements** — what must it do (functional) and how well (non-functional: scale, latency, availability, consistency).\n2. **Back-of-the-envelope estimation** — users → requests per second → storage. Numbers decide the design.\n3. **APIs and data model**.\n4. **Basic design** that works end to end.\n5. **Scale it**: caching, sharding, queues, multiple regions.\n\nNever jump straight to boxes and arrows.",
+        "analogy": "An architect doesn't draw a building before asking: how many people, how many floors, what budget? Same here — requirements and numbers first.",
+        "concepts": [
+          {
+            "title": "Functional vs non-functional requirements",
+            "body": "**Functional requirements** = what the system does: *\"users can post photos\"*, *\"users see a feed of people they follow\"*. Pick the **3–4 core features** and say explicitly what's out of scope (stories, ads, DMs) — you only have 45 minutes.\n\n**Non-functional requirements** = how well it does it:\n- **Scale** — daily active users, read/write ratio, data size.\n- **Latency** — e.g. feed loads in under 200 ms at p99.\n- **Availability** — 99.9% (≈ 8.8 hours downtime/year) vs 99.99% (≈ 53 minutes/year).\n- **Consistency** — must every reader see the latest write immediately (bank balance), or is a few seconds of staleness fine (like counts)?\n- **Durability** — can we ever lose data? (messages, payments: no).\n\nNon-functional requirements drive the architecture: \"read-heavy + staleness OK\" → caches and replicas; \"never double-book\" → strong consistency in a transactional store.",
+            "videos": [
+              {
+                "id": "xRdjEd-VQTU",
+                "title": "Foundation of System Design Interview starting with Functional vs Non Functional Requirements",
+                "channel": "sudoCODE"
+              },
+              {
+                "id": "L9TfZdODuFQ",
+                "title": "How to Answer System Design Interview Questions (Complete Guide)",
+                "channel": "Aced (formerly Exponent)",
+                "start": 84,
+                "end": 190,
+                "label": "defining the problem"
+              }
+            ]
+          },
+          {
+            "title": "Back-of-the-envelope estimation",
+            "body": "Useful constants:\n- 1 day ≈ **10⁵ seconds** (86,400)\n- 1 million requests/day ≈ **12 requests/second**\n- Peak ≈ **2–3× average**\n- 1 KB × 1 billion = **1 TB**\n\nMethod:\n1. **Users** — DAU (e.g. 100 million).\n2. **Requests** — actions per user per day → requests/day → ÷ 10⁵ → QPS. *100M users × 10 feed reads = 10⁹/day ≈ 10k QPS average, ~30k peak.*\n3. **Storage** — items/day × size × retention. *10M photos/day × 2 MB = 20 TB/day → ~7 PB/year* → object storage, not a database.\n4. **Bandwidth** — QPS × response size.\n\nThe goal isn't precision; it's to discover what matters. 30k reads/s says *cache*; 7 PB says *object storage + CDN*; 50 writes/s says *a single primary database is fine*.",
+            "videos": [
+              {
+                "id": "UC5xf8FbdJc",
+                "title": "Back-Of-The-Envelope Estimation / Capacity Planning",
+                "channel": "ByteByteGo"
+              },
+              {
+                "id": "DwqTon7ZS_s",
+                "title": "Back of Envelope Calculation - System Design Concept",
+                "channel": "Piyush Garg"
+              }
+            ]
+          },
+          {
+            "title": "The building blocks and when to use them",
+            "body": "| Block | Use it for | Key idea |\n|---|---|---|\n| **Load balancer** | spread traffic across servers | stateless servers scale horizontally |\n| **Cache** (Redis, Memcached) | hot reads, sessions, counters | cache-aside: read cache → miss → DB → fill cache; set TTLs |\n| **CDN** | static files, images, video | serve from the edge near users |\n| **SQL database** | relationships, transactions, strong consistency | scale reads with replicas, writes with sharding |\n| **NoSQL** (Cassandra, DynamoDB) | huge write volume, simple access by key | partition key decides scalability |\n| **Object storage** (S3) | large blobs | cheap, durable, accessed by key/URL |\n| **Message queue / log** (SQS, Kafka) | async work, decoupling, spikes | producers don't wait for consumers |\n| **Search index** (Elasticsearch) | full-text and filter search | updated asynchronously from the DB |\n\nName the block **and the reason**: \"a queue here so a spike of uploads doesn't overload the thumbnail workers.\"",
+            "videos": [
+              {
+                "id": "BTjxUS_PylA",
+                "title": "8 Most Important System Design Concepts You Should Know",
+                "channel": "ByteByteGo"
+              },
+              {
+                "id": "C842vFY5kRo",
+                "title": "System Design Course – APIs, Databases, Caching, CDNs, Load Balancing & Production Infra",
+                "channel": "freeCodeCamp.org",
+                "start": 185,
+                "end": 1861,
+                "label": "servers, databases, scaling, load balancing"
+              }
+            ]
+          },
+          {
+            "title": "Scaling patterns and trade-offs to discuss",
+            "body": "- **Replication** — copies of data for reads and failover. Leader-follower is common; followers may lag, so read-your-own-writes needs care (read from the leader right after a write).\n- **Sharding** — split data across machines by a key (user_id, conversation_id). Pick a key that spreads load evenly and keeps related data together. Watch for **hot keys** (a celebrity) and cross-shard queries.\n- **Consistent hashing** — assign keys to nodes on a ring so adding a node moves only ~1/N of the keys.\n- **CAP** — during a network partition you choose **consistency** (reject some requests) or **availability** (serve possibly stale data). Payments → C; feeds, likes → A.\n- **Idempotency** — retries are inevitable; make writes safe to repeat with idempotency keys.\n- **Back-pressure and rate limiting** — protect services from overload.\n- **Observability** — metrics, logs, traces and alerts; mention them when you discuss failure.",
+            "videos": [
+              {
+                "id": "BHqjEjzAicA",
+                "title": "CAP Theorem Simplified",
+                "channel": "ByteByteGo",
+                "label": "CAP theorem"
+              },
+              {
+                "id": "UF9Iqmg94tk",
+                "title": "Consistent Hashing | Algorithms You Should Know #1",
+                "channel": "ByteByteGo",
+                "label": "consistent hashing"
+              },
+              {
+                "id": "XP98YCr-iXQ",
+                "title": "What is Database Sharding?",
+                "channel": "Anton Putra",
+                "label": "sharding"
+              }
+            ]
+          },
+          {
+            "title": "Running the 45 minutes",
+            "body": "A time plan that works:\n\n| Minutes | Do |\n|---|---|\n| 0–5 | Requirements (functional + non-functional), agree on scope |\n| 5–10 | Estimation (QPS, storage), call out the big numbers |\n| 10–15 | APIs and data model |\n| 15–25 | High-level diagram that works end to end for the core flows |\n| 25–40 | Deep dives: the 1–2 hardest parts (fan-out, consistency, hot keys), with trade-offs |\n| 40–45 | Bottlenecks, failure handling, monitoring, what you'd do next |\n\nHabits that score well: **think out loud**, check in with the interviewer (\"Should I go deeper on the feed or on media storage?\"), state **assumptions** with numbers, and for every choice give **the alternative you rejected and why**.",
+            "videos": [
+              {
+                "id": "i7twT3x5yv8",
+                "title": "System Design Interview: A Step-By-Step Guide",
+                "channel": "ByteByteGo"
+              },
+              {
+                "id": "L9TfZdODuFQ",
+                "title": "How to Answer System Design Interview Questions (Complete Guide)",
+                "channel": "Aced (formerly Exponent)"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "The first 10 minutes of every HLD round.",
+          "Any time an interviewer asks 'how many servers / how much storage?'"
+        ],
+        "mistakes": [
+          "Drawing boxes before asking any questions — it hurts your score.",
+          "Skipping estimation, then choosing a database without a reason.",
+          "Designing every feature; pick the 2–3 core ones and say what you're leaving out.",
+          "Long silence — keep talking and checking in with the interviewer."
+        ],
+        "interview_tips": [
+          "Write requirements on the board and refer back to them when making trade-offs.",
+          "Estimate early — the roadmap calls this the most important HLD habit.",
+          "Keep the interviewer involved: \"Does this match what you had in mind?\" Fewer surprise cross-questions later."
+        ],
+        "quiz": [
+          {
+            "q": "10 million requests per day is roughly how many per second?",
+            "options": [
+              "~10",
+              "~100",
+              "~1,000",
+              "~10,000"
+            ],
+            "answer": 1,
+            "why": "10⁷ ÷ 10⁵ = 100."
+          },
+          {
+            "q": "\"The system should respond in under 200 ms\" is a…",
+            "options": [
+              "Functional requirement",
+              "Non-functional requirement",
+              "API",
+              "Data model"
+            ],
+            "answer": 1,
+            "why": "It describes quality (latency), not a feature."
+          },
+          {
+            "q": "What should come first in an HLD round?",
+            "options": [
+              "Database schema",
+              "Requirements gathering",
+              "Load balancer choice",
+              "Kubernetes"
+            ],
+            "answer": 1,
+            "why": "Clarify before you design."
+          }
+        ],
+        "week": "7-8",
+        "dry_run": {
+          "title": "Estimate a messaging app: 50M daily users, 40 messages each per day",
+          "input": "DAU = 50M, 40 msgs/user/day, 100 bytes/message",
+          "columns": [
+            "Quantity",
+            "Math",
+            "Result"
+          ],
+          "steps": [
+            [
+              "Messages per day",
+              "50M × 40",
+              "2 billion"
+            ],
+            [
+              "Write QPS (average)",
+              "2×10⁹ ÷ 10⁵ s",
+              "≈ 20,000 / s"
+            ],
+            [
+              "Peak QPS",
+              "× 3",
+              "≈ 60,000 / s"
+            ],
+            [
+              "Storage per day",
+              "2×10⁹ × 100 B",
+              "200 GB / day"
+            ],
+            [
+              "Storage for 5 years",
+              "200 GB × 365 × 5",
+              "≈ 365 TB → must shard ✅"
+            ]
+          ],
+          "takeaway": "Round aggressively (1 day ≈ 10⁵ s). The point isn't precision — it's showing the numbers drive decisions."
+        },
+        "template": {
+          "python": "# HLD answer skeleton (say it out loud, write it on the board)\nSTEPS = [\n    \"1. Functional requirements: the 3 core features\",\n    \"2. Non-functional: DAU, read/write ratio, latency, availability vs consistency\",\n    \"3. Estimation: QPS (avg, peak), storage per day/year, bandwidth\",\n    \"4. APIs: 3-5 endpoints with request/response\",\n    \"5. Data model + database choice (and why)\",\n    \"6. High-level design: client -> LB -> services -> cache -> DB -> queue\",\n    \"7. Deep dive: the hardest part (fan-out, hot keys, ordering)\",\n    \"8. Scale & failure: sharding, replication, multi-region, monitoring\",\n]\n\nSECONDS_PER_DAY = 10**5   # 86,400 rounded\ndef qps(daily_requests: float) -> float:\n    return daily_requests / SECONDS_PER_DAY",
+          "javascript": "// HLD answer skeleton\nconst steps = [\n  '1. Functional requirements (3 core features)',\n  '2. Non-functional: scale, latency, availability vs consistency',\n  '3. Estimation: QPS, storage, bandwidth',\n  '4. APIs',\n  '5. Data model + DB choice',\n  '6. High-level design',\n  '7. Deep dive on the hardest part',\n  '8. Scaling, failures, multi-region',\n];\nconst SECONDS_PER_DAY = 1e5; // 86,400 rounded\nconst qps = (dailyRequests) => dailyRequests / SECONDS_PER_DAY;"
+        },
+        "complexity": "Useful numbers: 1 day ≈ 10⁵ s; 1 million/day ≈ 12 QPS; a single DB node handles ~1–10k QPS; memory reads ~100 ns, SSD ~100 µs, cross-region ~100 ms.",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      }
+    },
+    {
+      "slug": "sd-building-blocks",
+      "name": "Building Blocks: Scale, Cache, DB",
+      "description": "Load balancers, caching, replication, sharding, consistent hashing, queues and the CAP theorem.",
+      "revision_note_md": "## Building blocks cheat-sheet\n\n- **Scaling**: vertical (bigger box, simple, has a ceiling) vs horizontal (more boxes, needs stateless services + LB).\n- **Load balancer**: round-robin, least-connections, consistent hashing; L4 vs L7.\n- **Cache**: cache-aside (most common), write-through, write-back; eviction LRU/LFU; TTL for staleness.\n- **Database**: replication for reads/availability, sharding for writes/size; pick the shard key by access pattern.\n- **Queues** (Kafka/SQS/RabbitMQ): decouple producers/consumers, absorb spikes, enable async work and retries.\n- **CAP**: during a network partition choose Consistency or Availability. Most systems pick AP with eventual consistency, except money/inventory.",
+      "items": [
+        {
+          "title": "How does consistent hashing work and why use it?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Compare with hash(key) % N when N changes.",
+            "Virtual nodes fix uneven distribution."
+          ],
+          "explanation": "Place nodes and keys on a hash ring; each key goes to the next node clockwise, so adding or removing a node moves only about 1/N of keys; virtual nodes balance load.",
+          "answer_md": "With `hash(key) % N`, changing N remaps almost **every** key → cache stampede. Consistent hashing puts servers and keys on a ring; a key belongs to the first server clockwise. Adding/removing a server only moves the keys of its neighbour (~1/N). **Virtual nodes** (many points per server) smooth out the load. Used by DynamoDB, Cassandra, CDNs, distributed caches."
+        },
+        {
+          "title": "Caching strategies and cache invalidation",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Which strategy risks data loss?",
+            "Mention thundering herd and how to prevent it."
+          ],
+          "explanation": "Cache-aside reads from cache then DB and populates on miss; write-through writes both synchronously; write-back writes cache first and flushes later; invalidate with TTL or delete-on-write.",
+          "answer_md": "- **Cache-aside**: app reads cache → miss → DB → put in cache. On write: update DB, **delete** cache key.\n- **Write-through**: write cache + DB together; consistent, slower writes.\n- **Write-back**: write cache, flush later; fast but can lose data.\n\nProblems: **stampede** (use locks / request coalescing / jittered TTL), **hot keys** (replicate or local cache), **stale reads** (short TTL, versioning)."
+        },
+        {
+          "title": "SQL vs NoSQL — how do you choose?",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Start from access patterns, not hype.",
+            "Do you need multi-row transactions?"
+          ],
+          "explanation": "Choose SQL for relational data, transactions and flexible queries; choose NoSQL for massive scale, simple key-based access patterns, flexible schema, or high write throughput.",
+          "answer_md": "**SQL (Postgres/MySQL)**: joins, ACID transactions, strong consistency — payments, orders, users.\n**NoSQL**: key-value (Redis, DynamoDB), wide-column (Cassandra — heavy writes), document (MongoDB — flexible schema), graph (Neo4j).\n\nSay: *\"Our access pattern is X, we need/don't need transactions, so I'll pick Y.\"*"
+        },
+        {
+          "title": "Replication vs sharding (and choosing a shard key)",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Leader-follower replication lag causes stale reads.",
+            "Bad shard key → hot shard."
+          ],
+          "explanation": "Replication copies the same data to multiple nodes for read scaling and availability; sharding splits data across nodes for write and storage scaling; a good shard key spreads load evenly and keeps related queries on one shard.",
+          "answer_md": "- **Replication** (leader → followers): scale reads, survive failures; watch **replication lag** (read-your-writes from leader).\n- **Sharding**: split rows by key (user_id, region). Good key = high cardinality, even load, queries hit one shard. Celebrity users create **hot shards** → split further or cache.\n- Resharding is painful → consistent hashing or directory-based sharding."
+        },
+        {
+          "title": "Explain the CAP theorem with real examples",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Partitions are unavoidable, so the real choice is C vs A.",
+            "Mention PACELC for latency vs consistency."
+          ],
+          "explanation": "In a network partition a distributed system must choose consistency (reject or block requests) or availability (serve possibly stale data); banking prefers CP, social feeds prefer AP.",
+          "answer_md": "Network partitions *will* happen, so during one you choose:\n- **CP** — refuse/delay requests to stay correct (bank balance, inventory, ZooKeeper).\n- **AP** — keep serving, reconcile later (likes count, feeds, DNS, Cassandra).\n\n**PACELC** extends it: *Else* (no partition) you still trade **Latency vs Consistency**."
+        }
+      ]
+    },
+    {
+      "slug": "hld-messaging-app",
+      "name": "HLD Case: Messaging App (WhatsApp)",
+      "description": "1:1 and group chat with real-time delivery, offline messages, receipts and ordering.",
+      "revision_note_md": "## Messaging app — key decisions\n\n- **WebSockets** for real-time delivery; a session store maps user → chat server.\n- **Cassandra-style store** partitioned by conversation, ordered by sequence id.\n- Offline users → store + push notification; deliver on reconnect.\n- Receipts (sent/delivered/read) are small ack events.",
+      "lesson": {
+        "status": "full",
+        "simple": "Design a chat app where messages arrive instantly, nothing is lost when someone is offline, and messages appear in the right order.\n\nThe key idea: each phone keeps an **open connection (WebSocket)** to a chat server. When Asha messages Ravi, Asha's server **saves the message first**, then finds which server Ravi is connected to and pushes it there. If Ravi is offline, he gets a push notification and the message waits in storage.",
+        "analogy": "A post office that never closes: it stamps every letter with a number (ordering), keeps a copy (durability), and if you're not home leaves a note at your door (push notification) — you collect the letters when you return.",
+        "concepts": [
+          {
+            "title": "Connections: why WebSockets and how servers find users",
+            "body": "Chat needs the server to **push** messages to a phone the moment they arrive. Options:\n- **Short polling** — ask every few seconds. Simple but wasteful and laggy.\n- **Long polling** — the request waits until there's a message. Better, but one request per message.\n- **WebSockets** — one persistent two-way connection per device. Lowest latency and overhead → the standard choice.\n\nEach **chat server** holds hundreds of thousands of open connections. Because a user can be connected to any of them, a **session service** (Redis) maps `user_id → chat_server_id`, updated on connect/disconnect, with heartbeats to detect dead connections.\n\nA load balancer that supports long-lived connections spreads devices across chat servers; when a server dies, its clients reconnect elsewhere and the session map updates.",
+            "videos": [
+              {
+                "id": "ZBM28ZPlin8",
+                "title": "Short Polling vs Long Polling vs WebSockets - System Design",
+                "channel": "Be A Better Dev"
+              },
+              {
+                "id": "WS352jTTkPU",
+                "title": "WebSockets vs Polling vs Server Sent Events",
+                "channel": "Piyush Garg",
+                "start": 330,
+                "end": 1404,
+                "label": "WebSockets and polling"
+              }
+            ]
+          },
+          {
+            "title": "The message path: persist, then deliver",
+            "body": "1. Sender's device sends `{conversation_id, client_msg_id, text}` over its WebSocket.\n2. The chat server assigns a **sequence number** per conversation and **writes the message to the store** first. Then it acks the sender (single tick ✓).\n3. It looks up each recipient in the session service.\n4. **Online** → forward to the recipient's chat server (directly or via pub/sub), which pushes it down the WebSocket. The device acks → delivered (✓✓).\n5. **Offline** → send a push notification (FCM/APNs). When the device reconnects, it asks for messages after its **last seen sequence number** for each conversation.\n\nPersisting before delivering means a crash never loses an acknowledged message. The `client_msg_id` lets the server **deduplicate** retries from a flaky network.",
+            "videos": [
+              {
+                "id": "cr6p0n0N-VA",
+                "title": "Design Whatsapp: System Design Interview w/ a Ex-Meta Senior Manager",
+                "channel": "Hello Interview",
+                "start": 1043,
+                "end": 1913,
+                "label": "high-level design"
+              }
+            ]
+          },
+          {
+            "title": "Storage, ordering and groups",
+            "body": "**Data model** (wide-column store like Cassandra, which handles huge write volume):\n`messages` partitioned by `conversation_id`, clustered by `seq` → a whole chat lives in one partition, already ordered, and \"last 50 messages\" is one fast range read.\n\n**Ordering:** device clocks drift, so don't sort by client timestamps. A per-conversation sequence number (from a counter, or a time-ordered id like Snowflake) gives every participant the same order.\n\n**Groups:** a message to a 200-member group is stored **once** and fanned out to members' devices. For very large groups or channels, recipients pull recent messages instead of receiving a push per message.\n\n**Receipts and presence:** delivered/read receipts are small persisted events; typing indicators and \"online\" status are ephemeral pub/sub signals with TTLs — never written to the message store.",
+            "videos": [
+              {
+                "id": "cr6p0n0N-VA",
+                "title": "Design Whatsapp: System Design Interview w/ a Ex-Meta Senior Manager",
+                "channel": "Hello Interview",
+                "start": 1913,
+                "end": 3299,
+                "label": "deep dives"
+              }
+            ]
+          },
+          {
+            "title": "Scale and extras to mention",
+            "body": "- **Estimation** (e.g. 50M DAU × 40 messages = 2B/day ≈ 20k writes/s, 60k peak; ~200 GB/day text) → a horizontally scalable store, sharded by conversation.\n- **Media** — upload to object storage via a pre-signed URL; the message carries only the media key; serve via CDN.\n- **Multi-device** — each device has its own connection and its own \"last synced seq\".\n- **End-to-end encryption** — devices encrypt; the server stores ciphertext and can't read messages. This limits server-side search and moderation.\n- **Multi-region** — users connect to the nearest region; cross-region messages travel through a replication or messaging backbone.",
+            "videos": [
+              {
+                "id": "vvhC64hQZMk",
+                "title": "WHATSAPP System Design: Chat Messaging Systems for Interviews",
+                "channel": "Gaurav Sen",
+                "start": 900,
+                "label": "load balancing, consistent hashing, queues"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design WhatsApp / Messenger / Slack / live chat support\".",
+          "Any real-time system: live comments, multiplayer presence, delivery tracking."
+        ],
+        "mistakes": [
+          "Polling every second instead of WebSockets (wasteful at scale).",
+          "Delivering before persisting — messages lost on crash.",
+          "Ordering by timestamp across devices (clocks drift) — use per-conversation sequence ids.",
+          "Forgetting group fan-out and offline delivery."
+        ],
+        "interview_tips": [
+          "Start with requirements: 1:1 + groups, receipts, offline, media? End-to-end encryption?",
+          "Estimate QPS and storage before choosing the database.",
+          "Discuss scale: shard by conversation_id, regional chat servers, cross-region replication for global users."
+        ],
+        "quiz": [
+          {
+            "q": "Best transport for real-time chat delivery?",
+            "options": [
+              "HTTP polling",
+              "WebSockets",
+              "Email",
+              "FTP"
+            ],
+            "answer": 1,
+            "why": "A persistent two-way connection pushes messages instantly."
+          },
+          {
+            "q": "How do you know which server Ravi is connected to?",
+            "options": [
+              "Ask every server",
+              "A session store mapping user → server",
+              "DNS",
+              "The load balancer guesses"
+            ],
+            "answer": 1,
+            "why": "Usually Redis, updated on connect/disconnect."
+          },
+          {
+            "q": "Why per-conversation sequence ids instead of timestamps?",
+            "options": [
+              "Smaller",
+              "Device clocks drift; seq gives a total order per chat",
+              "Required by Cassandra",
+              "Faster to type"
+            ],
+            "answer": 1,
+            "why": "Ordering must be consistent for all participants."
+          }
+        ],
+        "week": "7-8",
+        "dry_run": {
+          "title": "Asha sends \"hi\" to Ravi",
+          "input": "Asha on chat-server-1, Ravi on chat-server-7",
+          "columns": [
+            "Step",
+            "Component",
+            "What happens"
+          ],
+          "steps": [
+            [
+              "1",
+              "Asha → chat-server-1 (WebSocket)",
+              "message arrives"
+            ],
+            [
+              "2",
+              "chat-server-1 → message store",
+              "saved with seq id 1042 → ack ✓ to Asha"
+            ],
+            [
+              "3",
+              "session store (Redis)",
+              "Ravi → chat-server-7"
+            ],
+            [
+              "4",
+              "pub/sub → chat-server-7 → Ravi",
+              "delivered → ✓✓ ack back to Asha"
+            ],
+            [
+              "5",
+              "Ravi opens chat",
+              "read receipt → blue ticks ✅"
+            ],
+            [
+              "alt",
+              "Ravi offline",
+              "push notification via FCM/APNs; fetch on reconnect"
+            ]
+          ],
+          "takeaway": "Persist before delivering, so a crash never loses a message."
+        },
+        "template": {
+          "python": "# APIs (WebSocket events + a few REST endpoints)\n# ws  send_message {conversation_id, client_msg_id, text}\n# ws  ack {message_id, status: delivered|read}\n# GET /conversations/{id}/messages?before=<seq>&limit=50\n\n# Message table (Cassandra-style)\n# PRIMARY KEY ((conversation_id), seq)  -> one partition per chat, ordered by seq\n# columns: message_id, sender_id, text, created_at, client_msg_id (dedupe retries)\n\n# Estimation: 50M DAU x 40 msgs = 2B/day ~ 20k writes/s avg, 60k peak\n#             2B x 100 B = 200 GB/day",
+          "javascript": "// Client-side: keep one WebSocket open, retry with the same clientMsgId\nconst ws = new WebSocket('wss://chat.example.com');\nfunction send(conversationId, text) {\n  const clientMsgId = crypto.randomUUID(); // server dedupes retries\n  ws.send(JSON.stringify({ type: 'send_message', conversationId, clientMsgId, text }));\n}\nws.onmessage = (e) => {\n  const evt = JSON.parse(e.data);\n  if (evt.type === 'message') ws.send(JSON.stringify({ type: 'ack', messageId: evt.id, status: 'delivered' }));\n};"
+        },
+        "complexity": "Write-heavy (~20k–60k writes/s in the example) → horizontally scalable store; hot path latency target < 100 ms within a region.",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design WhatsApp (1:1 + group chat)",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "WebSockets + session store.",
+            "Persist before deliver; offline push."
+          ],
+          "explanation": "Chat servers with WebSockets, session map, message store partitioned by conversation, pub/sub delivery, push for offline users."
+        },
+        {
+          "title": "How would you add read receipts and typing indicators?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Small ephemeral events.",
+            "Don't persist typing indicators."
+          ],
+          "explanation": "Receipts are persisted ack events; typing indicators are fire-and-forget pub/sub messages."
+        }
+      ]
+    },
+    {
+      "slug": "hld-ticketing-hotel",
+      "name": "HLD Case: Ticketing / Hotel Reservation",
+      "description": "Reserve rooms or tickets without double booking: inventory per date, atomic reservations, idempotency and holds.",
+      "revision_note_md": "## Ticketing / Hotel Reservation — key decisions\n\n- **Inventory table** per (hotel, room_type, date): `total`, `reserved`. Never store one row per physical room for search.\n- Reserve = one transaction that updates every night with `reserved < total` (or `version` check). Rows updated ≠ nights → rollback.\n- **Idempotency key** on the reserve API so retries don't double-book.\n- Strong consistency for bookings (SQL), eventual for search/browse (cache).\n- Optional: holds with expiry, 10% overbooking, a queue for flash sales.",
+      "lesson": {
+        "status": "full",
+        "simple": "Design a system like a hotel booking site or a concert ticket site. People search, choose, and pay. The one thing that must **never** happen: **two people get the last room**.\n\nThe key simplification: you rarely care which *exact* room someone gets at booking time — you care **how many rooms of a type are left on each night**. So keep an **inventory row per (hotel, room type, date)** with `total` and `reserved`.\n\nBooking 3 nights = in **one database transaction**, add 1 to `reserved` on all 3 rows, **but only where `reserved < total`**. If fewer than 3 rows changed, someone else took the last room — roll back.\n\nAdd an **idempotency key** so if the user's phone retries the request, you don't book twice.",
+        "analogy": "A train's seat chart per date. The clerk doesn't hand out seat numbers until the end; he just keeps the count of free seats for each day. Selling a ticket for a 3-day trip means crossing off one seat on all three days at once — or none at all.",
+        "concepts": [
+          {
+            "title": "Requirements and why correctness dominates",
+            "body": "Functional: search hotels/rooms by location and dates, view a room type's price and availability, reserve, pay, cancel. (For events: view a seat map, hold seats, pay.)\n\nNon-functional:\n- **No double booking** — the top priority. Bookings need **strong consistency**.\n- **Read-heavy** — people browse ~100× more than they book. Browsing can be slightly stale.\n- **Payments must be exactly-once** from the user's point of view.\n- **Spiky traffic** for popular events (concert drops) or holidays.\n\nThis split — strongly consistent writes, eventually consistent reads — shapes everything: a transactional SQL database for inventory and reservations, caches and a search index for browsing.",
+            "videos": [
+              {
+                "id": "fhdPyoO6aXI",
+                "title": "System Design Interview: Design Ticketmaster w/ a Ex-Meta Staff Engineer",
+                "channel": "Hello Interview",
+                "start": 156,
+                "end": 560,
+                "label": "requirements"
+              },
+              {
+                "id": "m67Mjbx6DMY",
+                "title": "Hotel Reservation: System Design Interview (Stripe & Amazon Offers)",
+                "channel": "TechPrep",
+                "start": 18,
+                "end": 92,
+                "label": "functional and non-functional"
+              }
+            ]
+          },
+          {
+            "title": "Modelling inventory by room type and date",
+            "body": "```sql\nroom_types(id, hotel_id, name, base_price, total_rooms)\nroom_inventory(hotel_id, room_type_id, date, total, reserved,\n               PRIMARY KEY (hotel_id, room_type_id, date))\nreservations(id, idempotency_key UNIQUE, user_id, hotel_id, room_type_id,\n             check_in, check_out, status, amount)\n```\n\nWhy **per room type per date** rather than per physical room: guests book \"a Deluxe room for Mar 10–12\", not room 304. Counting keeps search and booking cheap — one row per type per night. A specific room number is assigned at check-in.\n\nSize check: 5,000 hotels × 20 room types × 365 days ≈ 36M rows per year — easily handled by one SQL database with indexes, sharded by hotel_id later if needed.\n\n**Overbooking:** hotels often sell ~5–10% more than they have (no-shows). Model it as `reserved < total × 1.1` — a business rule in the same conditional update.",
+            "videos": [
+              {
+                "id": "m67Mjbx6DMY",
+                "title": "Hotel Reservation: System Design Interview (Stripe & Amazon Offers)",
+                "channel": "TechPrep",
+                "start": 92,
+                "end": 740,
+                "label": "data model, APIs and reservation flow"
+              }
+            ]
+          },
+          {
+            "title": "Preventing double booking: options and trade-offs",
+            "body": "**Pessimistic locking:** `SELECT … FROM room_inventory WHERE … FOR UPDATE`, check, then update. Simple to reason about, but transactions wait on each other; lock rows in a consistent order (by date) to avoid deadlocks.\n\n**Optimistic conditional update (recommended):** do the check *inside* the write:\n```sql\nUPDATE room_inventory SET reserved = reserved + 1\n WHERE hotel_id = :h AND room_type_id = :t AND date IN (:nights) AND reserved < total;\n-- affected rows must equal the number of nights, else ROLLBACK\n```\n\n**Version column:** read `version`, then `UPDATE … WHERE version = :v`; retry on conflict. Good when the decision logic is complex.\n\n**Database constraint:** a `CHECK (reserved <= total)` makes the database reject overselling even if application code has a bug — a nice extra safety net.\n\nAll of these live inside **one transaction** with the reservation insert, so either everything happens or nothing does.",
+            "videos": [
+              {
+                "id": "fhdPyoO6aXI",
+                "title": "System Design Interview: Design Ticketmaster w/ a Ex-Meta Staff Engineer",
+                "channel": "Hello Interview",
+                "start": 2118,
+                "end": 3490,
+                "label": "deep dives"
+              }
+            ]
+          },
+          {
+            "title": "Idempotency, holds and payments",
+            "body": "**Idempotency:** the client generates an `Idempotency-Key` (a UUID) per booking attempt. The server stores it with a UNIQUE constraint. A retry with the same key returns the original result instead of booking again. Same idea with the payment provider.\n\n**Holds for checkout:** for multi-step checkout, reserve with status `HELD` and `expires_at = now + 10 min`. A sweeper (or a check at read time) releases expired holds. Payment success turns the hold into `CONFIRMED`.\n\n**Payment flow:** create the reservation (HELD) → redirect to the payment provider → the provider calls your **webhook** → you confirm. Webhooks can arrive late, twice or out of order, so handlers must be idempotent and check the current status.\n\n**Flash sales / concert drops:** put a **virtual waiting room** in front (users get a queue position; N per second are admitted), serve the seat map from cache, and keep the booking path small and strongly consistent.",
+            "videos": [
+              {
+                "id": "XAccGbtl3Z8",
+                "title": "Idempotency - What it is and How to Implement it",
+                "channel": "Alex Hyett"
+              },
+              {
+                "id": "m6DtqSb1BDM",
+                "title": "Build a robust Payments service using Idempotency Keys",
+                "channel": "Arpit Bhayani"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design a hotel reservation system / Booking.com / Airbnb booking\".",
+          "\"Design Ticketmaster / BookMyShow\" (the HLD view of the movie booking LLD).",
+          "Any limited inventory where correctness beats speed: flights, doctor slots, flash sales."
+        ],
+        "mistakes": [
+          "Read availability, then write the booking in a separate step — the classic race condition.",
+          "One row per physical room per date for search — huge tables; count by room type instead.",
+          "No idempotency key — mobile retries create duplicate bookings and charges.",
+          "Putting bookings in an eventually consistent store (e.g. a cache) as the source of truth.",
+          "Holding a DB transaction open while waiting for the payment provider."
+        ],
+        "interview_tips": [
+          "Say which parts need strong consistency (reserve, payment) and which can be eventual (search, reviews).",
+          "Offer two concurrency options: conditional UPDATE (optimistic, preferred) vs `SELECT … FOR UPDATE` (pessimistic).",
+          "Estimate: reads ≫ writes (browsing vs booking ~100:1) → cache search results.",
+          "Extensions: holds with expiry for checkout, overbooking %, waiting-room queue for flash sales (Ticketmaster)."
+        ],
+        "quiz": [
+          {
+            "q": "What's the safest way to book the last room?",
+            "options": [
+              "Check availability, then insert",
+              "A conditional UPDATE … WHERE reserved < total inside a transaction",
+              "Cache the count in Redis only",
+              "Ask the user to retry"
+            ],
+            "answer": 1,
+            "why": "Check and write happen atomically in the database."
+          },
+          {
+            "q": "A phone retries the 'book' request after a timeout. What prevents a double booking?",
+            "options": [
+              "HTTPS",
+              "An idempotency key with a UNIQUE constraint",
+              "Rate limiting",
+              "A CDN"
+            ],
+            "answer": 1,
+            "why": "The second request finds the existing booking and returns it."
+          },
+          {
+            "q": "Booking 3 nights updated only 2 inventory rows. You should…",
+            "options": [
+              "Commit anyway",
+              "Roll back — one night is sold out",
+              "Book 2 nights",
+              "Retry forever"
+            ],
+            "answer": 1,
+            "why": "All-or-nothing across nights."
+          },
+          {
+            "q": "Which part can be eventually consistent?",
+            "options": [
+              "Payment",
+              "Reservation",
+              "Hotel search results",
+              "Inventory decrement"
+            ],
+            "answer": 2,
+            "why": "Slightly stale search is fine; the reserve step re-checks."
+          }
+        ],
+        "week": "11-12",
+        "dry_run": {
+          "title": "Two guests want the last Deluxe room for Mar 10–12",
+          "input": "inventory: Mar 10 (9/10 reserved), Mar 11 (9/10 reserved)",
+          "columns": [
+            "Step",
+            "Request",
+            "What the DB does",
+            "Result"
+          ],
+          "steps": [
+            [
+              "1",
+              "Guest A: reserve Mar 10–11, key=a1",
+              "BEGIN; UPDATE 2 rows WHERE reserved < total → 2 rows",
+              "COMMIT → booked"
+            ],
+            [
+              "2",
+              "Guest B: same nights, key=b1",
+              "UPDATE … WHERE reserved < total → 0 rows",
+              "ROLLBACK → \"sold out\""
+            ],
+            [
+              "3",
+              "Guest A's app retries (timeout), key=a1",
+              "idempotency key a1 already exists",
+              "returns the same booking — no double charge"
+            ],
+            [
+              "4",
+              "Guest A cancels",
+              "reserved − 1 on both nights",
+              "room is free again ✅"
+            ]
+          ],
+          "takeaway": "The `reserved < total` condition inside the UPDATE makes check-and-book a single atomic step."
+        },
+        "template": {
+          "python": "import sqlite3\nfrom datetime import date, timedelta\n\ndb = sqlite3.connect(':memory:', isolation_level=None)\ndb.executescript('''\nCREATE TABLE room_inventory (\n    hotel_id INT, room_type TEXT, day TEXT, total INT, reserved INT DEFAULT 0,\n    PRIMARY KEY (hotel_id, room_type, day));\nCREATE TABLE reservations (\n    id INTEGER PRIMARY KEY, idempotency_key TEXT UNIQUE, guest TEXT,\n    hotel_id INT, room_type TEXT, check_in TEXT, check_out TEXT);\n''')\n\ndef nights(check_in: date, check_out: date) -> list[str]:\n    return [(check_in + timedelta(d)).isoformat() for d in range((check_out - check_in).days)]\n\ndef reserve(key, guest, hotel, room_type, check_in, check_out):\n    existing = db.execute('SELECT id FROM reservations WHERE idempotency_key = ?', (key,)).fetchone()\n    if existing:\n        return existing[0]                         # retry → same booking\n    days = nights(check_in, check_out)\n    db.execute('BEGIN IMMEDIATE')\n    try:\n        changed = db.execute(\n            f'''UPDATE room_inventory SET reserved = reserved + 1\n                WHERE hotel_id = ? AND room_type = ? AND reserved < total\n                  AND day IN ({','.join('?' * len(days))})''',\n            (hotel, room_type, *days)).rowcount\n        if changed != len(days):\n            raise ValueError('sold out for at least one night')\n        rid = db.execute(\n            'INSERT INTO reservations (idempotency_key, guest, hotel_id, room_type, check_in, check_out) VALUES (?,?,?,?,?,?)',\n            (key, guest, hotel, room_type, check_in.isoformat(), check_out.isoformat())).lastrowid\n        db.execute('COMMIT')\n        return rid\n    except Exception:\n        db.execute('ROLLBACK')\n        raise\n\nfor day in ('2026-03-10', '2026-03-11'):\n    db.execute('INSERT INTO room_inventory VALUES (1, ?, ?, 10, 9)', ('deluxe', day))\n\nprint(reserve('a1', 'A', 1, 'deluxe', date(2026, 3, 10), date(2026, 3, 12)))   # booked\nprint(reserve('a1', 'A', 1, 'deluxe', date(2026, 3, 10), date(2026, 3, 12)))   # same id (retry)\ntry:\n    reserve('b1', 'B', 1, 'deluxe', date(2026, 3, 10), date(2026, 3, 12))\nexcept ValueError as e:\n    print('B:', e)",
+          "javascript": "// API sketch\n// GET  /hotels/:id/availability?room_type=deluxe&check_in=2026-03-10&check_out=2026-03-12\n// POST /reservations   headers: Idempotency-Key: <uuid>   body: { hotelId, roomType, checkIn, checkOut }\n// DELETE /reservations/:id\n\nasync function createReservation(req, res, db) {\n  const key = req.get('Idempotency-Key');\n  if (!key) return res.status(400).json({ error: 'Idempotency-Key header required' });\n\n  const existing = await db.oneOrNone('SELECT * FROM reservations WHERE idempotency_key = $1', [key]);\n  if (existing) return res.json(existing);              // retry → same answer\n\n  try {\n    const booking = await db.tx(async (t) => {\n      const days = nightsBetween(req.body.checkIn, req.body.checkOut);\n      const { rowCount } = await t.result(\n        `UPDATE room_inventory SET reserved = reserved + 1\n          WHERE hotel_id = $1 AND room_type = $2 AND day = ANY($3) AND reserved < total`,\n        [req.body.hotelId, req.body.roomType, days],\n      );\n      if (rowCount !== days.length) throw new Error('SOLD_OUT');   // rolls back\n      return t.one('INSERT INTO reservations (...) VALUES (...) RETURNING *', [key /* , ... */]);\n    });\n    res.status(201).json(booking);\n  } catch (e) {\n    if (e.message === 'SOLD_OUT') return res.status(409).json({ error: 'Sold out for those dates' });\n    throw e;\n  }\n}"
+        },
+        "complexity": "Booking is a few row updates in one SQL transaction — strongly consistent, a few ms. Searches (far more frequent) hit a cache of availability that may be seconds stale; the final reserve always re-checks the DB.",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          },
+          {
+            "label": "System Design Interview Vol. 1 & 2 — Alex Xu (book)"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Ticketing / Hotel Reservation",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Inventory + reservation with expiry (hold, then confirm).",
+            "Strong consistency for bookings (SQL, row locks / optimistic concurrency)."
+          ],
+          "explanation": "Book limited inventory (seats/rooms) without double booking under heavy traffic."
+        },
+        {
+          "title": "Design Ticketmaster for a 1-million-fan concert drop",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Virtual waiting room / queue in front of booking.",
+            "Seat holds with a short expiry."
+          ],
+          "explanation": "Put a waiting-room queue in front, let users in at a controlled rate, hold seats for a few minutes, and confirm atomically after payment.",
+          "answer_md": "- **Waiting room:** users get a queue position (Redis sorted set); only N users per second are admitted to the booking flow.\n- **Seat map** served from cache; **holds** stored with TTL (Redis `SET NX EX`) or a DB row with `hold_until`.\n- **Confirm:** conditional update in the DB after payment, with an idempotency key.\n- **Fairness & bots:** CAPTCHA, per-account limits, signed queue tokens.\n- **Scale:** the read path (seat map) is CDN/cache heavy; the write path is small but must be correct."
+        }
+      ]
+    },
+    {
+      "slug": "hld-instagram",
+      "name": "HLD Case: Instagram",
+      "description": "Upload photos, follow people and scroll a feed: object storage + CDN for media, and fan-out on write vs read for the feed.",
+      "revision_note_md": "## Instagram — key decisions\n\n- **Media**: client uploads straight to object storage (S3) using a pre-signed URL; served through a **CDN**; resized variants generated async.\n- **Metadata**: posts, users, follows in a DB (SQL or Cassandra); shard by user_id.\n- **Feed**: **fan-out on write** (push post ids into each follower's feed list in Redis) for normal users; **fan-out on read** for celebrities; merge both on read (hybrid).\n- Read-heavy (~100:1) → cache everything; paginate with cursors.",
+      "lesson": {
+        "status": "full",
+        "simple": "Users upload photos, follow each other, and scroll a **home feed** of posts from people they follow.\n\nSplit it into two problems:\n\n**1. Media** — photos are big. The app uploads them **directly to object storage** (like S3) using a short-lived **pre-signed URL**, so your servers never carry the bytes. A **CDN** serves them worldwide. A background worker makes thumbnails.\n\n**2. The feed** — the famous trade-off:\n- **Fan-out on write (push):** when Asha posts, copy the post id into each follower's feed list. Reading a feed is then instant. ❌ A celebrity with 100M followers makes 100M writes per post.\n- **Fan-out on read (pull):** build the feed when someone opens the app by fetching recent posts from everyone they follow. ❌ Slow for people who follow 2,000 accounts.\n- **Hybrid (the answer):** push for normal users, pull for celebrities, merge at read time.",
+        "analogy": "A newspaper delivery boy (push) drops the paper at every subscriber's door each morning — great for a local paper. A celebrity's daily diary would need millions of deliveries, so instead fans walk to the newsstand (pull) to read it.",
+        "concepts": [
+          {
+            "title": "Media pipeline: upload, process, serve",
+            "body": "1. The app asks the API for an upload URL; the API returns a **pre-signed URL** (valid a few minutes) for object storage.\n2. The app uploads the photo **directly to object storage**. Your API servers never handle the bytes, so they stay small and cheap.\n3. The app calls `POST /posts {media_key, caption}`. The post service saves metadata and publishes a `PostCreated` event.\n4. **Workers** consume the event: generate thumbnails and sizes (150 px, 640 px, 1080 px), strip metadata, run moderation, then fan out to feeds.\n5. Clients load images from a **CDN** in front of object storage, picking the size that fits the screen.\n\nStorage maths: 50M posts/day × 2 MB ≈ 100 TB/day before variants — this is why media goes to object storage with lifecycle rules (move old media to cheaper tiers), never into the database.",
+            "videos": [
+              {
+                "id": "QmX2NPkJTKg",
+                "title": "Designing INSTAGRAM: System Design of News Feed",
+                "channel": "Gaurav Sen",
+                "start": 722,
+                "end": 1292,
+                "label": "system design"
+              }
+            ]
+          },
+          {
+            "title": "Data model and sharding",
+            "body": "```text\nusers(id, username, bio, follower_count, following_count)\nfollows(follower_id, followee_id, created_at)        — two indexes: who I follow, who follows me\nposts(id, author_id, media_key, caption, created_at) — shard by author_id\nlikes(post_id, user_id, created_at)                  — unique (post_id, user_id)\ncomments(id, post_id, user_id, text, created_at)     — shard by post_id\nfeed:{user_id} → list of recent post ids             — Redis, capped at ~500\n```\n\n**Post ids:** use time-sortable ids (Snowflake-style: timestamp + machine + sequence) so sorting by id ≈ sorting by time, and ids are generated without a central counter.\n\n**Sharding by author_id** keeps one user's posts together (profile page = one shard). Follower lists for celebrities are huge, so the `follows` table is sharded too, with pagination when reading followers.",
+            "videos": [
+              {
+                "id": "QmX2NPkJTKg",
+                "title": "Designing INSTAGRAM: System Design of News Feed",
+                "channel": "Gaurav Sen",
+                "start": 195,
+                "end": 722,
+                "label": "database schema and followers"
+              }
+            ]
+          },
+          {
+            "title": "Feed generation in depth",
+            "body": "**Fan-out on write (push):** on each post, a worker pushes the post id into every follower's feed list. Reads are a single list fetch → very fast.\n- Cost per post = number of followers. Fine for 300, terrible for 50 million.\n- Wasted work for followers who rarely open the app.\n\n**Fan-out on read (pull):** at read time, fetch recent posts from everyone you follow and merge them.\n- No write amplification, always fresh.\n- Slow if you follow thousands of accounts — many queries per feed load.\n\n**Hybrid:** push for normal authors; for **celebrities** (above a follower threshold), skip fan-out. At read time, take the precomputed list and merge in recent posts from the few celebrities you follow. Inactive users can be skipped during fan-out and rebuilt on their next visit.\n\n**Ranking:** a real feed sorts by a relevance score (relationship strength, engagement, recency) computed by a ranking service over a candidate set — the fan-out produces candidates, ranking orders them.",
+            "videos": [
+              {
+                "id": "QmX2NPkJTKg",
+                "title": "Designing INSTAGRAM: System Design of News Feed",
+                "channel": "Gaurav Sen",
+                "start": 1292,
+                "label": "celebrity post fan-out"
+              },
+              {
+                "id": "FEkXjNFrL1o",
+                "title": "Twitter Timeline Architecture |  Fanout | System Design",
+                "channel": "ByteMonk"
+              },
+              {
+                "id": "Qj4-GruzyDU",
+                "title": "Design FB News Feed System Design Interview w/ ex: Meta Senior Manager",
+                "channel": "Hello Interview",
+                "start": 977,
+                "end": 1548,
+                "label": "news feed deep dives"
+              }
+            ]
+          },
+          {
+            "title": "Read path, caching and pagination",
+            "body": "Opening the app:\n1. Read `feed:{user}` from Redis (post ids), merge celebrity posts, rank, take the top 20.\n2. **Hydrate**: fetch post details, author info and like counts for those ids — from caches first (post cache, user cache), DB on a miss.\n3. Return media URLs that point at the CDN.\n\n**Pagination:** use a **cursor** (`?cursor=<last_post_id>`), not page numbers. New posts at the top shift offsets and cause duplicates or gaps; a cursor says \"give me what comes after this one\".\n\n**Counts** (likes, followers) are hot: keep them in Redis, update with `INCR`, flush to the DB periodically, and show approximate values (\"1.2M\"). For viral posts, split the counter into several sub-keys to spread the load.",
+            "videos": [
+              {
+                "id": "Qj4-GruzyDU",
+                "title": "Design FB News Feed System Design Interview w/ ex: Meta Senior Manager",
+                "channel": "Hello Interview",
+                "start": 596,
+                "end": 977,
+                "label": "news feed high-level design"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design Instagram / Facebook news feed / Twitter timeline / Pinterest\".",
+          "Any system with followers + a personalised list: notifications, activity feeds, LinkedIn feed.",
+          "The media part applies to any upload-heavy app (WhatsApp media, Google Photos)."
+        ],
+        "mistakes": [
+          "Uploading image bytes through your API servers — use pre-signed URLs straight to object storage.",
+          "Pure fan-out on write — one celebrity post means tens of millions of writes.",
+          "Pure fan-out on read — slow feeds for users following thousands of accounts.",
+          "Offset pagination on an ever-changing feed — use a cursor (last seen timestamp/id).",
+          "Forgetting thumbnails/resizing and the CDN."
+        ],
+        "interview_tips": [
+          "Do the estimation: it shows reads ≫ writes and that media storage is the biggest number.",
+          "Explain the hybrid feed with the celebrity threshold — that's the 'aha' interviewers wait for.",
+          "Deep dives you can offer: ranking (ML score instead of time), stories (24h TTL), likes counter (sharded counters).",
+          "Mention async work via a queue: fan-out, thumbnails, notifications."
+        ],
+        "quiz": [
+          {
+            "q": "Why upload photos with a pre-signed URL?",
+            "options": [
+              "It's more secure only",
+              "The client sends bytes straight to object storage, sparing your API servers",
+              "It compresses images",
+              "Required by CDNs"
+            ],
+            "answer": 1,
+            "why": "API servers stay small; storage scales on its own."
+          },
+          {
+            "q": "Fan-out on write is a bad idea for…",
+            "options": [
+              "Users with 200 followers",
+              "Celebrities with millions of followers",
+              "Private accounts",
+              "New users"
+            ],
+            "answer": 1,
+            "why": "Each post would trigger millions of feed writes."
+          },
+          {
+            "q": "The hybrid feed means…",
+            "options": [
+              "Push for everyone",
+              "Pull for everyone",
+              "Push for normal users, pull for celebrities, merge on read",
+              "No feed cache"
+            ],
+            "answer": 2,
+            "why": "Bounded write cost and fast reads."
+          },
+          {
+            "q": "Best pagination for an infinite feed?",
+            "options": [
+              "Page numbers (OFFSET)",
+              "Cursor based on the last seen post",
+              "Load everything",
+              "Random"
+            ],
+            "answer": 1,
+            "why": "New posts don't shift the cursor, so no duplicates or gaps."
+          }
+        ],
+        "week": "11-12",
+        "dry_run": {
+          "title": "Asha (300 followers) and a celebrity (50M followers) post; Ravi opens his feed",
+          "input": "Ravi follows Asha and the celebrity",
+          "columns": [
+            "Step",
+            "Event",
+            "What happens"
+          ],
+          "steps": [
+            [
+              "1",
+              "Asha uploads a photo",
+              "app gets pre-signed URL → uploads to S3 → POST /posts {media_key}"
+            ],
+            [
+              "2",
+              "Post service saves metadata",
+              "queue event → fan-out worker pushes post id to 300 follower feeds (Redis lists)"
+            ],
+            [
+              "3",
+              "Celebrity posts",
+              "saved, but NOT fanned out (too many followers)"
+            ],
+            [
+              "4",
+              "Ravi opens the app",
+              "read his feed list (has Asha's post) + pull recent celebrity posts"
+            ],
+            [
+              "5",
+              "Merge by time, take top 20",
+              "hydrate post details from cache; images load from CDN ✅"
+            ]
+          ],
+          "takeaway": "The hybrid keeps writes bounded (no 50M-row fan-out) and reads fast (most posts are pre-computed)."
+        },
+        "template": {
+          "python": "from collections import defaultdict\nimport heapq\n\n# --- Estimation (say these out loud) ---\nDAU = 500e6\nposts_per_day = DAU * 0.1                 # 10% post once a day → 50M posts/day\nfeed_reads_per_day = DAU * 10             # 10 opens a day → 5B reads/day\nprint('write QPS', posts_per_day / 1e5, 'read QPS', feed_reads_per_day / 1e5)   # ~500 vs ~50,000\nprint('media/day TB', posts_per_day * 2e6 / 1e12)                              # 2 MB photo → 100 TB/day\n\n# --- Hybrid fan-out ---\nCELEBRITY = 10_000                         # follower count threshold\nfollowers = defaultdict(set)               # author -> followers\nfollowing = defaultdict(set)               # user -> authors\nposts = defaultdict(list)                  # author -> [(ts, post_id)]\nfeeds = defaultdict(list)                  # user -> [(ts, post_id)]  (Redis list in real life)\n\ndef follow(user, author):\n    followers[author].add(user); following[user].add(author)\n\ndef publish(author, ts, post_id):\n    posts[author].append((ts, post_id))\n    if len(followers[author]) < CELEBRITY:             # push for normal users\n        for f in followers[author]:\n            feeds[f].append((ts, post_id))\n            feeds[f] = feeds[f][-500:]                 # cap feed length\n\ndef home_feed(user, limit=20):\n    celebs = [a for a in following[user] if len(followers[a]) >= CELEBRITY]\n    pulled = [p for a in celebs for p in posts[a][-limit:]]   # pull for celebrities\n    return [pid for _, pid in heapq.nlargest(limit, feeds[user] + pulled)]\n\nfollow('ravi', 'asha'); follow('ravi', 'celeb')\nfollowers['celeb'].update(f'fan{i}' for i in range(CELEBRITY))\npublish('asha', 1, 'p-asha'); publish('celeb', 2, 'p-celeb')\nprint(home_feed('ravi'))   # ['p-celeb', 'p-asha']",
+          "javascript": "// APIs\n// POST /media/upload-url        → { uploadUrl, mediaKey }   (pre-signed S3 PUT, expires in 5 min)\n// POST /posts { mediaKey, caption } → { postId }\n// GET  /feed?cursor=<ts>&limit=20 → { posts: [...], nextCursor }\n// POST /users/:id/follow\n\n// Client upload flow: the API server never touches the image bytes\nasync function uploadPhoto(file, caption) {\n  const { uploadUrl, mediaKey } = await api('/media/upload-url', { method: 'POST' });\n  await fetch(uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });\n  return api('/posts', { method: 'POST', body: JSON.stringify({ mediaKey, caption }) });\n}\n\n// Data model\n// users(id, name, follower_count)\n// follows(follower_id, followee_id)          — index both directions\n// posts(id, author_id, media_key, caption, created_at)   — shard by author_id\n// feed:{user_id} → Redis list of recent post ids (fan-out on write)"
+        },
+        "complexity": "~50k feed reads/s vs ~500 post writes/s in the example → read-optimised. Fan-out cost per post = follower count (bounded by the celebrity threshold). Media dominates storage (~100 TB/day) → object storage + CDN.",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          },
+          {
+            "label": "System Design Interview Vol. 1 & 2 — Alex Xu (book)"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Instagram",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Media to object storage + CDN; metadata in DB.",
+            "Feed: fan-out on write for normal users, on read for celebrities."
+          ],
+          "explanation": "Upload photos, follow people and scroll a feed."
+        },
+        {
+          "title": "How would you design likes and like counts at Instagram scale?",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Store who liked what separately from the count.",
+            "Hot posts → sharded or batched counters."
+          ],
+          "explanation": "Keep a likes table (post_id, user_id) for 'did I like it' and a counter updated asynchronously; shard or batch counts for viral posts.",
+          "answer_md": "- `likes(post_id, user_id, created_at)` with a unique key → idempotent likes, \"liked by you\".\n- Count: Redis `INCR post:{id}:likes`, flushed to the DB periodically.\n- Viral posts: split into N sub-counters (`likes:{id}:{0..N}`), sum on read.\n- Show approximate counts (\"1.2M\") — exactness isn't needed in real time."
+        }
+      ]
+    },
+    {
+      "slug": "hld-ecommerce",
+      "name": "HLD Case: E-Commerce Platform",
+      "description": "Catalogue, cart, inventory and checkout across microservices: the Saga pattern, inventory reservation and safe payments.",
+      "revision_note_md": "## E-Commerce — key decisions\n\n- Services: Catalog/Search, Cart, Inventory, Order, Payment, Notification.\n- Checkout spans services → no single DB transaction → **Saga**: a sequence of local steps with **compensating** actions (release stock, refund).\n- **Inventory**: reserve with a TTL at checkout, decrement on payment; conditional update to avoid overselling.\n- **Payments**: idempotency keys; gateway webhooks; never charge twice.\n- **Outbox pattern**: write the DB change and the event in one local transaction; a relay publishes events.",
+      "lesson": {
+        "status": "full",
+        "simple": "Design an online store like Flipkart or Amazon: browse products, add to cart, check out, pay, and get the order delivered.\n\nBrowsing is a read-heavy problem (cache + search index). **Checkout is the hard part**, because one order touches several services — Order, Inventory, Payment — each with its **own database**. You can't wrap them in one transaction.\n\nThe answer is a **Saga**: a list of steps, each a small local transaction, and for each step an **undo** (a *compensating action*):\n1. Create order (PENDING) — *undo:* cancel order\n2. Reserve stock — *undo:* release stock\n3. Charge payment — *undo:* refund\n4. Confirm order\n\nIf step 3 fails, run the undos backwards: release stock, cancel order. An **orchestrator** (the Order service) drives the steps.",
+        "analogy": "Planning a trip: book the flight, then the hotel, then the cab. If the hotel is full, you don't magically roll back time — you cancel the flight (a compensating action). A Saga is that, written down as code.",
+        "concepts": [
+          {
+            "title": "Services and their data",
+            "body": "| Service | Owns | Notes |\n|---|---|---|\n| Catalog | products, variants, prices | read-heavy; cached; feeds the search index |\n| Search | Elasticsearch index | updated asynchronously from catalog events |\n| Cart | carts per user | fast key-value (Redis/DynamoDB); guest carts merge on login |\n| Inventory | stock per SKU per warehouse | strongly consistent counters |\n| Order | orders, order lines, status | orchestrates checkout |\n| Payment | payment attempts, refunds | talks to gateways; idempotent |\n| Shipping / Notification | shipments, messages | react to order events |\n\nEach service **owns its database** — no other service writes to it. That gives independent scaling and deployment, but it means a checkout touching Order, Inventory and Payment can't use one database transaction. That's the problem the Saga solves.",
+            "videos": [
+              {
+                "id": "2BWr0fsDSs0",
+                "title": "System Design Interview: Architecture of Amazon, Flipkart like e-commerce system with @gkcs",
+                "channel": "sudoCODE",
+                "start": 203,
+                "end": 1155,
+                "label": "high-level view and services"
+              }
+            ]
+          },
+          {
+            "title": "Sagas: orchestration vs choreography",
+            "body": "A **saga** is a sequence of local transactions where each step has a **compensating action** that undoes it semantically (you can't un-charge a card, but you can refund it).\n\n**Orchestration** — one coordinator (the Order service) tells each service what to do and reacts to replies:\n`create order → reserve stock → charge → confirm`; on failure it calls compensations in reverse. Easy to follow, test and monitor; the flow lives in one place.\n\n**Choreography** — no coordinator; each service listens to events and emits its own: `OrderCreated → Inventory reserves → StockReserved → Payment charges → PaymentSucceeded → Order confirms`. Loosely coupled, but the overall flow is spread across services and harder to debug.\n\nFor checkout, orchestration is usually the clearer interview answer. Make every step and compensation **idempotent** and **retryable**, and persist the saga's state so it can resume after a crash.",
+            "videos": [
+              {
+                "id": "d2z78guUR4g",
+                "title": "Saga Pattern | Distributed Transactions | Microservices",
+                "channel": "ByteMonk",
+                "start": 352,
+                "end": 790,
+                "label": "orchestrated vs choreographed sagas"
+              },
+              {
+                "id": "eTTCIJZNPdo",
+                "title": "What is the Saga Microservices Pattern? | Saga Pattern Explained in 3 Minutes",
+                "channel": "Java Guides"
+              }
+            ]
+          },
+          {
+            "title": "The outbox pattern and exactly-once effects",
+            "body": "The classic bug: a service commits its DB change, then crashes before publishing the event (other services never hear about it) — or publishes the event and then the DB transaction rolls back (a phantom event).\n\n**Transactional outbox:** in the *same* local transaction, write the business change **and** a row in an `outbox` table. A separate relay (a polling job or change-data-capture like Debezium) reads the outbox and publishes to Kafka/SQS, marking rows as sent.\n\nThis gives **at-least-once** delivery: an event may be published twice (relay crashed after publishing, before marking). So consumers must be **idempotent**: store processed event ids and skip duplicates. At-least-once delivery + idempotent consumers = exactly-once *effects*, which is what you actually want.",
+            "videos": [
+              {
+                "id": "5YLpjPmsPCA",
+                "title": "What is the Transactional Outbox Pattern? | Designing Event-Driven Microservices",
+                "channel": "Confluent, an IBM Company"
+              },
+              {
+                "id": "7Js-4GuNogM",
+                "title": "The Outbox Pattern is seriously underrated...",
+                "channel": "Software Developer Diaries"
+              }
+            ]
+          },
+          {
+            "title": "Inventory and flash sales",
+            "body": "**When to decrement stock:**\n- at add-to-cart → abandoned carts lock stock; bad.\n- after payment only → two people can pay for the last item; overselling.\n- **at checkout as a reservation with a TTL** → then commit on payment, release on failure or expiry. ✔\n\n```sql\nUPDATE inventory SET available = available - :qty, reserved = reserved + :qty\n WHERE sku = :sku AND warehouse = :w AND available >= :qty;\n```\n0 rows = out of stock.\n\n**Flash sale (huge demand for a few items):**\n- Pre-load the stock count into Redis and decrement with an atomic script; persist orders asynchronously.\n- Put a **queue/waiting room** in front of checkout so the database sees a steady rate.\n- Per-user purchase limits, bot detection, and a CDN-cached product page (the read traffic is the bigger spike).\n- Reconcile Redis and the database afterwards.",
+            "videos": [
+              {
+                "id": "U2Acfwcah80",
+                "title": "Flash Sale System: System Design Interview (Stripe & Amazon Offers)",
+                "channel": "TechPrep"
+              },
+              {
+                "id": "2BWr0fsDSs0",
+                "title": "System Design Interview: Architecture of Amazon, Flipkart like e-commerce system with @gkcs",
+                "channel": "sudoCODE",
+                "start": 1155,
+                "end": 1560,
+                "label": "product inventory"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design Amazon / Flipkart / a checkout system / a food delivery order flow\".",
+          "Any workflow across microservices that must end all-done or all-undone: travel booking, money transfer between banks.",
+          "Flash sales (Big Billion Days): inventory reservation + queueing."
+        ],
+        "mistakes": [
+          "Trying a distributed transaction (2PC) across microservices — slow and fragile; use a Saga.",
+          "Compensations that aren't idempotent — retries refund twice or release stock twice.",
+          "Decrementing stock at 'add to cart' (stock locked by abandoned carts) or only after payment (overselling).",
+          "Publishing an event after committing in a separate step — a crash in between loses it (use the outbox).",
+          "Charging without an idempotency key."
+        ],
+        "interview_tips": [
+          "Draw the services first, then walk through checkout as a saga with its compensations.",
+          "Choreography (services react to each other's events) vs orchestration (one coordinator) — say orchestration is easier to reason about for checkout.",
+          "Inventory: reserve at checkout with a TTL, commit on payment success, release on failure/expiry.",
+          "Flash sales: queue checkout requests, pre-load stock counts into Redis, rate-limit per user."
+        ],
+        "quiz": [
+          {
+            "q": "Why not one database transaction across Order, Inventory and Payment?",
+            "options": [
+              "SQL can't do it",
+              "Each microservice owns its own database",
+              "Too few rows",
+              "Payments are free"
+            ],
+            "answer": 1,
+            "why": "Separate databases → use a Saga with compensations."
+          },
+          {
+            "q": "Payment fails after stock was reserved. The saga…",
+            "options": [
+              "Leaves stock reserved",
+              "Releases the stock and cancels the order",
+              "Retries payment forever",
+              "Deletes the product"
+            ],
+            "answer": 1,
+            "why": "Compensations run in reverse order."
+          },
+          {
+            "q": "The outbox pattern guarantees…",
+            "options": [
+              "Faster queries",
+              "The DB change and its event are saved atomically",
+              "Exactly-once payments",
+              "No need for Kafka"
+            ],
+            "answer": 1,
+            "why": "A relay later publishes what's in the outbox table."
+          },
+          {
+            "q": "When should stock be reserved?",
+            "options": [
+              "When added to cart",
+              "At checkout, with an expiry",
+              "Only after delivery",
+              "Never"
+            ],
+            "answer": 1,
+            "why": "Avoids both abandoned-cart lockups and overselling."
+          }
+        ],
+        "week": "15-16",
+        "dry_run": {
+          "title": "Order #1 for 2 × headphones; the payment fails",
+          "input": "stock = 5; orchestrator = Order service",
+          "columns": [
+            "Step",
+            "Service",
+            "Action",
+            "State"
+          ],
+          "steps": [
+            [
+              "1",
+              "Order",
+              "create order #1 (PENDING)",
+              "order PENDING"
+            ],
+            [
+              "2",
+              "Inventory",
+              "reserve 2 (TTL 15 min)",
+              "available 3, reserved 2"
+            ],
+            [
+              "3",
+              "Payment",
+              "charge ₹3,998 (idempotency key order-1)",
+              "❌ card declined"
+            ],
+            [
+              "4",
+              "Inventory",
+              "compensate: release 2",
+              "available 5"
+            ],
+            [
+              "5",
+              "Order",
+              "compensate: mark CANCELLED, notify user",
+              "order CANCELLED ✅"
+            ]
+          ],
+          "takeaway": "Every forward step has an undo. Failures run the undos in reverse order, so stock is never stuck."
+        },
+        "template": {
+          "python": "class SagaFailed(Exception):\n    pass\n\nclass Saga:\n    \"\"\"Orchestrated saga: run steps in order; on failure run compensations in reverse.\"\"\"\n    def __init__(self):\n        self.steps = []                            # (name, action, compensation)\n\n    def step(self, name, action, compensation=None):\n        self.steps.append((name, action, compensation))\n        return self\n\n    def run(self, ctx: dict) -> dict:\n        done = []\n        for name, action, compensation in self.steps:\n            try:\n                action(ctx)\n                done.append((name, compensation))\n            except Exception as e:\n                for prev, undo in reversed(done):\n                    if undo:\n                        undo(ctx)                  # must be idempotent and retried until it succeeds\n                raise SagaFailed(f'{name} failed: {e}') from e\n        return ctx\n\n# --- fake services ---\nstock = {'headphones': 5}\norders = {}\n\ndef create_order(c): orders[c['id']] = 'PENDING'\ndef cancel_order(c): orders[c['id']] = 'CANCELLED'\ndef reserve(c):\n    if stock[c['sku']] < c['qty']:\n        raise ValueError('out of stock')\n    stock[c['sku']] -= c['qty']\ndef release(c): stock[c['sku']] += c['qty']\ndef charge(c):\n    if c['card'] == 'declined':\n        raise ValueError('card declined')\ndef refund(c): pass\ndef confirm(c): orders[c['id']] = 'CONFIRMED'\n\ncheckout = (Saga()\n            .step('create order', create_order, cancel_order)\n            .step('reserve stock', reserve, release)\n            .step('charge payment', charge, refund)\n            .step('confirm', confirm))\n\ntry:\n    checkout.run({'id': 1, 'sku': 'headphones', 'qty': 2, 'card': 'declined'})\nexcept SagaFailed as e:\n    print(e, '| stock:', stock, '| order:', orders[1])   # stock back to 5, order CANCELLED",
+          "javascript": "// Outbox pattern: save the state change and the event in ONE local transaction,\n// then a relay publishes outbox rows to Kafka/SQS. No lost or phantom events.\nasync function reserveStock(db, { orderId, sku, qty }) {\n  await db.tx(async (t) => {\n    const { rowCount } = await t.result(\n      'UPDATE inventory SET available = available - $1, reserved = reserved + $1 WHERE sku = $2 AND available >= $1',\n      [qty, sku],\n    );\n    const event = rowCount ? 'StockReserved' : 'StockReservationFailed';\n    await t.none('INSERT INTO outbox (aggregate_id, type, payload) VALUES ($1, $2, $3)', [orderId, event, { sku, qty }]);\n  });\n}\n\n// Relay (runs in a loop or uses CDC like Debezium)\nasync function relayOutbox(db, broker) {\n  const rows = await db.any('SELECT * FROM outbox WHERE published_at IS NULL ORDER BY id LIMIT 100');\n  for (const row of rows) {\n    await broker.publish(row.type, { id: row.id, ...row.payload }); // consumers dedupe by id\n    await db.none('UPDATE outbox SET published_at = now() WHERE id = $1', [row.id]);\n  }\n}"
+        },
+        "complexity": "Browse/search: high QPS, served from cache + search index (Elasticsearch). Checkout: low QPS but must be correct; each saga step is a local transaction (~ms) plus the payment call (~seconds).",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          },
+          {
+            "label": "System Design Interview Vol. 1 & 2 — Alex Xu (book)"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: E-Commerce Platform",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Services: catalogue, cart, order, inventory, payment.",
+            "Distributed transactions with the Saga pattern (compensating actions)."
+          ],
+          "explanation": "Catalogue, cart, orders, inventory and payments at scale."
+        },
+        {
+          "title": "How do you stop overselling during a flash sale?",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Atomic decrement where available ≥ qty.",
+            "Pre-load counts into Redis; queue the rest."
+          ],
+          "explanation": "Decrement stock atomically (conditional UPDATE or Redis DECR with a check), put a queue in front of checkout, and reconcile with the DB.",
+          "answer_md": "- **Atomic decrement:** `UPDATE inventory SET available = available - :q WHERE sku = :s AND available >= :q` — 0 rows = sold out.\n- **Hot item:** load the count into Redis, use a Lua script to check-and-decrement; persist orders async.\n- **Queue** checkout requests so the DB sees a steady rate; users see \"you're in line\".\n- **Per-user limits** and bot protection.\n- **Reservation TTL** releases unpaid stock back to the pool."
+        }
+      ]
+    },
+    {
+      "slug": "hld-proximity",
+      "name": "HLD Case: Proximity Service (Yelp / Nearby)",
+      "description": "Find nearby restaurants or shops fast: geohash / quadtree indexing, neighbour cells, caching for a read-heavy service.",
+      "revision_note_md": "## Proximity Service (Yelp / Nearby) — key decisions\n\n- Read-heavy (searches ≫ business updates); updates can be eventually consistent.\n- **Geohash**: encode (lat, lng) into a string; nearby places share a **prefix**. Search your cell **plus its 8 neighbours**, then filter by exact distance.\n- Pick precision from the radius (6 chars ≈ 1.2 km × 0.6 km, 5 chars ≈ 4.9 km × 4.9 km).\n- Alternatives: **quadtree** (in-memory, adapts to density), Google **S2**, PostGIS.\n- Separate the **location index** (small, cached, replicated) from **business details** (DB + cache).",
+      "lesson": {
+        "status": "full",
+        "simple": "\"Show restaurants within 2 km of me.\" Checking the distance to **every** restaurant in the world on every search is far too slow.\n\nThe trick is to cut the map into a grid of **cells** and give each cell a short code. **Geohash** does this: it turns (latitude, longitude) into a string like `tdr1y`, where **longer strings mean smaller cells** and **places close together share a prefix**.\n\nTo search: compute the user's geohash at a precision that matches the radius, fetch businesses in that cell **and the 8 cells around it** (the user may be near an edge), then compute exact distances and sort.\n\nBusinesses rarely move, and searches are constant — so it's a **read-heavy** system: cache the geohash → business ids index and replicate it.",
+        "analogy": "PIN codes. To find shops near you, you don't scan the whole country — you look in your PIN code area and the neighbouring ones, then check exact distances.",
+        "concepts": [
+          {
+            "title": "How geohash works",
+            "body": "Geohash turns a (latitude, longitude) into a short string by repeatedly **halving the map**:\n\n1. Longitude range −180…180: is the point in the right half? Write 1, else 0. Halve that range.\n2. Latitude range −90…90: same.\n3. Alternate longitude and latitude bits; every 5 bits become one base-32 character.\n\nEach extra character divides the cell into 32 smaller cells, so **longer strings = smaller cells**, and **a shared prefix = the same larger cell**:\n\n| Length | Cell size (approx.) |\n|---|---|\n| 4 | 39 km × 19.5 km |\n| 5 | 4.9 km × 4.9 km |\n| 6 | 1.2 km × 0.61 km |\n| 7 | 153 m × 153 m |\n\nBecause nearby places share prefixes, \"find places near me\" becomes \"find rows whose geohash starts with these few strings\" — something a normal B-tree index or Redis handles very well.",
+            "videos": [
+              {
+                "id": "UaMzra18TD8",
+                "title": "Geohash: Deep Intuitive Understanding in under 7 Minutes",
+                "channel": "Jim O'Flaherty"
+              },
+              {
+                "id": "M4lR_Va97cQ",
+                "title": "FAANG System Design Interview: Design A Location Based Service (Yelp, Google Places)",
+                "channel": "ByteByteGo",
+                "start": 750,
+                "end": 1065,
+                "label": "geohash algorithm and implementation"
+              }
+            ]
+          },
+          {
+            "title": "The boundary problem and the 9-cell search",
+            "body": "Two places 10 metres apart can be on opposite sides of a cell border and have **completely different** geohashes. (The worst case is across the equator or the prime meridian, where even the first character differs.)\n\nSo never search only the user's cell. Search the **user's cell plus its 8 neighbours**, then compute the exact distance (haversine) for every candidate and keep those within the radius.\n\nChoosing the precision: pick the length whose cell is about the size of the search radius. Too fine → the radius spans many cells you didn't query (missed results); too coarse → too many candidates to filter. If a search returns too few results, **expand** by dropping one character (a 32× bigger area) and searching again.",
+            "videos": [
+              {
+                "id": "9BewOp5Gaw8",
+                "title": "GeoSpatial Indexes - Why You Need Them | Systems Design Interview 0 to 1 with Ex-Google SWE",
+                "channel": "Jordan has no life"
+              }
+            ]
+          },
+          {
+            "title": "Alternatives: quadtree, S2 and PostGIS",
+            "body": "| Option | Idea | Strengths | Weaknesses |\n|---|---|---|---|\n| **Geohash** | fixed grid, string prefixes | simple; works in any DB or Redis | fixed cell sizes; dense cities overload a cell |\n| **Quadtree** | split a cell into 4 when it has more than K places | adapts to density (Manhattan vs desert) | built in memory; rebuild/update logic |\n| **Google S2 / Uber H3** | cells on a sphere (squares / hexagons) | uniform-ish cells, great coverings, used at Google and Uber | more complex libraries |\n| **PostGIS** | spatial index (GiST) in Postgres | `ST_DWithin` and nearest-neighbour SQL out of the box | single DB scaling limits |\n\nFor a few million places, **PostGIS** or Redis `GEOSEARCH` is the honest, simple answer. For a global, very read-heavy service, an in-memory geohash or quadtree index replicated across many servers.",
+            "videos": [
+              {
+                "id": "OcUKFIjhKu0",
+                "title": "Designing a location database: QuadTrees and Hilbert Curves",
+                "channel": "Gaurav Sen"
+              },
+              {
+                "id": "M4lR_Va97cQ",
+                "title": "FAANG System Design Interview: Design A Location Based Service (Yelp, Google Places)",
+                "channel": "ByteByteGo",
+                "start": 1065,
+                "end": 1134,
+                "label": "tree-based indexing"
+              }
+            ]
+          },
+          {
+            "title": "Architecture for a read-heavy service",
+            "body": "- **Location-based service (LBS)** — stateless, read-only search servers that hold the geo index (geohash → business ids) in memory or Redis; scale horizontally behind a load balancer; replicate per region.\n- **Business service** — CRUD for business details (name, hours, photos, rating) in a SQL database, cached aggressively.\n- **Updates** — when an owner edits a business or a new one is added, write to the DB and update the geo index asynchronously (nightly rebuild is often fine for Yelp-style data).\n- **Ranking** — after distance filtering, rank by distance, rating, open now, relevance to the search term.\n\n**Moving objects** (drivers, delivery partners) are different: hundreds of thousands of updates per second, data that's stale after 30 seconds. Use an in-memory geo index (Redis GEO, sharded by city) with TTLs, and send the location history to a stream for analytics — never update a relational database every 4 seconds per driver.",
+            "videos": [
+              {
+                "id": "M4lR_Va97cQ",
+                "title": "FAANG System Design Interview: Design A Location Based Service (Yelp, Google Places)",
+                "channel": "ByteByteGo",
+                "start": 182,
+                "end": 621,
+                "label": "high-level design"
+              },
+              {
+                "id": "M4lR_Va97cQ",
+                "title": "FAANG System Design Interview: Design A Location Based Service (Yelp, Google Places)",
+                "channel": "ByteByteGo",
+                "start": 1320,
+                "label": "scaling and caching"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design Yelp / Google Maps nearby / Swiggy restaurant listing / Find nearby friends\".",
+          "Any location search: nearby drivers (Uber), ATMs, delivery partner assignment.",
+          "Moving objects (drivers) use the same index but update it every few seconds."
+        ],
+        "mistakes": [
+          "Searching only the user's own cell — misses places just across the border; always include the 8 neighbours.",
+          "Scanning a `businesses` table with `WHERE distance(...) < r` — a full scan per query.",
+          "Using a fixed precision for all radii — 500 m and 20 km need different cell sizes.",
+          "Treating business updates as needing strong consistency — a few minutes' delay is fine."
+        ],
+        "interview_tips": [
+          "Clarify: static places (Yelp) or moving objects (drivers)? The second needs frequent index updates.",
+          "Compare options quickly: geohash (simple, string prefix), quadtree (adapts to dense cities), S2 (precise cells), PostGIS (easiest at small scale).",
+          "Estimate read QPS (e.g. 100M DAU × 5 searches / 10⁵ s ≈ 5k QPS) → cache and replicas.",
+          "Mention the edge cases: poles and the ±180° line, dense areas with too many results (cap and rank)."
+        ],
+        "quiz": [
+          {
+            "q": "Two places share the geohash prefix 'tdr1v'. They are…",
+            "options": [
+              "Far apart",
+              "In the same small cell, so close together",
+              "In different countries",
+              "Unrelated"
+            ],
+            "answer": 1,
+            "why": "A shared prefix means the same cell."
+          },
+          {
+            "q": "Why search the 8 neighbouring cells too?",
+            "options": [
+              "For more ads",
+              "The user may be near a cell border",
+              "Geohash requires it",
+              "To slow it down"
+            ],
+            "answer": 1,
+            "why": "A place 50 m away can be in the next cell."
+          },
+          {
+            "q": "Longer geohash strings mean…",
+            "options": [
+              "Bigger cells",
+              "Smaller, more precise cells",
+              "Different countries",
+              "Nothing"
+            ],
+            "answer": 1,
+            "why": "Each extra character subdivides the cell."
+          },
+          {
+            "q": "A proximity service for restaurants is…",
+            "options": [
+              "Write-heavy",
+              "Read-heavy",
+              "Balanced",
+              "Offline"
+            ],
+            "answer": 1,
+            "why": "Searches vastly outnumber business updates."
+          }
+        ],
+        "week": "15-16",
+        "dry_run": {
+          "title": "User in central Bangalore searches within 1 km",
+          "input": "user at (12.9716, 77.5946)",
+          "columns": [
+            "Step",
+            "Action",
+            "Result"
+          ],
+          "steps": [
+            [
+              "1",
+              "Pick precision for ~1 km",
+              "6 chars (cell ≈ 1.2 km × 0.6 km)"
+            ],
+            [
+              "2",
+              "geohash(12.9716, 77.5946, 6)",
+              "user's cell, e.g. tdr1v…"
+            ],
+            [
+              "3",
+              "Add the 8 neighbouring cells",
+              "9 cell ids"
+            ],
+            [
+              "4",
+              "Look up business ids for those 9 cells (cache)",
+              "~150 candidates"
+            ],
+            [
+              "5",
+              "Exact distance filter ≤ 1 km, sort, top 20",
+              "results + details from cache ✅"
+            ]
+          ],
+          "takeaway": "The index narrows millions of places to a few hundred; exact maths only runs on those."
+        },
+        "template": {
+          "python": "import math\n\nBASE32 = '0123456789bcdefghjkmnpqrstuvwxyz'\n\ndef geohash(lat: float, lng: float, precision: int = 6) -> str:\n    lat_rng, lng_rng = [-90.0, 90.0], [-180.0, 180.0]\n    out, bits, ch, even = [], 0, 0, True        # even bit → longitude\n    while len(out) < precision:\n        rng, val = (lng_rng, lng) if even else (lat_rng, lat)\n        mid = (rng[0] + rng[1]) / 2\n        if val >= mid:\n            ch = (ch << 1) | 1; rng[0] = mid\n        else:\n            ch <<= 1; rng[1] = mid\n        even, bits = not even, bits + 1\n        if bits == 5:\n            out.append(BASE32[ch]); bits, ch = 0, 0\n    return ''.join(out)\n\ndef cell_size(precision: int) -> tuple[float, float]:\n    total = 5 * precision\n    lng_bits, lat_bits = (total + 1) // 2, total // 2\n    return 180 / 2 ** lat_bits, 360 / 2 ** lng_bits   # degrees (lat, lng)\n\ndef nine_cells(lat, lng, precision):\n    dlat, dlng = cell_size(precision)\n    return {geohash(max(-90, min(90, lat + i * dlat)), lng + j * dlng, precision)\n            for i in (-1, 0, 1) for j in (-1, 0, 1)}\n\ndef haversine_km(a, b):\n    (lat1, lng1), (lat2, lng2) = map(lambda p: map(math.radians, p), (a, b))\n    h = math.sin((lat2 - lat1) / 2) ** 2 + math.cos(lat1) * math.cos(lat2) * math.sin((lng2 - lng1) / 2) ** 2\n    return 2 * 6371 * math.asin(math.sqrt(h))\n\n# index: geohash(6) -> [(name, lat, lng)]  (Redis / a DB index in real life)\nplaces = [('Dosa Point', 12.9720, 77.5950), ('Cafe 77', 12.9750, 77.6000), ('Far Away Mess', 13.0500, 77.7000)]\nindex = {}\nfor p in places:\n    index.setdefault(geohash(p[1], p[2]), []).append(p)\n\ndef nearby(lat, lng, radius_km=1.0, precision=6):\n    candidates = [p for cell in nine_cells(lat, lng, precision) for p in index.get(cell, [])]\n    hits = [(round(haversine_km((lat, lng), p[1:]), 2), p[0]) for p in candidates]\n    return sorted(h for h in hits if h[0] <= radius_km)\n\nprint(geohash(57.64911, 10.40744, 11))   # 'u4pruydqqvj' (standard test value)\nprint(nearby(12.9716, 77.5946))          # Dosa Point and Cafe 77, not Far Away Mess",
+          "javascript": "// API\n// GET /search/nearby?lat=12.97&lng=77.59&radius_m=1000&category=restaurant&cursor=…\n// GET /businesses/:id            (details, heavily cached)\n// POST/PUT /businesses           (owner updates → index refreshed asynchronously)\n\n// Storage choices\n// businesses(id, name, lat, lng, category, rating, ...)        — source of truth (SQL)\n// geo_index(geohash6, business_id) with an index on geohash6   — or Redis sets per cell\n// Read path: 9 cell lookups → candidate ids → exact distance → details from cache\n\nfunction haversineKm([lat1, lng1], [lat2, lng2]) {\n  const r = (d) => (d * Math.PI) / 180;\n  const h = Math.sin(r(lat2 - lat1) / 2) ** 2 + Math.cos(r(lat1)) * Math.cos(r(lat2)) * Math.sin(r(lng2 - lng1) / 2) ** 2;\n  return 2 * 6371 * Math.asin(Math.sqrt(h));\n}\n\n// Postgres + PostGIS alternative (fine up to a large scale):\n//   SELECT id, name FROM businesses\n//    WHERE ST_DWithin(location::geography, ST_MakePoint($lng, $lat)::geography, 1000)\n//    ORDER BY location <-> ST_MakePoint($lng, $lat) LIMIT 20;"
+        },
+        "complexity": "Search = 9 index lookups + exact distance on k candidates: O(k), typically a few hundred. 200M businesses × ~100 bytes in the geo index ≈ 20 GB — fits in memory across a few replicas.",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          },
+          {
+            "label": "System Design Interview Vol. 1 & 2 — Alex Xu (book)"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Proximity Service (Yelp / Nearby)",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Geospatial indexing: Geohash, quadtree, or H3 cells.",
+            "Search neighbouring cells, then filter by distance."
+          ],
+          "explanation": "Find nearby places quickly."
+        },
+        {
+          "title": "Extend the proximity service to show nearby drivers moving in real time",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Drivers send location every ~4 s.",
+            "In-memory index (Redis GEO) instead of a DB."
+          ],
+          "explanation": "Drivers stream location updates into an in-memory geo index (e.g. Redis GEOADD keyed by city) with a TTL; searches query it and stale drivers expire.",
+          "answer_md": "- Write rate: 1M active drivers / 4 s = **250k updates/s** → in-memory only, sharded by city/region.\n- `GEOADD drivers:blr lng lat driver_id`; `GEOSEARCH ... BYRADIUS 2 km` for queries.\n- Keep `last_seen`; drop drivers not updated in 30 s.\n- Location history (for trips/billing) goes to a log/stream (Kafka) separately from the live index."
+        }
+      ]
+    },
+    {
+      "slug": "hld-task-scheduler",
+      "name": "HLD Case: Distributed Task Scheduler",
+      "description": "Run millions of scheduled jobs reliably.",
+      "revision_note_md": "## Key points\n\n- Partition jobs by time bucket; workers poll their partitions.\n- Leader election (ZooKeeper/etcd) for coordination.\n- At-least-once vs exactly-once execution; idempotent jobs.\n- Fault tolerance: heartbeats and job re-assignment.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Run millions of scheduled jobs reliably. Gather requirements first, estimate, then design and scale.",
+        "key_points": [
+          "Partition jobs by time bucket; workers poll their partitions.",
+          "Leader election (ZooKeeper/etcd) for coordination.",
+          "At-least-once vs exactly-once execution; idempotent jobs.",
+          "Fault tolerance: heartbeats and job re-assignment."
+        ],
+        "week": "17-18",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Distributed Task Scheduler",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Partition jobs by time bucket; workers poll their partitions.",
+            "Leader election (ZooKeeper/etcd) for coordination."
+          ],
+          "explanation": "Run millions of scheduled jobs reliably."
+        }
+      ]
+    },
+    {
+      "slug": "hld-tinder",
+      "name": "HLD Case: Tinder",
+      "description": "Recommend nearby profiles, record swipes, detect matches.",
+      "revision_note_md": "## Key points\n\n- Location filtering with geohash/H3.\n- Recommendation + ranking service.\n- Swipes are write-heavy; a match = mutual right swipe.\n- Notify both users on match.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Recommend nearby profiles, record swipes, detect matches. Gather requirements first, estimate, then design and scale.",
+        "key_points": [
+          "Location filtering with geohash/H3.",
+          "Recommendation + ranking service.",
+          "Swipes are write-heavy; a match = mutual right swipe.",
+          "Notify both users on match."
+        ],
+        "week": "19-20",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Tinder",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Location filtering with geohash/H3.",
+            "Recommendation + ranking service."
+          ],
+          "explanation": "Recommend nearby profiles, record swipes, detect matches."
+        }
+      ]
+    },
+    {
+      "slug": "hld-uber",
+      "name": "HLD Case: Uber",
+      "description": "Match riders with nearby drivers in real time.",
+      "revision_note_md": "## Key points\n\n- Drivers send location every few seconds → in-memory geo index.\n- Matching service picks the best nearby driver.\n- Trip state machine; surge pricing.\n- Cross-region: users stay in their city's cluster.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Match riders with nearby drivers in real time. Gather requirements first, estimate, then design and scale.",
+        "key_points": [
+          "Drivers send location every few seconds → in-memory geo index.",
+          "Matching service picks the best nearby driver.",
+          "Trip state machine; surge pricing.",
+          "Cross-region: users stay in their city's cluster."
+        ],
+        "week": "19-20",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Uber",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Drivers send location every few seconds → in-memory geo index.",
+            "Matching service picks the best nearby driver."
+          ],
+          "explanation": "Match riders with nearby drivers in real time."
+        }
+      ]
+    },
+    {
+      "slug": "hld-twitter",
+      "name": "HLD Case: Twitter",
+      "description": "Post tweets and serve timelines to hundreds of millions.",
+      "revision_note_md": "## Key points\n\n- Massive fan-out; the celebrity problem (hybrid push/pull).\n- Hot partitions: split celebrity keys, cache aggressively.\n- Timeline cache in Redis per user.\n- Search via an inverted index; trends via stream processing.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Post tweets and serve timelines to hundreds of millions. Gather requirements first, estimate, then design and scale.",
+        "key_points": [
+          "Massive fan-out; the celebrity problem (hybrid push/pull).",
+          "Hot partitions: split celebrity keys, cache aggressively.",
+          "Timeline cache in Redis per user.",
+          "Search via an inverted index; trends via stream processing."
+        ],
+        "week": "21-22",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Twitter",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Massive fan-out; the celebrity problem (hybrid push/pull).",
+            "Hot partitions: split celebrity keys, cache aggressively."
+          ],
+          "explanation": "Post tweets and serve timelines to hundreds of millions."
+        }
+      ]
+    },
+    {
+      "slug": "hld-youtube",
+      "name": "HLD Case: Video Streaming (YouTube)",
+      "description": "Upload, process and stream video worldwide.",
+      "revision_note_md": "## Key points\n\n- Upload → object storage → async transcoding pipeline (queue + workers).\n- Adaptive bitrate (HLS/DASH segments).\n- CDN for delivery; origin shield.\n- Metadata DB, view counters with batching.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Upload, process and stream video worldwide. Gather requirements first, estimate, then design and scale.",
+        "key_points": [
+          "Upload → object storage → async transcoding pipeline (queue + workers).",
+          "Adaptive bitrate (HLS/DASH segments).",
+          "CDN for delivery; origin shield.",
+          "Metadata DB, view counters with batching."
+        ],
+        "week": "21-22",
+        "resources": [
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Video Streaming (YouTube)",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Upload → object storage → async transcoding pipeline (queue + workers).",
+            "Adaptive bitrate (HLS/DASH segments)."
+          ],
+          "explanation": "Upload, process and stream video worldwide."
+        }
+      ]
+    },
+    {
+      "slug": "hld-case-studies",
+      "name": "HLD Case Studies",
+      "description": "End-to-end designs asked at product companies: rate limiter, chat, news feed, notifications.",
+      "revision_note_md": "## How to attack a case study\n\nFor each system, know: **core entities**, **the hot path**, **the hard problem**, and **the trade-off you chose**.\n\n| System | Hard problem | Key idea |\n|---|---|---|\n| Rate limiter | distributed counters | token bucket in Redis, atomic Lua |\n| Chat | real-time delivery, ordering | WebSockets + per-conversation sequence ids |\n| News feed | fan-out for celebrities | hybrid push/pull |\n| Notifications | reliability, retries | queue per channel + idempotency keys |",
+      "items": [
+        {
+          "title": "Design a distributed rate limiter",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Compare token bucket, fixed window, sliding window.",
+            "How do multiple gateway nodes share counts?"
+          ],
+          "explanation": "Use a token bucket or sliding window counter per user or IP stored in Redis with atomic operations, enforced at the API gateway, returning 429 with Retry-After.",
+          "answer_md": "**Algorithms:** fixed window (simple, bursty at edges), sliding window log (accurate, memory-heavy), sliding window counter (good balance), **token bucket** (allows bursts, most common).\n\n**Distributed:** keep counters in **Redis**, update atomically with `INCR`+`EXPIRE` or a Lua script. Put it in the API gateway/middleware. Respond `429` + `Retry-After`. Fail-open vs fail-closed if Redis is down — state your choice.",
+          "python": "import time\n\nclass TokenBucket:\n    def __init__(self, rate, capacity):\n        self.rate, self.capacity = rate, capacity\n        self.tokens, self.last = capacity, time.monotonic()\n\n    def allow(self):\n        now = time.monotonic()\n        self.tokens = min(self.capacity, self.tokens + (now - self.last) * self.rate)\n        self.last = now\n        if self.tokens >= 1:\n            self.tokens -= 1\n            return True\n        return False"
+        },
+        {
+          "title": "Design a chat application (WhatsApp-like)",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "How does server A deliver to a user connected to server B?",
+            "Where do messages go when the user is offline?"
+          ],
+          "explanation": "Clients keep WebSocket connections to chat servers; a session service maps user to server; messages are persisted in a write-heavy store like Cassandra keyed by conversation, delivered via pub-sub, with offline users getting push notifications and acks for sent, delivered, read.",
+          "answer_md": "- **Connection**: WebSocket to a chat server; **session store** (Redis) maps `user → server`.\n- **Send**: A → server1 → persist (Cassandra, partition by `conversation_id`, cluster by `seq`) → lookup B's server → deliver via pub/sub.\n- **Offline**: store, then push notification (APNs/FCM); deliver on reconnect.\n- **Receipts**: sent ✓, delivered ✓✓, read (blue) as small ack events.\n- **Groups**: fan-out on write for small groups; media in object storage + CDN."
+        },
+        {
+          "title": "Design a news feed (Instagram/Twitter timeline)",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "What breaks when a celebrity with 50M followers posts?",
+            "Push vs pull model."
+          ],
+          "explanation": "Use fan-out on write to precompute feeds in a cache for normal users, fan-out on read for celebrities with huge follower counts, merge at read time, and rank.",
+          "answer_md": "- **Fan-out on write (push)**: on post, append post_id to each follower's feed list in Redis → fast reads, expensive for celebrities.\n- **Fan-out on read (pull)**: build feed at read time → cheap writes, slow reads.\n- **Hybrid**: push for normal users, pull celebrity posts at read time and merge.\n- Store posts in DB, media in S3 + CDN, paginate with cursors, rank with a scoring service."
+        },
+        {
+          "title": "Design a notification system",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Why a queue in the middle?",
+            "How do you avoid sending duplicates on retry?"
+          ],
+          "explanation": "Services publish notification events to a queue; workers per channel (push, SMS, email) apply user preferences and templates, call third-party providers with retries and idempotency keys, and track delivery status.",
+          "answer_md": "Producers → **Notification service** (validate, user preferences, rate limits, templates) → **queue per channel** → workers → providers (FCM/APNs, Twilio, SES).\n\nReliability: retries with exponential backoff, **dead-letter queue**, **idempotency key** per notification, delivery-status table for analytics."
+        }
+      ]
+    },
+    {
+      "slug": "system-design-sde1",
+      "name": "Classic Design Problems (SDE-1)",
+      "description": "Entry-level design questions that mix coding and architecture: URL shortener, LRU cache and friends.",
+      "revision_note_md": "## SDE 1 System Design Fundamentals\n\n- **Client-Server Architecture**: HTTP/HTTPS, REST APIs, WebSockets, gRPC.\n- **Scalability**: Vertical vs Horizontal scaling, Load Balancers (Round Robin, Least Connections).\n- **Caching**: Redis, Memcached, eviction policies (LRU, LFU).\n- **Databases**: SQL vs NoSQL, Indexing (B-Tree), Normalization vs Denormalization.",
+      "items": [
+        {
+          "title": "Design a URL Shortener Service (TinyURL)",
+          "tier": 1,
+          "url": "https://leetcode.com/problems/encode-and-decode-tinyurl/",
+          "leetcode_number": 535,
+          "hints": [
+            "Use Base62 encoding (a-z, A-Z, 0-9) to convert auto-increment IDs into short codes.",
+            "Use Redis caching for high-frequency reads."
+          ],
+          "explanation": "Map long URLs to unique 6-character short strings using Base62 encoding or hash collision handling.",
+          "python": "import string\nchars = string.ascii_letters + string.digits\ndef encode_id(n):\n    res = []\n    while n > 0:\n        res.append(chars[n % 62])\n        n //= 62\n    return ''.join(reversed(res))",
+          "javascript": "class Codec {\n  constructor() {\n    this.codeToUrl = new Map();\n    this.urlToCode = new Map();\n    this.chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';\n  }\n  encode(longUrl) {\n    if (this.urlToCode.has(longUrl)) return 'http://tinyurl.com/' + this.urlToCode.get(longUrl);\n    let code = Array.from({length: 6}, () => this.chars[Math.floor(Math.random() * 62)]).join('');\n    this.codeToUrl.set(code, longUrl);\n    this.urlToCode.set(longUrl, code);\n    return 'http://tinyurl.com/' + code;\n  }\n}"
+        },
+        {
+          "title": "Design an In-Memory LRU Cache Data Structure",
+          "tier": 1,
+          "url": "https://leetcode.com/problems/lru-cache/",
+          "leetcode_number": 146,
+          "hints": [
+            "Combine a HashMap (O(1) lookup) with a Doubly Linked List (O(1) node removal and insertion).",
+            "Move accessed items to the head of the list; evict from the tail when capacity is full."
+          ],
+          "explanation": "HashMap maps key -> Node in DLL. DLL maintains usage order.",
+          "python": "from collections import OrderedDict\nclass LRUCache:\n    def __init__(self, capacity: int):\n        self.cache = OrderedDict()\n        self.cap = capacity\n    def get(self, key: int) -> int:\n        if key not in self.cache:\n            return -1\n        self.cache.move_to_end(key)\n        return self.cache[key]\n    def put(self, key: int, value: int) -> None:\n        if key in self.cache:\n            self.cache.move_to_end(key)\n        self.cache[key] = value\n        if len(self.cache) > self.cap:\n            self.cache.popitem(last=False)",
+          "javascript": "class LRUCache {\n  constructor(capacity) {\n    this.capacity = capacity;\n    this.map = new Map();\n  }\n  get(key) {\n    if (!this.map.has(key)) return -1;\n    const val = this.map.get(key);\n    this.map.delete(key);\n    this.map.set(key, val);\n    return val;\n  }\n  put(key, value) {\n    if (this.map.has(key)) this.map.delete(key);\n    this.map.set(key, value);\n    if (this.map.size > this.capacity) {\n      const firstKey = this.map.keys().next().value;\n      this.map.delete(firstKey);\n    }\n  }\n}"
+        }
+      ]
+    }
+  ]
+}

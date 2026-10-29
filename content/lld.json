@@ -1,0 +1,2286 @@
+{
+  "track": {
+    "id": "lld",
+    "name": "Low-Level Design",
+    "description": "OOP, SOLID, design patterns and the must-do LLD builds — UML first, then clean, concurrency-aware code.",
+    "icon": "🧩",
+    "order": 3,
+    "badge": "New"
+  },
+  "topics": [
+    {
+      "slug": "lld-oop-solid",
+      "name": "OOP, SOLID & UML Basics",
+      "description": "Classes, the four OOP pillars, the five SOLID rules and how to draw a quick UML class diagram.",
+      "revision_note_md": "## OOP & SOLID\n\n- **Encapsulation** (hide data behind methods), **Abstraction** (expose what, hide how), **Inheritance** (is-a), **Polymorphism** (same call, different behaviour).\n- **SOLID**: Single responsibility · Open/closed · Liskov substitution · Interface segregation · Dependency inversion.\n- Prefer **composition (has-a)** over inheritance.",
+      "lesson": {
+        "status": "full",
+        "simple": "Low-level design (LLD) interviews check whether you can turn a real-world problem into **clean classes**. Three building blocks:\n\n1. **OOP pillars** — wrap data with the methods that change it (encapsulation); hide details behind simple methods (abstraction); share behaviour (inheritance); let different classes answer the same method call in their own way (polymorphism).\n2. **SOLID** — five rules that keep classes small and easy to extend.\n3. **UML class diagram** — boxes for classes, lines for relationships. You'll start every LLD round by drawing one.",
+        "analogy": "A restaurant: the waiter (interface) takes your order without you knowing how the kitchen works (abstraction). The chef, the cashier and the cleaner each have one job (single responsibility). Adding a new dish doesn't mean rebuilding the kitchen (open/closed).",
+        "concepts": [
+          {
+            "title": "The four OOP pillars, with the 'why'",
+            "body": "- **Encapsulation** — keep an object's data private and change it only through its methods. A `BankAccount` exposes `deposit()` and `withdraw()`, not a writable `balance`, so the rule *\"balance can't go negative\"* lives in one place and can't be bypassed.\n- **Abstraction** — show *what* an object does, hide *how*. Callers use `PaymentMethod.pay(amount)` without knowing whether it's UPI, card or wallet.\n- **Inheritance** — a subclass reuses and extends a parent (`SavingsAccount(Account)`). Powerful, but it couples the classes tightly; a change in the parent ripples to every child.\n- **Polymorphism** — different classes respond to the same method call in their own way. `for p in payments: p.pay(100)` works for every payment type, and adding a new type needs no change to the loop.\n\nIn LLD rounds the pillars aren't asked as definitions; they show up as design choices. Private fields + validation (encapsulation), interfaces for things that vary (abstraction + polymorphism), and inheritance only for true \"is-a\" relationships.",
+            "videos": [
+              {
+                "id": "pTB0EiLXUC8",
+                "title": "Object-Oriented Programming, Simplified",
+                "channel": "Programming with Mosh"
+              },
+              {
+                "id": "5RkikYKPvpc",
+                "title": "3. OOP - Pillars of OOP explained - Abstraction, Encapsulation, Inheritance, Polymorphism",
+                "channel": "Computing Education Hub"
+              }
+            ]
+          },
+          {
+            "title": "SOLID, one example each",
+            "body": "| Principle | Rule of thumb | Violation → fix |\n|---|---|---|\n| **S**ingle Responsibility | a class has one reason to change | `Invoice` that calculates, prints *and* emails → split into `Invoice`, `InvoicePrinter`, `InvoiceMailer` |\n| **O**pen/Closed | add behaviour by adding code, not editing working code | `if type == 'upi' … elif 'card'` in checkout → a `PaymentMethod` interface, one class per type |\n| **L**iskov Substitution | a subclass must work anywhere its parent does | `Square(Rectangle)` breaks `set_width` expectations → don't inherit; share an interface |\n| **I**nterface Segregation | small, focused interfaces | `Machine` with `print/scan/fax` forces a basic printer to fake `fax` → `Printer`, `Scanner` interfaces |\n| **D**ependency Inversion | depend on abstractions, inject them | `OrderService` creating `MySQLRepo()` inside → take an `OrderRepository` in the constructor |\n\nDependency inversion is the one that makes code **testable**: pass in a fake repository or a fixed clock in tests.",
+            "videos": [
+              {
+                "id": "kF7rQmSRlq0",
+                "title": "SOLID Principles: Do You Really Understand Them?",
+                "channel": "Alex Hyett"
+              },
+              {
+                "id": "UsNl8kcU4UA",
+                "title": "SOLID Design Principles | Complete Guide with Code Examples",
+                "channel": "Coder Army",
+                "start": 248,
+                "label": "every principle with code"
+              }
+            ]
+          },
+          {
+            "title": "Composition over inheritance",
+            "body": "Inheritance says **\"is-a\"** (a `Car` is a `Vehicle`); composition says **\"has-a\"** (a `Car` has an `Engine`). Prefer composition when behaviour varies independently.\n\nImagine ducks: `FlyingDuck`, `QuackingDuck`, `FlyingQuackingDuck`, `RubberDuck`… With inheritance, every combination needs a class. With composition, a `Duck` **has** a `FlyBehaviour` and a `QuackBehaviour`; you plug in `FlyWithWings` or `NoFly` at construction time. That's the Strategy pattern, and it's why most patterns are built on composition.\n\nUse inheritance when:\n- the relationship is genuinely \"is-a\" and stable,\n- subclasses pass Liskov (they can stand in for the parent),\n- you're sharing real code, not just a type (otherwise an interface/ABC is enough).",
+            "videos": [
+              {
+                "id": "hxGOiiR9ZKg",
+                "title": "The Flaws of Inheritance",
+                "channel": "CodeAesthetic"
+              },
+              {
+                "id": "wfMtDGfHWpA",
+                "title": "Composition over Inheritance",
+                "channel": "Fun Fun Function"
+              }
+            ]
+          },
+          {
+            "title": "Reading and drawing a UML class diagram",
+            "body": "Each class is a box with three parts: **name**, **fields** (`- balance: int`), **methods** (`+ deposit(amount): void`). `+` public, `-` private, `#` protected.\n\nRelationships, from weakest to strongest:\n\n| Relationship | Meaning | Example | Drawn as |\n|---|---|---|---|\n| **Dependency** | uses temporarily | `Checkout` uses a `Coupon` in one method | dashed arrow |\n| **Association** | knows about, long-term | `Member` — `Loan` | solid line (with multiplicity 1, *, 0..1) |\n| **Aggregation** | has-a, parts can live alone | `Team` ◇— `Player` | hollow diamond |\n| **Composition** | owns, parts die with the whole | `Order` ◆— `OrderLine` | filled diamond |\n| **Inheritance** | is-a | `Car` —▷ `Vehicle` | hollow triangle |\n| **Realisation** | implements an interface | `UpiPayment` ┄▷ `PaymentMethod` | dashed line + triangle |\n\nIn an interview, nobody checks perfect notation. They check that you found the right **classes**, **responsibilities** and **multiplicities** (one floor has many spots) before writing code.",
+            "videos": [
+              {
+                "id": "6XrL5jXmTwM",
+                "title": "UML class diagrams",
+                "channel": "Lucid Software"
+              },
+              {
+                "id": "nPJyyO9pb5s",
+                "title": "What is UML Diagrams | Class & Sequence Diagrams with Real Examples",
+                "channel": "Coder Army",
+                "start": 346,
+                "end": 2688,
+                "label": "class diagrams and relationships"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Every LLD round: Parking Lot, Vending Machine, Elevator, Splitwise…",
+          "Code reviews and machine-coding rounds where they judge structure and naming.",
+          "Whenever you see a long if/else on a 'type' — a sign you need polymorphism."
+        ],
+        "mistakes": [
+          "God classes that do everything (ParkingLot that also prints tickets and charges cards).",
+          "Inheritance for code reuse when it isn't an 'is-a' relationship — use composition.",
+          "Public fields everywhere — no encapsulation.",
+          "Vague names like Manager, Helper, Data."
+        ],
+        "interview_tips": [
+          "Start with a UML class diagram: classes, key fields/methods, relationships (has-a, is-a), enums.",
+          "Name patterns and principles out loud: \"This follows open/closed because…\"",
+          "Explain one SOLID violation and its fix — it shows you understand, not just memorised."
+        ],
+        "quiz": [
+          {
+            "q": "\"A class should have only one reason to change\" is…",
+            "options": [
+              "Open/closed",
+              "Single responsibility",
+              "Liskov substitution",
+              "Dependency inversion"
+            ],
+            "answer": 1,
+            "why": "S in SOLID."
+          },
+          {
+            "q": "Square extending Rectangle breaks when setting width changes height. Which principle?",
+            "options": [
+              "Interface segregation",
+              "Liskov substitution",
+              "Single responsibility",
+              "Encapsulation"
+            ],
+            "answer": 1,
+            "why": "A subclass must be usable wherever the parent is expected."
+          },
+          {
+            "q": "Checkout taking a PaymentMethod interface instead of a concrete StripeClient follows…",
+            "options": [
+              "Dependency inversion",
+              "Inheritance",
+              "Singleton",
+              "Liskov"
+            ],
+            "answer": 0,
+            "why": "High-level code depends on abstractions."
+          },
+          {
+            "q": "Car 'has an' Engine is best modelled as…",
+            "options": [
+              "Inheritance",
+              "Composition",
+              "Interface",
+              "Enum"
+            ],
+            "answer": 1,
+            "why": "has-a → composition."
+          }
+        ],
+        "week": "1-2",
+        "dry_run": {
+          "title": "Refactor a payment if/else with Open/Closed",
+          "input": "pay(method, amount) with if method == 'card' ... elif 'upi' ...",
+          "columns": [
+            "Step",
+            "Change",
+            "Why"
+          ],
+          "steps": [
+            [
+              "1",
+              "Create interface PaymentMethod with pay(amount)",
+              "Abstraction: callers depend on the interface"
+            ],
+            [
+              "2",
+              "CardPayment, UpiPayment implement pay()",
+              "Polymorphism replaces the if/else"
+            ],
+            [
+              "3",
+              "Checkout receives a PaymentMethod in its constructor",
+              "Dependency inversion: easy to test with a fake"
+            ],
+            [
+              "4",
+              "Add WalletPayment as a new class",
+              "Open/closed: no existing code edited ✅"
+            ]
+          ],
+          "takeaway": "If adding a feature means editing a growing if/else, the design isn't open for extension."
+        },
+        "template": {
+          "python": "from abc import ABC, abstractmethod\n\nclass PaymentMethod(ABC):\n    @abstractmethod\n    def pay(self, amount: float) -> bool: ...\n\nclass UpiPayment(PaymentMethod):\n    def __init__(self, upi_id: str):\n        self._upi_id = upi_id          # encapsulated\n\n    def pay(self, amount: float) -> bool:\n        print(f\"Charging {amount} to {self._upi_id}\")\n        return True\n\nclass Checkout:\n    def __init__(self, payment: PaymentMethod):   # depends on abstraction\n        self.payment = payment\n\n    def complete(self, amount: float) -> bool:\n        return self.payment.pay(amount)",
+          "javascript": "class PaymentMethod {\n  pay(amount) { throw new Error('not implemented'); }\n}\n\nclass UpiPayment extends PaymentMethod {\n  #upiId; // encapsulated\n  constructor(upiId) { super(); this.#upiId = upiId; }\n  pay(amount) {\n    console.log(`Charging ${amount} to ${this.#upiId}`);\n    return true;\n  }\n}\n\nclass Checkout {\n  constructor(payment) { this.payment = payment; } // depends on abstraction\n  complete(amount) { return this.payment.pay(amount); }\n}"
+        },
+        "complexity": "Not about Big-O — interviewers judge: clear responsibilities, extensibility, naming, and correct relationships.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Explain the four OOP pillars with one example each",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Encapsulation, abstraction, inheritance, polymorphism.",
+            "Use one domain (e.g. payments) for all four."
+          ],
+          "explanation": "Show each pillar on one consistent example so it sounds practical, not memorised."
+        },
+        {
+          "title": "Draw a UML class diagram for a library",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Book, Member, Loan, Librarian.",
+            "Mark has-a vs is-a and multiplicities."
+          ],
+          "explanation": "Identify nouns as classes, verbs as methods, and connect them with association/composition lines."
+        },
+        {
+          "title": "Composition vs inheritance — when to use which?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "is-a vs has-a.",
+            "Inheritance couples you to the parent's implementation."
+          ],
+          "explanation": "Use inheritance only for true is-a with shared behaviour; otherwise compose objects for flexibility."
+        }
+      ]
+    },
+    {
+      "slug": "lld-design-patterns",
+      "name": "Core Design Patterns",
+      "description": "Strategy, Observer, Factory, Singleton and State — what problem each solves and how to spot it.",
+      "revision_note_md": "## Five patterns to know cold\n\n| Pattern | Use when | Example |\n|---|---|---|\n| Strategy | swap an algorithm at runtime | pricing, payment, sorting |\n| Observer | many listeners react to an event | notifications, stock ticker |\n| Factory | create objects without hard-coding the class | NotificationFactory |\n| Singleton | exactly one shared instance | config, logger, DB pool |\n| State | behaviour depends on current state | vending machine, elevator |",
+      "lesson": {
+        "status": "full",
+        "simple": "Design patterns are **named solutions to common design problems**. You don't need all 23 — five cover most LLD interviews:\n\n- **Strategy** — put each algorithm in its own class behind one interface; pick one at runtime.\n- **Observer** — a subject keeps a list of subscribers and notifies them all when something happens.\n- **Factory** — one place decides which concrete class to create.\n- **Singleton** — one shared instance (use sparingly).\n- **State** — each state is a class; the object delegates behaviour to its current state, and states switch it to the next one.",
+        "analogy": "Strategy is Google Maps letting you pick car, bike or walking — same 'get route' call, different algorithm. Observer is a YouTube subscription: upload once, every subscriber gets notified.",
+        "concepts": [
+          {
+            "title": "Strategy: swap an algorithm without touching the caller",
+            "body": "**Problem:** a class has several ways to do one thing (pricing, sorting, routing, discount rules), and you keep adding `if/elif` branches.\n\n**Solution:** define an interface (`PricingStrategy.price(ticket)`), put each variant in its own class, and give the context object a strategy at construction (or let it switch at runtime).\n\n**How to spot it in an LLD prompt:** words like *\"different ways to…\"*, *\"configurable\"*, *\"rules may change\"*: payment methods, parking pricing, elevator dispatch, rate-limiting algorithms, notification channels.\n\n**Trade-off:** more small classes, but each one is easy to test and adding a variant never edits existing code (Open/Closed).",
+            "videos": [
+              {
+                "id": "v9ejT8FO-7I",
+                "title": "Strategy Pattern – Design Patterns (ep 1)",
+                "channel": "Christopher Okhravi"
+              },
+              {
+                "id": "u8DttUrXtEw",
+                "title": "2. Strategy Design Pattern explanation (Hindi) | LLD System Design  | Design pattern in Java",
+                "channel": "Concept && Coding - by Shrayansh"
+              }
+            ]
+          },
+          {
+            "title": "Observer: notify many listeners when something happens",
+            "body": "**Problem:** when an event happens (order shipped, price changed, seat booked), several unrelated parts need to react (email, SMS, analytics, cache invalidation), and you don't want the publisher to know about all of them.\n\n**Solution:** the **subject** keeps a list of **observers** with a common `update(event)` method. `subscribe()` adds one; `notify()` loops over them.\n\n```python\nclass OrderEvents:\n    def __init__(self): self._subs = []\n    def subscribe(self, fn): self._subs.append(fn)\n    def publish(self, event):\n        for fn in self._subs:\n            fn(event)\n```\n\n**Watch out for:** slow or failing observers blocking the publisher (in real systems this becomes a **message queue** — Kafka, SQS — which is Observer across services), memory leaks from never unsubscribing, and no guaranteed order between observers.",
+            "videos": [
+              {
+                "id": "_BpmfnqjgzQ",
+                "title": "Observer Pattern – Design Patterns (ep 2)",
+                "channel": "Christopher Okhravi"
+              },
+              {
+                "id": "Jpmp4GY8r3Q",
+                "title": "Observer Design Pattern Explained | Real-Life Use Case + Code Example",
+                "channel": "Coder Army"
+              }
+            ]
+          },
+          {
+            "title": "Factory and Singleton: controlling creation",
+            "body": "**Factory** puts the \"which concrete class?\" decision in one place. Instead of `if kind == 'car': Car() …` scattered across the code, call `VehicleFactory.create(kind)`. Adding a new type touches one function. A **registry dict** (`{'car': Car, 'bike': Bike}`) is the idiomatic Python version.\n\n**Singleton** guarantees one instance (a config, a connection pool, a logger). In Python a module-level object is already a singleton; in Java you'd use a private constructor plus a static instance (with thread-safe lazy init).\n\nUse Singleton **sparingly**: it's global state in disguise, it hides dependencies, and it makes tests share state. Interviewers like hearing: *\"I'd make it a single instance created at startup and inject it, rather than calling `getInstance()` everywhere.\"*",
+            "videos": [
+              {
+                "id": "EcFVTgRHJLM",
+                "title": "Factory Method Pattern – Design Patterns (ep 4)",
+                "channel": "Christopher Okhravi"
+              },
+              {
+                "id": "hUE_j6q0LTQ",
+                "title": "Singleton Pattern – Design Patterns (ep 6)",
+                "channel": "Christopher Okhravi"
+              }
+            ]
+          },
+          {
+            "title": "State: let each state handle the inputs",
+            "body": "**Problem:** an object behaves differently depending on its state (vending machine: idle / has money / dispensing; order: placed / paid / shipped / delivered), and every method is a growing `if state == …` ladder.\n\n**Solution:** one class per state, all implementing the same methods (`insert_coin`, `select`, `dispense`). The context delegates to its current state object; each state decides what the input means *in that state* and switches the context to the next state.\n\n**State vs Strategy:** they look the same in code (an interface plus several implementations). The difference is *who changes it*: a Strategy is chosen from outside and usually stays; States **replace themselves** as the object moves through its lifecycle.\n\nDraw the **state diagram** first (states as circles, inputs as arrows). It doubles as your test plan: every arrow is a test case, every missing arrow is an invalid action to reject.",
+            "videos": [
+              {
+                "id": "abX4xzaAsoc",
+                "title": "The State Pattern Explained and Implemented in Java | Behavioral Design Patterns | Geekific",
+                "channel": "Geekific"
+              },
+              {
+                "id": "bJPmvie_p4w",
+                "title": "State Design Pattern | Build Vending Machine (UML & Code) | System Design",
+                "channel": "Coder Army",
+                "start": 41,
+                "end": 1190,
+                "label": "what the State pattern is"
+              }
+            ]
+          },
+          {
+            "title": "Other patterns worth recognising",
+            "body": "You won't need to implement these often, but naming them correctly impresses:\n\n- **Decorator** — wrap an object to add behaviour without subclassing: `LoggingPayment(UpiPayment())`, late fee on top of base pricing, coffee + milk + sugar.\n- **Adapter** — make an incompatible class fit your interface: wrap a third-party payment SDK so it looks like your `PaymentMethod`.\n- **Builder** — construct complex objects step by step with readable code: `Pizza.builder().size('L').add('olives').build()`.\n- **Command** — wrap a request as an object, enabling queues, undo and retry (text editor undo, job schedulers).\n- **Chain of Responsibility** — pass a request along a chain of handlers until one handles it (ATM dispensing ₹500, then ₹200, then ₹100 notes; middleware).\n- **Facade** — one simple entry point over a complex subsystem (`BookingService` hiding seat, payment and notification services).",
+            "videos": [
+              {
+                "id": "GCraGHx6gso",
+                "title": "Decorator Pattern – Design Patterns (ep 3)",
+                "channel": "Christopher Okhravi",
+                "label": "Decorator"
+              },
+              {
+                "id": "w6a9MXUwcfY",
+                "title": "4. Decorator Design Pattern Explanation with Java Coding (Hindi) | LLD System Design",
+                "channel": "Concept && Coding - by Shrayansh",
+                "label": "Decorator"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "A growing if/else over 'type' or 'mode' → Strategy or State.",
+          "\"Notify everyone when X happens\" → Observer.",
+          "Creating one of several classes from input → Factory.",
+          "\"There must be only one\" (config/logger) → Singleton."
+        ],
+        "mistakes": [
+          "Forcing a pattern where a simple function would do.",
+          "Singleton everywhere — hidden global state, hard to test, and needs thread safety.",
+          "Confusing Strategy and State: Strategy is chosen by the caller; State changes itself as events happen."
+        ],
+        "interview_tips": [
+          "Name the pattern and the problem it solves: \"I'll use State so each machine state handles its own inputs.\"",
+          "Mention thread-safe Singleton (lock or module-level instance) if asked.",
+          "Show one pattern applied in your LLD answer, not a list of all patterns."
+        ],
+        "quiz": [
+          {
+            "q": "A vending machine behaves differently when Idle, HasMoney, Dispensing. Best pattern?",
+            "options": [
+              "Factory",
+              "State",
+              "Observer",
+              "Singleton"
+            ],
+            "answer": 1,
+            "why": "Each state becomes a class that handles inputs and moves to the next state."
+          },
+          {
+            "q": "Choosing between hourly or flat pricing at runtime is…",
+            "options": [
+              "Strategy",
+              "Observer",
+              "Singleton",
+              "Builder"
+            ],
+            "answer": 0,
+            "why": "Interchangeable algorithms behind one interface."
+          },
+          {
+            "q": "Why is Singleton often criticised?",
+            "options": [
+              "It's slow",
+              "Hidden global state makes testing hard",
+              "It can't have methods",
+              "It needs inheritance"
+            ],
+            "answer": 1,
+            "why": "Tests can't easily replace it, and it couples code."
+          },
+          {
+            "q": "Sending email, SMS and push when an order ships fits…",
+            "options": [
+              "Observer",
+              "State",
+              "Factory",
+              "Adapter"
+            ],
+            "answer": 0,
+            "why": "One event, many subscribers."
+          }
+        ],
+        "week": "3-4",
+        "dry_run": {
+          "title": "Observer: a price drop notifies subscribers",
+          "input": "Product subscribers: [EmailAlert, PushAlert]",
+          "columns": [
+            "Step",
+            "Event",
+            "What happens"
+          ],
+          "steps": [
+            [
+              "1",
+              "EmailAlert.subscribe(product)",
+              "subscribers = [Email]"
+            ],
+            [
+              "2",
+              "PushAlert.subscribe(product)",
+              "subscribers = [Email, Push]"
+            ],
+            [
+              "3",
+              "product.set_price(999)",
+              "product calls notify()"
+            ],
+            [
+              "4",
+              "notify()",
+              "Email.update(999), Push.update(999) ✅"
+            ],
+            [
+              "5",
+              "Add SmsAlert later",
+              "no change to Product (open/closed)"
+            ]
+          ],
+          "takeaway": "The subject only knows an 'Observer' interface, never the concrete alert classes."
+        },
+        "template": {
+          "python": "from abc import ABC, abstractmethod\n\n# Strategy\nclass PricingStrategy(ABC):\n    @abstractmethod\n    def price(self, hours: float) -> float: ...\n\nclass HourlyPricing(PricingStrategy):\n    def price(self, hours): return 40 * hours\n\nclass FlatPricing(PricingStrategy):\n    def price(self, hours): return 100\n\n# Observer\nclass Observer(ABC):\n    @abstractmethod\n    def update(self, event: str): ...\n\nclass Subject:\n    def __init__(self):\n        self._observers: list[Observer] = []\n    def subscribe(self, o: Observer):\n        self._observers.append(o)\n    def notify(self, event: str):\n        for o in self._observers:\n            o.update(event)\n\n# Factory\ndef make_pricing(kind: str) -> PricingStrategy:\n    return {\"hourly\": HourlyPricing, \"flat\": FlatPricing}[kind]()",
+          "javascript": "// Strategy\nclass HourlyPricing { price(hours) { return 40 * hours; } }\nclass FlatPricing { price() { return 100; } }\n\n// Observer\nclass Subject {\n  #observers = [];\n  subscribe(o) { this.#observers.push(o); }\n  notify(event) { this.#observers.forEach((o) => o.update(event)); }\n}\n\n// Factory\nconst PRICING = { hourly: HourlyPricing, flat: FlatPricing };\nconst makePricing = (kind) => new PRICING[kind]();\n\n// Singleton\nclass Config {\n  static #instance;\n  static get() { return (Config.#instance ??= new Config()); }\n}"
+        },
+        "complexity": "Patterns trade a few extra classes for code that's easy to extend and test.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Implement the Strategy pattern for a payment system",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Interface PaymentStrategy.pay(amount).",
+            "Checkout receives a strategy."
+          ],
+          "explanation": "Define one interface, one class per payment method, and inject the chosen one."
+        },
+        {
+          "title": "Implement Observer for a stock price ticker",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Subject keeps a list of observers.",
+            "Unsubscribe too."
+          ],
+          "explanation": "Subject with subscribe/unsubscribe/notify; observers implement update(price)."
+        },
+        {
+          "title": "Thread-safe Singleton",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Double-checked locking or eager init.",
+            "Explain why a race can create two instances."
+          ],
+          "explanation": "Guard instance creation with a lock (or create it eagerly) so concurrent callers get one instance."
+        }
+      ]
+    },
+    {
+      "slug": "lld-ood",
+      "name": "LLD Interview Questions (Mixed)",
+      "description": "SOLID, design patterns and classic machine-coding LLD rounds: parking lot, elevator, Splitwise.",
+      "revision_note_md": "## LLD round approach\n\n1. Clarify scope and list **use cases**.\n2. Identify **entities** (nouns) and **behaviours** (verbs).\n3. Draw a class diagram: relationships (has-a vs is-a), enums for states.\n4. Apply **SOLID** and a pattern where it removes an `if/else` chain (Strategy, Factory, Observer, State).\n5. Write clean, runnable code for the core flow; handle concurrency if asked.\n\n**SOLID**: Single responsibility · Open/closed · Liskov substitution · Interface segregation · Dependency inversion.",
+      "items": [
+        {
+          "title": "Explain SOLID principles with examples",
+          "tier": 1,
+          "url": "",
+          "hints": [
+            "Give one bad and one good example for each.",
+            "Strategy pattern is open/closed in action."
+          ],
+          "explanation": "Single responsibility: one reason to change; Open-closed: extend without modifying; Liskov: subtypes must be substitutable; Interface segregation: small focused interfaces; Dependency inversion: depend on abstractions.",
+          "answer_md": "- **S** — `Invoice` shouldn't also print and email itself.\n- **O** — add a new `PaymentMethod` class instead of editing a giant `switch`.\n- **L** — `Square extends Rectangle` breaks setters → violates Liskov.\n- **I** — split `Worker{work(); eat()}` so robots don't implement `eat`.\n- **D** — `OrderService` takes a `PaymentGateway` interface, not a concrete `StripeClient`."
+        },
+        {
+          "title": "Design a parking lot",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Enums for VehicleType and SpotType.",
+            "Where does pricing logic live?"
+          ],
+          "explanation": "Entities: ParkingLot, Floor, Spot by type, Vehicle by type, Ticket, Payment; use a strategy for spot allocation and pricing, and lock spot assignment for concurrency.",
+          "answer_md": "Classes: `ParkingLot` → `Floor[]` → `Spot(type, isFree)`; `Vehicle(type)`; `Ticket(spot, entryTime)`; `EntryGate/ExitGate`; `PricingStrategy` (hourly, flat); `SpotAllocationStrategy` (nearest first).\n\nFlow: vehicle arrives → find spot (strategy) → issue ticket → exit → compute fee → pay → free spot. Mention thread-safety when two gates grab the same spot.",
+          "python": "from enum import Enum\n\nclass SpotType(Enum):\n    BIKE = 1\n    CAR = 2\n    TRUCK = 3\n\nclass Spot:\n    def __init__(self, spot_id, spot_type):\n        self.id, self.type, self.vehicle = spot_id, spot_type, None\n\nclass ParkingLot:\n    def __init__(self, spots):\n        self.spots = spots\n\n    def park(self, vehicle_type):\n        for s in self.spots:\n            if s.vehicle is None and s.type == vehicle_type:\n                s.vehicle = vehicle_type\n                return s.id\n        return None"
+        },
+        {
+          "title": "Design Splitwise (expense sharing)",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Split types are a Strategy.",
+            "How do you minimise the number of transactions?"
+          ],
+          "explanation": "Model User, Group, Expense with split strategies (equal, exact, percent), maintain a balance map per user pair, and simplify debts with a greedy max-creditor/max-debtor algorithm.",
+          "answer_md": "Entities: `User`, `Group`, `Expense(paidBy, amount, splits)`, `Split` (Equal/Exact/Percent via **Strategy**), `BalanceSheet` (net amount per user).\n\n**Simplify debts:** compute net balance per user; repeatedly match the biggest creditor with the biggest debtor (heaps) until all are zero."
+        },
+        {
+          "title": "Which design patterns come up most in interviews?",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Pick a real system for each pattern.",
+            "Singleton is often called an anti-pattern — know why."
+          ],
+          "explanation": "Singleton, Factory, Strategy, Observer, Decorator, Builder and State — know a one-line purpose and a real example for each.",
+          "answer_md": "- **Factory** — create objects without exposing the concrete class (`NotificationFactory.create('sms')`).\n- **Strategy** — swap algorithms at runtime (pricing, sorting, payment).\n- **Observer** — pub/sub (event listeners, stock ticker).\n- **Decorator** — add behaviour by wrapping (middleware, Java I/O streams).\n- **Builder** — construct complex objects step by step.\n- **State** — vending machine / elevator states.\n- **Singleton** — one instance (config, logger); hurts testability."
+        }
+      ]
+    },
+    {
+      "slug": "lld-parking-lot",
+      "name": "LLD Build: Parking Lot",
+      "description": "The most-asked LLD problem: floors, spot types, tickets, pricing strategy and concurrent spot allocation.",
+      "revision_note_md": "## Parking Lot — the shape of a good answer\n\n1. Requirements: vehicle types, spot types, multiple floors/gates, pricing, payment.\n2. UML: ParkingLot → Floor → Spot; Vehicle; Ticket; Gate; PricingStrategy; SpotAllocationStrategy.\n3. Core flow: enter → allocate spot → ticket → exit → price → pay → free spot.\n4. Concurrency: two gates must never get the same spot → lock per spot type / atomic allocation.",
+      "lesson": {
+        "status": "full",
+        "simple": "Design a parking lot that issues tickets, finds a free spot of the right size, and charges on exit.\n\n**Keep it simple first**: one floor, three spot sizes, hourly pricing. **Then extend**: multiple floors, entry/exit gates, different pricing, EV charging.\n\nThe parts interviewers care about most: clean classes, a **strategy** for pricing and spot allocation, and **how you stop two gates from giving away the same spot**.",
+        "analogy": "A mall parking attendant with a clipboard of free spots per size. If two attendants share one clipboard, they must take turns writing on it — that's the lock.",
+        "concepts": [
+          {
+            "title": "Requirements first: what to clarify",
+            "body": "Spend two minutes turning the vague prompt into a list. Typical questions and sensible defaults:\n\n- **Vehicle types?** Bike, car, truck (maybe EV). **Spot types?** Small, compact, large (maybe EV with charger).\n- **Can a small vehicle use a bigger spot?** Usually yes if its own type is full — say it.\n- **Floors and gates?** Multiple floors, several entry and exit gates working at the same time.\n- **Pricing?** Hourly by vehicle type, first hour free, flat weekend rate… → must be changeable.\n- **Payment?** Cash, card, UPI at the exit gate or a kiosk.\n- **Out of scope:** reservations, monthly passes, admin dashboards — mention them as extensions.\n\nThen list the use cases you'll actually code: **park (issue ticket)**, **exit (pay and free the spot)**, **show free spots per floor**.",
+            "videos": [
+              {
+                "id": "tVRyb4HaHgw",
+                "title": "Parking Lot Design | Grokking The Object Oriented Design Interview Question",
+                "channel": "Think Software",
+                "start": 195,
+                "end": 620,
+                "label": "requirements and mistakes to avoid"
+              },
+              {
+                "id": "NU16qSPUmus",
+                "title": "🚗  Parking Lot Design | System Design + LLD + Full Code Implementation",
+                "channel": "codeWithAryan",
+                "start": 360,
+                "end": 732,
+                "label": "clarifying questions"
+              }
+            ]
+          },
+          {
+            "title": "Entities and responsibilities",
+            "body": "| Class | Responsibility |\n|---|---|\n| `ParkingLot` | entry point; holds floors, gates, strategies |\n| `Floor` | its spots, free counts per type (for the display board) |\n| `Spot` | id, type, occupied or not |\n| `Vehicle` | plate, type |\n| `Ticket` | id, vehicle, spot, entry time |\n| `EntryGate` / `ExitGate` | issue tickets / take payment |\n| `SpotAllocationStrategy` | which free spot to give (nearest to gate, lowest floor, fill floor by floor) |\n| `PricingStrategy` | fee for a ticket at exit time |\n| `Payment` | amount, method, status |\n\nThe key design decisions: **pricing and allocation are strategies** (they change often and independently), and **free spots are kept in per-type collections** so allocation is O(1) or O(log n) instead of scanning every spot.",
+            "videos": [
+              {
+                "id": "tVRyb4HaHgw",
+                "title": "Parking Lot Design | Grokking The Object Oriented Design Interview Question",
+                "channel": "Think Software",
+                "start": 675,
+                "end": 1595,
+                "label": "identifying the objects and design"
+              },
+              {
+                "id": "NU16qSPUmus",
+                "title": "🚗  Parking Lot Design | System Design + LLD + Full Code Implementation",
+                "channel": "codeWithAryan",
+                "start": 732,
+                "end": 1195,
+                "label": "core entities and patterns"
+              }
+            ]
+          },
+          {
+            "title": "Concurrency: two gates, one spot",
+            "body": "The race: gate A and gate B both read \"spot C1 is free\", both assign it, and two cars arrive at the same spot.\n\nFixes, from simplest to most scalable:\n1. **One lock around allocation** — simple and correct; contention is fine for a few gates.\n2. **A lock per spot type or per floor** — gates allocating different types don't block each other.\n3. **Atomic pop from a thread-safe structure** — a concurrent queue of free spots per type; `pop` is atomic.\n4. **In a database** — `UPDATE spots SET occupied = true WHERE id = :id AND occupied = false`; if 0 rows changed, someone else took it — try the next spot. Or `SELECT … FOR UPDATE SKIP LOCKED` to grab the next free row without waiting.\n\nAlways keep the critical section small: allocate the spot inside the lock, but print the ticket, call the display board and take payment outside it.",
+            "videos": [
+              {
+                "id": "kzfrbkDcYjA",
+                "title": "Design Parking Lot | Low Level Design (LLD), UML, Concurrency & Code Explained",
+                "channel": "Shubh Patel"
+              }
+            ]
+          },
+          {
+            "title": "Extensions interviewers ask for",
+            "body": "- **EV charging spots** — a new spot type plus a `ChargingSession` billed by kWh; pricing becomes base parking + charging (Decorator or a composite pricing strategy).\n- **Display boards per floor** — Observer: floors publish \"free count changed\", boards subscribe.\n- **Lost ticket** — look up the vehicle by plate, charge a fixed maximum fee.\n- **Reservations** — a `Reservation` holds a spot for a time window; allocation must skip reserved spots.\n- **Multiple lots in a city** — this becomes HLD: a central service, per-lot databases, and an API for apps to show availability.\n\nShow that each extension mostly **adds classes** rather than editing existing ones — that's the payoff of the strategies you introduced.",
+            "videos": [
+              {
+                "id": "NU16qSPUmus",
+                "title": "🚗  Parking Lot Design | System Design + LLD + Full Code Implementation",
+                "channel": "codeWithAryan",
+                "start": 179,
+                "end": 360,
+                "label": "pricing strategies and payments"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Asked directly (very common for SDE-1/2).",
+          "A template for any 'allocate a resource + bill for it' problem: hotel rooms, lockers, EV chargers."
+        ],
+        "mistakes": [
+          "Starting with code before listing requirements and drawing UML.",
+          "Putting pricing logic inside ParkingLot instead of a strategy.",
+          "Ignoring concurrency — the #1 thing interviewers probe.",
+          "Over-designing (payments gateway, admin panel) before the core flow works."
+        ],
+        "interview_tips": [
+          "Order: requirements (2 min) → UML → core flow code → extensions.",
+          "Say the race condition explicitly: \"Two gates read the same free spot; I lock allocation (or use an atomic DB update).\"",
+          "Use enums for vehicle/spot types and a Strategy for pricing and allocation."
+        ],
+        "quiz": [
+          {
+            "q": "Where should hourly vs flat pricing logic live?",
+            "options": [
+              "Inside ParkingLot.leave()",
+              "In a PricingStrategy class",
+              "In Ticket",
+              "In the Vehicle"
+            ],
+            "answer": 1,
+            "why": "Strategy keeps ParkingLot unchanged when pricing changes."
+          },
+          {
+            "q": "Two entry gates allocate a spot at the same time. The fix is…",
+            "options": [
+              "Retry later",
+              "Make allocation atomic (lock / DB row lock)",
+              "Use more spots",
+              "Nothing, it's rare"
+            ],
+            "answer": 1,
+            "why": "Allocation is a critical section."
+          },
+          {
+            "q": "Best first step in an LLD round?",
+            "options": [
+              "Write the main() method",
+              "Clarify requirements and draw a UML class diagram",
+              "Choose a database",
+              "Write tests"
+            ],
+            "answer": 1,
+            "why": "Structure before code."
+          }
+        ],
+        "week": "5-6",
+        "dry_run": {
+          "title": "A car enters and exits",
+          "input": "Free car spots: [F1-C1, F1-C2]",
+          "columns": [
+            "Step",
+            "Action",
+            "State"
+          ],
+          "steps": [
+            [
+              "1",
+              "EntryGate.enter(Car KA01)",
+              "allocator picks F1-C1 (nearest)"
+            ],
+            [
+              "2",
+              "lock car spots, mark F1-C1 occupied",
+              "free: [F1-C2]"
+            ],
+            [
+              "3",
+              "issue Ticket(T1, F1-C1, 10:00)",
+              "ticket stored"
+            ],
+            [
+              "4",
+              "ExitGate.exit(T1) at 12:30",
+              "hours = 3 (round up)"
+            ],
+            [
+              "5",
+              "HourlyPricing → ₹120, pay",
+              "payment ok"
+            ],
+            [
+              "6",
+              "free F1-C1",
+              "free: [F1-C2, F1-C1] ✅"
+            ]
+          ],
+          "takeaway": "Allocation is the critical section — it must be atomic."
+        },
+        "template": {
+          "python": "import math, threading, time, uuid\nfrom enum import Enum\n\nclass SpotType(Enum):\n    BIKE = 1\n    CAR = 2\n    TRUCK = 3\n\nclass Spot:\n    def __init__(self, spot_id: str, spot_type: SpotType):\n        self.id, self.type = spot_id, spot_type\n\nclass Ticket:\n    def __init__(self, spot: Spot, plate: str):\n        self.id, self.spot, self.plate = uuid.uuid4().hex[:8], spot, plate\n        self.entry_time = time.time()\n\nclass HourlyPricing:\n    RATES = {SpotType.BIKE: 20, SpotType.CAR: 40, SpotType.TRUCK: 80}\n    def price(self, ticket: Ticket, exit_time: float) -> int:\n        hours = max(1, math.ceil((exit_time - ticket.entry_time) / 3600))\n        return hours * self.RATES[ticket.spot.type]\n\nclass ParkingLot:\n    def __init__(self, spots: list[Spot], pricing=HourlyPricing()):\n        self.free = {t: [s for s in spots if s.type == t] for t in SpotType}\n        self.pricing = pricing\n        self.lock = threading.Lock()\n\n    def park(self, plate: str, spot_type: SpotType) -> Ticket | None:\n        with self.lock:                      # no two gates get the same spot\n            if not self.free[spot_type]:\n                return None\n            spot = self.free[spot_type].pop()\n        return Ticket(spot, plate)\n\n    def leave(self, ticket: Ticket) -> int:\n        fee = self.pricing.price(ticket, time.time())\n        with self.lock:\n            self.free[ticket.spot.type].append(ticket.spot)\n        return fee",
+          "javascript": "const SpotType = Object.freeze({ BIKE: 'BIKE', CAR: 'CAR', TRUCK: 'TRUCK' });\n\nclass HourlyPricing {\n  static RATES = { BIKE: 20, CAR: 40, TRUCK: 80 };\n  price(ticket, exitTime) {\n    const hours = Math.max(1, Math.ceil((exitTime - ticket.entryTime) / 3_600_000));\n    return hours * HourlyPricing.RATES[ticket.spot.type];\n  }\n}\n\nclass ParkingLot {\n  constructor(spots, pricing = new HourlyPricing()) {\n    this.free = {};\n    for (const t of Object.values(SpotType)) this.free[t] = spots.filter((s) => s.type === t);\n    this.pricing = pricing;\n  }\n  // JS is single-threaded per process; in a real multi-gate system the\n  // allocation must be atomic in the database (e.g. UPDATE ... WHERE free).\n  park(plate, type) {\n    const spot = this.free[type].pop();\n    return spot ? { id: crypto.randomUUID(), spot, plate, entryTime: Date.now() } : null;\n  }\n  leave(ticket) {\n    const fee = this.pricing.price(ticket, Date.now());\n    this.free[ticket.spot.type].push(ticket.spot);\n    return fee;\n  }\n}"
+        },
+        "complexity": "Allocation O(1) with a free list per type (O(log n) with a heap for 'nearest spot').",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design a parking lot (multi-floor, multi-gate)",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Spot types, tickets, pricing strategy.",
+            "Lock allocation for concurrent gates."
+          ],
+          "explanation": "Requirements → UML (Lot, Floor, Spot, Ticket, Gate, strategies) → atomic allocation → pricing on exit."
+        },
+        {
+          "title": "Extend the parking lot with EV charging spots",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "New spot type + charging fee.",
+            "Should existing classes change?"
+          ],
+          "explanation": "Add a spot type and a pricing decorator/strategy for charging; no change to the core flow (open/closed)."
+        }
+      ]
+    },
+    {
+      "slug": "lld-vending-machine",
+      "name": "LLD Build: Vending Machine",
+      "description": "A State-pattern classic: idle, has-money, dispensing — inventory, change and refunds.",
+      "revision_note_md": "## Vending Machine\n\n- States: **Idle → HasMoney → Dispensing → Idle** (plus OutOfStock).\n- Each state class handles: insert_coin, select_item, dispense, refund.\n- Inventory: item code → (product, price, count). Return change with the fewest coins.",
+      "lesson": {
+        "status": "full",
+        "simple": "A vending machine reacts differently to the same button depending on what's happening: pressing *select* with no money should say \"insert coins\", but with enough money it should dispense.\n\nThat's exactly the **State pattern**: one class per state, each handling the inputs for that state and moving the machine to the next state. No giant if/else.",
+        "analogy": "A traffic light: the same 'timer ticked' event turns green → yellow, yellow → red, red → green. Each colour knows what comes next.",
+        "concepts": [
+          {
+            "title": "Draw the state diagram before any code",
+            "body": "States and the inputs that move between them:\n\n```text\n        insert coin               select (enough money, in stock)\nIDLE ───────────────▶ HAS_MONEY ─────────────────────────────▶ DISPENSING\n  ▲                    │   │ insert coin (stays)                    │\n  │   cancel / refund  │   │ select (not enough / out of stock):    │\n  └────────────────────┘   │   stay, show message                   │\n  ▲                                                                 │\n  └─────────────────────── item dropped, change returned ───────────┘\n```\n\nEvery arrow becomes a method on a state class; every input that has **no arrow** from a state (e.g. *select* in IDLE) must be handled politely: show a message, don't crash, don't change state. Add a **MAINTENANCE / OUT_OF_SERVICE** state if the prompt mentions restocking.",
+            "videos": [
+              {
+                "id": "bJPmvie_p4w",
+                "title": "State Design Pattern | Build Vending Machine (UML & Code) | System Design",
+                "channel": "Coder Army",
+                "start": 1190,
+                "end": 1577,
+                "label": "complete state machine diagram"
+              }
+            ]
+          },
+          {
+            "title": "Why the State pattern beats if/else here",
+            "body": "Without the pattern, every method looks like this:\n```python\ndef select(self, code):\n    if self.state == 'idle': print('Insert money first')\n    elif self.state == 'has_money': ...\n    elif self.state == 'dispensing': print('Please wait')\n```\n…and the same ladder repeats in `insert`, `cancel`, `dispense`. Adding a state means editing every method.\n\nWith the State pattern, each state is a class implementing all inputs, and the machine just delegates: `self.state.select(self, code)`. Adding `Maintenance` = one new class. Each state class is small enough to test on its own, and illegal actions are explicit in code rather than hidden in a forgotten `else`.",
+            "videos": [
+              {
+                "id": "8CcB3xAt9p4",
+                "title": "Design a Vending Machine | LLD  | State Design Patterns | OOPS  | Java",
+                "channel": "Riddhi Dutta",
+                "start": 152,
+                "end": 904,
+                "label": "state pattern and its states"
+              }
+            ]
+          },
+          {
+            "title": "Money, change and inventory details",
+            "body": "- **Store money as integers** (paise or the smallest coin), never floats — `0.1 + 0.2 != 0.3`.\n- **Inventory:** a map from slot code to `(product, price, count)`. Check stock *before* taking the money for that item.\n- **Making change** with limited coins: try the largest denominations first (greedy), but with arbitrary coin sets greedy can fail — then you'd need DP. Mention it; real machines refuse the sale (\"exact change only\") if change can't be made.\n- **Refund on cancel:** return the inserted amount, ideally with the same coins.\n- **Atomic dispense:** decrement stock, deduct price and return change as one step; if the motor fails, refund and move to OUT_OF_SERVICE.",
+            "videos": [
+              {
+                "id": "8CcB3xAt9p4",
+                "title": "Design a Vending Machine | LLD  | State Design Patterns | OOPS  | Java",
+                "channel": "Riddhi Dutta",
+                "start": 904,
+                "end": 1396,
+                "label": "machine logic and inventory"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Any object with clear states and events: vending machine, ATM, elevator, order lifecycle, traffic light."
+        ],
+        "mistakes": [
+          "One big class with if (state == ...) everywhere.",
+          "Forgetting refunds/cancel and out-of-stock paths.",
+          "Letting states mutate unrelated machine internals — give the machine small methods."
+        ],
+        "interview_tips": [
+          "Draw the state diagram first (circles + arrows labelled with events).",
+          "Mention concurrency: two button presses at once → serialize events on the machine.",
+          "Extensions: card payments (Strategy), admin restock, low-stock alerts (Observer)."
+        ],
+        "quiz": [
+          {
+            "q": "Why use the State pattern here?",
+            "options": [
+              "Fewer classes",
+              "Behaviour depends on the current state; avoids big if/else",
+              "It's faster",
+              "Required by Python"
+            ],
+            "answer": 1,
+            "why": "Each state encapsulates its own rules."
+          },
+          {
+            "q": "Select pressed while Idle should…",
+            "options": [
+              "Dispense",
+              "Ask for money and stay Idle",
+              "Crash",
+              "Refund"
+            ],
+            "answer": 1,
+            "why": "Invalid action for the state."
+          },
+          {
+            "q": "Sending a 'low stock' alert to the owner fits…",
+            "options": [
+              "Observer",
+              "Singleton",
+              "State",
+              "Factory"
+            ],
+            "answer": 0,
+            "why": "Inventory publishes an event; listeners react."
+          }
+        ],
+        "week": "5-6",
+        "dry_run": {
+          "title": "Buy a ₹25 chips with a ₹50 note",
+          "input": "Inventory A1 = Chips ₹25 × 3",
+          "columns": [
+            "Step",
+            "Current state",
+            "Event",
+            "Result → next state"
+          ],
+          "steps": [
+            [
+              "1",
+              "Idle",
+              "insert ₹50",
+              "balance 50 → HasMoney"
+            ],
+            [
+              "2",
+              "HasMoney",
+              "select A1",
+              "50 ≥ 25 → Dispensing"
+            ],
+            [
+              "3",
+              "Dispensing",
+              "dispense()",
+              "chips out, stock 2, change ₹25 → Idle ✅"
+            ],
+            [
+              "4",
+              "Idle",
+              "select A1",
+              "\"Insert money first\" (stays Idle)"
+            ]
+          ],
+          "takeaway": "Each state only handles what makes sense for it; illegal actions are rejected in one place."
+        },
+        "template": {
+          "python": "class State:\n    def insert(self, m, amount): print(\"Not allowed now\")\n    def select(self, m, code): print(\"Not allowed now\")\n\nclass Idle(State):\n    def insert(self, m, amount):\n        m.balance += amount\n        m.state = HasMoney()\n    def select(self, m, code):\n        print(\"Insert money first\")\n\nclass HasMoney(State):\n    def insert(self, m, amount):\n        m.balance += amount\n    def select(self, m, code):\n        product, price, count = m.inventory.get(code, (None, 0, 0))\n        if count == 0:\n            print(\"Out of stock\")\n        elif m.balance < price:\n            print(f\"Need {price - m.balance} more\")\n        else:\n            m.inventory[code] = (product, price, count - 1)\n            change, m.balance = m.balance - price, 0\n            print(f\"Dispensing {product}, change {change}\")\n            m.state = Idle()\n\nclass VendingMachine:\n    def __init__(self, inventory):\n        self.inventory, self.balance, self.state = inventory, 0, Idle()\n    def insert(self, amount): self.state.insert(self, amount)\n    def select(self, code): self.state.select(self, code)\n\nvm = VendingMachine({\"A1\": (\"Chips\", 25, 3)})\nvm.insert(50); vm.select(\"A1\")",
+          "javascript": "class Idle {\n  insert(m, amount) { m.balance += amount; m.state = new HasMoney(); }\n  select() { console.log('Insert money first'); }\n}\n\nclass HasMoney {\n  insert(m, amount) { m.balance += amount; }\n  select(m, code) {\n    const item = m.inventory.get(code);\n    if (!item || item.count === 0) return console.log('Out of stock');\n    if (m.balance < item.price) return console.log(`Need ${item.price - m.balance} more`);\n    item.count--;\n    console.log(`Dispensing ${item.name}, change ${m.balance - item.price}`);\n    m.balance = 0;\n    m.state = new Idle();\n  }\n}\n\nclass VendingMachine {\n  constructor(inventory) { this.inventory = inventory; this.balance = 0; this.state = new Idle(); }\n  insert(amount) { this.state.insert(this, amount); }\n  select(code) { this.state.select(this, code); }\n}"
+        },
+        "complexity": "Each event is O(1). Change-making with fixed coin denominations: greedy works for standard coins.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design a vending machine",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Draw the state diagram first.",
+            "Inventory, change, refund."
+          ],
+          "explanation": "State pattern with Idle/HasMoney/Dispensing/OutOfStock and an inventory map."
+        },
+        {
+          "title": "Add card payments and cancel/refund to the vending machine",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Payment strategy.",
+            "Which states allow cancel?"
+          ],
+          "explanation": "Inject a PaymentStrategy; add a cancel event handled by HasMoney to return the balance."
+        }
+      ]
+    },
+    {
+      "slug": "lld-rate-limiter",
+      "name": "LLD Build: Rate Limiter",
+      "description": "Limit how many requests each client can make: token bucket vs sliding window, a strategy per algorithm, and thread safety.",
+      "revision_note_md": "## Rate Limiter — the shape of a good answer\n\n1. Requirements: limit per user / API key / IP; per endpoint config; what happens on reject (HTTP 429 + Retry-After).\n2. Classes: `RateLimiter` (interface) → `TokenBucket`, `SlidingWindowLog`, `FixedWindow`; `RateLimiterRegistry` holds one limiter per key; `RuleConfig`.\n3. Algorithms: **token bucket** allows bursts up to capacity; **sliding window** gives a smooth, exact limit.\n4. Concurrency: lock per key (or atomic ops); in a cluster the state moves to Redis.",
+      "lesson": {
+        "status": "full",
+        "simple": "A **rate limiter** says *\"you can make at most N requests in this much time\"*. It protects your API from abuse and from one noisy client starving everyone else.\n\nTwo algorithms cover almost every interview:\n- **Token bucket** — each client has a bucket that holds up to *capacity* tokens and refills at a steady rate. A request spends one token; no token → rejected. Allows short **bursts**.\n- **Sliding window log** — remember the timestamps of recent requests; allow a new one only if fewer than N happened in the last window. Exact, but uses more memory.\n\nIn LLD, show a `RateLimiter` **interface** with one class per algorithm (Strategy pattern), a registry that keeps one limiter **per client key**, and a **lock** so two threads can't both spend the last token.",
+        "analogy": "A token bucket is a metro card that gets ₹1 added every second, up to a maximum of ₹3. Each ride costs ₹1. You can take three rides back to back (a burst), then you wait for it to refill.",
+        "concepts": [
+          {
+            "title": "The classic algorithms compared",
+            "body": "| Algorithm | How it works | Memory per client | Bursts | Accuracy |\n|---|---|---|---|---|\n| **Fixed window** | count requests per clock window (e.g. per minute) | 1 counter | up to 2× at window edges | approximate |\n| **Sliding window log** | keep timestamps of recent requests | O(limit) | none | exact |\n| **Sliding window counter** | weighted mix of the current and previous window counts | 2 counters | small | very close |\n| **Token bucket** | tokens refill at a steady rate up to a capacity; each request spends one | 2 numbers | up to capacity | exact for rate + burst |\n| *(Leaky bucket)* | requests drain from a queue at a fixed rate | queue | smoothed out | exact output rate |\n\n**Sliding window counter** formula: `estimate = current_count + previous_count × (1 − elapsed_fraction_of_current_window)`. It fixes the fixed-window edge burst with almost no memory — a popular production choice.\n\nPick with a reason: *\"APIs where short bursts are fine → token bucket; strict per-minute quotas → sliding window.\"*",
+            "videos": [
+              {
+                "id": "YXkOdWBwqaA",
+                "title": "Rate Limiter System Design: Token Bucket, Leaky Bucket, Scaling",
+                "channel": "ByteByteGo"
+              },
+              {
+                "id": "7y0KWxaUn-E",
+                "title": "Design Rate Limiter (LLD) - Token Bucket, Fixed & Sliding Window with Thread Safety",
+                "channel": "Shubh Patel",
+                "start": 695,
+                "end": 1130,
+                "label": "fixed, sliding and token bucket"
+              }
+            ]
+          },
+          {
+            "title": "Designing the classes",
+            "body": "```text\nRateLimiter (interface)        allow(key) -> bool\n  ├─ TokenBucketLimiter        capacity, refill_rate, buckets: key -> (tokens, last)\n  ├─ SlidingWindowLogLimiter   limit, window, logs: key -> deque[timestamps]\n  └─ FixedWindowLimiter\nRuleConfig                     (client tier, endpoint) -> algorithm + numbers\nRateLimiterFactory             builds the right limiter from a RuleConfig\nClock (injected)               now() — real or fake for tests\n```\n\nDecisions worth saying out loud:\n- **Key** = user id, API key or IP (+ endpoint). Unauthenticated traffic is limited by IP.\n- **Lazy refill** — compute tokens from elapsed time when a request arrives; no background timers.\n- **Cleanup** — evict idle keys (LRU / TTL), or memory grows with every client ever seen.\n- **Response** — HTTP 429 with `Retry-After`, plus `X-RateLimit-Remaining` headers.",
+            "videos": [
+              {
+                "id": "7y0KWxaUn-E",
+                "title": "Design Rate Limiter (LLD) - Token Bucket, Fixed & Sliding Window with Thread Safety",
+                "channel": "Shubh Patel",
+                "start": 320,
+                "end": 695,
+                "label": "requirements and UML"
+              }
+            ]
+          },
+          {
+            "title": "Thread safety in one process",
+            "body": "`allow()` is a **read-modify-write**: read tokens, decide, write tokens back. Two threads interleaving can both read \"1 token left\" and both succeed.\n\nOptions:\n- **One lock per limiter** — simplest; fine for moderate traffic.\n- **A lock per key** (striped locks: `locks[hash(key) % 64]`) — different users don't contend.\n- **Lock-free atomics** — compare-and-swap on a packed (tokens, timestamp) value; more complex, rarely needed in an interview.\n\nKeep the critical section tiny: only the refill-check-spend. Never do I/O (logging, DB calls) while holding the lock.",
+            "videos": [
+              {
+                "id": "7y0KWxaUn-E",
+                "title": "Design Rate Limiter (LLD) - Token Bucket, Fixed & Sliding Window with Thread Safety",
+                "channel": "Shubh Patel",
+                "start": 1130,
+                "end": 1734,
+                "label": "code with thread safety"
+              }
+            ]
+          },
+          {
+            "title": "Going distributed",
+            "body": "With many API servers, in-memory buckets would each allow the full limit. Move state to a shared store:\n\n- **Redis + Lua script** — the script reads tokens and timestamp, refills, checks and spends atomically in one round trip. Redis runs scripts one at a time, so no race.\n- **Fixed window in Redis** — `INCR key:{minute}`; on the first increment set `EXPIRE 60`; reject if the result exceeds the limit. Two commands, cheap and good enough for many cases.\n- **Latency** — one Redis round trip (~1 ms) per request; for very hot paths, use a **local token cache** that syncs with Redis in batches and accept slight over-allowance.\n- **Failure mode** — if Redis is down, *fail open* (allow, protect availability) or *fail closed* (reject, protect the backend). Choose per endpoint: login → fail closed; reading a public page → fail open.",
+            "videos": [
+              {
+                "id": "YXkOdWBwqaA",
+                "title": "Rate Limiter System Design: Token Bucket, Leaky Bucket, Scaling",
+                "channel": "ByteByteGo",
+                "start": 273,
+                "label": "placement, architecture, race conditions"
+              },
+              {
+                "id": "MIJFyUPG4Z4",
+                "title": "Design a Distributed Rate Limiter w/ a Ex-Meta Staff Engineer: System Design Breakdown",
+                "channel": "Hello Interview"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Asked directly: \"Design a rate limiter\" (LLD), or as part of an API gateway (HLD).",
+          "Any 'quota' problem: login attempts, OTP sends, free-tier API calls.",
+          "A good place to show Strategy + concurrency in one small design."
+        ],
+        "mistakes": [
+          "Reading tokens and decrementing in two separate steps without a lock — two threads both spend the last token.",
+          "A background thread refilling every bucket every second — doesn't scale; refill lazily on each request.",
+          "Fixed windows without mentioning the boundary burst (2× the limit across a window edge).",
+          "One global limiter for everyone instead of one per client key.",
+          "Using wall-clock time (`time.time()`), which can jump; use a monotonic clock."
+        ],
+        "interview_tips": [
+          "Ask first: limit by user, IP or API key? Per endpoint? Hard reject or queue?",
+          "Compare the algorithms in one line each and pick one with a reason (bursts OK → token bucket).",
+          "Inject the clock so the class is testable — interviewers notice.",
+          "Mention the distributed version: Redis + atomic script, and return 429 with a Retry-After header."
+        ],
+        "quiz": [
+          {
+            "q": "Which algorithm allows short bursts up to a capacity?",
+            "options": [
+              "Fixed window",
+              "Token bucket",
+              "Sliding window log",
+              "Round robin"
+            ],
+            "answer": 1,
+            "why": "A full bucket can be spent immediately, then refills at a steady rate."
+          },
+          {
+            "q": "Fixed-window counters have which weakness?",
+            "options": [
+              "Too much memory",
+              "Up to 2× the limit around a window boundary",
+              "Can't count",
+              "Need a database"
+            ],
+            "answer": 1,
+            "why": "N requests at 0:59 and N more at 1:00 all pass."
+          },
+          {
+            "q": "Why is a lock needed in TokenBucket.allow()?",
+            "options": [
+              "To make it faster",
+              "Refill + check + spend must happen as one atomic step",
+              "Python requires it",
+              "To log requests"
+            ],
+            "answer": 1,
+            "why": "Otherwise two threads can both see 1 token and both spend it."
+          },
+          {
+            "q": "In a cluster of 10 API servers, the bucket state should live in…",
+            "options": [
+              "Each server's memory",
+              "A shared store like Redis, updated atomically",
+              "The client's browser",
+              "A log file"
+            ],
+            "answer": 1,
+            "why": "In-memory buckets would allow 10× the limit."
+          }
+        ],
+        "week": "9-10",
+        "dry_run": {
+          "title": "Token bucket, capacity 3, refill 1 token/second",
+          "input": "client 'u1' starts with a full bucket (3 tokens)",
+          "columns": [
+            "Time (s)",
+            "Tokens after refill",
+            "Request",
+            "Tokens after"
+          ],
+          "steps": [
+            [
+              "0.0",
+              "3.0",
+              "allow",
+              "2.0"
+            ],
+            [
+              "0.1",
+              "2.1",
+              "allow",
+              "1.1"
+            ],
+            [
+              "0.2",
+              "1.2",
+              "allow",
+              "0.2"
+            ],
+            [
+              "0.3",
+              "0.3",
+              "reject (429)",
+              "0.3"
+            ],
+            [
+              "1.3",
+              "1.3",
+              "allow",
+              "0.3 ✅"
+            ]
+          ],
+          "takeaway": "Tokens are refilled lazily from the elapsed time when a request arrives — no background timer needed."
+        },
+        "template": {
+          "python": "import threading, time\nfrom abc import ABC, abstractmethod\nfrom collections import deque\n\nclass RateLimiter(ABC):\n    @abstractmethod\n    def allow(self) -> bool: ...\n\nclass TokenBucket(RateLimiter):\n    def __init__(self, capacity: int, refill_per_sec: float, clock=time.monotonic):\n        self.capacity, self.rate, self.clock = capacity, refill_per_sec, clock\n        self.tokens, self.last = float(capacity), clock()\n        self.lock = threading.Lock()\n\n    def allow(self) -> bool:\n        with self.lock:                          # check-and-spend must be atomic\n            now = self.clock()\n            self.tokens = min(self.capacity, self.tokens + (now - self.last) * self.rate)\n            self.last = now\n            if self.tokens >= 1:\n                self.tokens -= 1\n                return True\n            return False\n\nclass SlidingWindowLog(RateLimiter):\n    def __init__(self, limit: int, window_sec: float, clock=time.monotonic):\n        self.limit, self.window, self.clock = limit, window_sec, clock\n        self.hits: deque[float] = deque()\n        self.lock = threading.Lock()\n\n    def allow(self) -> bool:\n        with self.lock:\n            now = self.clock()\n            while self.hits and now - self.hits[0] >= self.window:\n                self.hits.popleft()              # forget old requests\n            if len(self.hits) < self.limit:\n                self.hits.append(now)\n                return True\n            return False\n\nclass RateLimiterRegistry:\n    \"\"\"One limiter per client key, created on first use.\"\"\"\n    def __init__(self, factory):\n        self.factory, self.limiters = factory, {}\n        self.lock = threading.Lock()\n\n    def allow(self, key: str) -> bool:\n        with self.lock:\n            if key not in self.limiters:\n                self.limiters[key] = self.factory()\n            limiter = self.limiters[key]\n        return limiter.allow()\n\nlimits = RateLimiterRegistry(lambda: TokenBucket(capacity=3, refill_per_sec=1))\nprint([limits.allow(\"u1\") for _ in range(4)])   # [True, True, True, False]",
+          "javascript": "class TokenBucket {\n  constructor(capacity, refillPerSec, clock = () => performance.now() / 1000) {\n    Object.assign(this, { capacity, rate: refillPerSec, clock });\n    this.tokens = capacity;\n    this.last = clock();\n  }\n  // Node runs this synchronously, so no lock is needed inside one process.\n  // Across servers, keep the bucket in Redis and update it atomically (Lua script).\n  allow() {\n    const now = this.clock();\n    this.tokens = Math.min(this.capacity, this.tokens + (now - this.last) * this.rate);\n    this.last = now;\n    if (this.tokens >= 1) { this.tokens -= 1; return true; }\n    return false;\n  }\n}\n\nclass RateLimiterRegistry {\n  constructor(factory) { this.factory = factory; this.limiters = new Map(); }\n  allow(key) {\n    if (!this.limiters.has(key)) this.limiters.set(key, this.factory());\n    return this.limiters.get(key).allow();\n  }\n}\n\nconst limits = new RateLimiterRegistry(() => new TokenBucket(3, 1));\nconsole.log([1, 2, 3, 4].map(() => limits.allow('u1'))); // [true, true, true, false]"
+        },
+        "complexity": "Token bucket: O(1) time and O(1) memory per client. Sliding window log: O(1) amortised time but O(limit) memory per client.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Rate Limiter",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Token bucket vs sliding window.",
+            "RateLimiter interface + per-algorithm strategies."
+          ],
+          "explanation": "Limit how many requests a user can make in a time window."
+        },
+        {
+          "title": "Make the rate limiter work across many servers",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Shared state in Redis.",
+            "Atomic update with a Lua script or INCR + EXPIRE."
+          ],
+          "explanation": "Move the bucket/counter to Redis and update it atomically so all servers share one limit.",
+          "answer_md": "**Problem:** in-memory buckets on N servers allow N × the limit.\n\n**Fix:** store state in Redis keyed by client, e.g. `rl:{client}` → `{tokens, last}`.\n\n- Run refill + check + spend in **one Lua script** so it's atomic.\n- Simpler fixed-window variant: `INCR rl:{client}:{minute}` + `EXPIRE 60`; reject when the count passes the limit.\n- Return **HTTP 429** with `Retry-After`.\n- If Redis is down: fail open (allow) for availability or fail closed for safety — say which and why."
+        }
+      ]
+    },
+    {
+      "slug": "lld-elevator",
+      "name": "LLD Build: Elevator System",
+      "description": "Elevators that pick up and drop passengers efficiently: state, direction, a scheduling strategy and a controller that dispatches requests.",
+      "revision_note_md": "## Elevator — the shape of a good answer\n\n1. Requirements: N elevators, M floors, hall buttons (up/down) and car buttons (floor), capacity, display.\n2. Classes: `ElevatorController` → `Elevator` (current floor, direction, state, stops); `Request` (floor, direction); `DispatchStrategy` (which elevator?) and `Elevator.step()` (which floor next?).\n3. Scheduling: **LOOK** — keep going in one direction while there are stops ahead, then reverse.\n4. Concurrency: buttons are pressed from many threads → thread-safe request queue; each elevator runs its own loop.",
+      "lesson": {
+        "status": "full",
+        "simple": "Design the software that runs a building's lifts. People press **hall buttons** (\"I'm on floor 4, going up\") and **car buttons** inside (\"take me to 9\").\n\nTwo decisions make the design:\n1. **Which elevator** answers a hall call? (the **dispatch** strategy — e.g. nearest elevator already moving that way)\n2. **Which floor next** for one elevator? (the **scheduling** rule — usually **LOOK**: keep going in the current direction while there are stops ahead, then turn around)\n\nModel each elevator with a **state** (IDLE, MOVING_UP, MOVING_DOWN, DOORS_OPEN) and two sorted sets of stops: those above and those below.",
+        "analogy": "A bus driver on a straight road. They pick up everyone going their way, drive to the end of the requests, then turn around — instead of zig-zagging to whoever called first.",
+        "concepts": [
+          {
+            "title": "Model the moving parts",
+            "body": "| Class | Holds | Does |\n|---|---|---|\n| `ElevatorController` | all elevators, dispatch strategy | receives hall calls, assigns an elevator |\n| `Elevator` | current floor, direction, state, stops above/below, capacity | `add_stop`, `step` (move one stop), open/close doors |\n| `Request` | floor, direction (hall) or target floor (car) | — |\n| `DispatchStrategy` | — | choose an elevator for a hall call |\n| `Door`, `Display`, `Button` | — | small parts; displays observe elevator position |\n\nTwo kinds of input:\n- **Hall call** — \"I'm on floor 4, going up\" → the controller picks an elevator.\n- **Car call** — \"take me to 9\", pressed inside → goes straight to *that* elevator's stops.\n\nElevator **states**: IDLE, MOVING_UP, MOVING_DOWN, DOORS_OPEN, MAINTENANCE/EMERGENCY.",
+            "videos": [
+              {
+                "id": "fODT0ldeBiU",
+                "title": "Low-Level Design Interview: Design an Elevator w/ a Ex-Meta Staff Engineer",
+                "channel": "Hello Interview",
+                "start": 215,
+                "end": 1434,
+                "label": "requirements, entities and class design"
+              }
+            ]
+          },
+          {
+            "title": "Scheduling one elevator: FCFS, SCAN and LOOK",
+            "body": "- **First-come-first-served:** serve requests in order. Simple, but it zig-zags (2 → 9 → 3 → 8) and wastes most of its time travelling.\n- **SCAN (elevator algorithm):** sweep in one direction to the **end of the building**, serving stops on the way, then reverse.\n- **LOOK:** like SCAN, but reverse at the **last requested floor** instead of the building's end. This is what real elevators approximate.\n\nData structure: two ordered sets — stops above the current floor (served in increasing order while going up) and stops below (served in decreasing order going down). A hall call for \"down\" at a floor above you while you're going up is served on the way back down, not on the way up.\n\nStarvation: with LOOK, a request in the opposite direction waits at most one full sweep, so no one waits forever.",
+            "videos": [
+              {
+                "id": "gV4NeR4Ms9Y",
+                "title": "🧠 Elevator System Low-Level Design (LLD) – OOP, UML & Best Practices 📊",
+                "channel": "codeWithAryan",
+                "start": 1620,
+                "end": 3274,
+                "label": "FCFS, SCAN and LOOK"
+              }
+            ]
+          },
+          {
+            "title": "Dispatching across many elevators",
+            "body": "The controller scores each elevator for a hall call `(floor, direction)` and picks the lowest score. A common scoring idea:\n\n1. **Already moving towards the floor in the same direction** → cost = distance.\n2. **Idle** → cost = distance.\n3. **Moving away or in the opposite direction** → cost = distance to finish its sweep + distance back (or a big penalty).\n\nAdd tie-breakers for load (fewer stops, fewer passengers) and capacity (skip full cars). Real systems also use **zoning** (elevators A–C serve floors 1–20) and **destination dispatch** (passengers enter the target floor in the lobby, so the system groups people going to nearby floors).\n\nMake this a `DispatchStrategy` so you can swap \"nearest car\" for \"zoned\" without touching the controller.",
+            "videos": [
+              {
+                "id": "gV4NeR4Ms9Y",
+                "title": "🧠 Elevator System Low-Level Design (LLD) – OOP, UML & Best Practices 📊",
+                "channel": "codeWithAryan",
+                "start": 823,
+                "end": 1620,
+                "label": "patterns, internal vs external requests"
+              }
+            ]
+          },
+          {
+            "title": "Concurrency and safety",
+            "body": "- **Inputs from many threads:** buttons on every floor and in every car fire concurrently. Each elevator's stop sets need a lock, or a single-threaded event loop per elevator that consumes a thread-safe request queue.\n- **One controller loop or one per elevator?** A loop per elevator (each moves independently) plus a lock-protected dispatcher is easy to explain.\n- **Safety rules belong in code, not in hope:** doors never open while moving; weight sensor blocks departure when overloaded; emergency mode overrides everything.\n- **Testing:** inject a fake clock/motor, push a scripted sequence of calls, and assert the visited floor order — exactly like the dry run in this lesson.",
+            "videos": [
+              {
+                "id": "fODT0ldeBiU",
+                "title": "Low-Level Design Interview: Design an Elevator w/ a Ex-Meta Staff Engineer",
+                "channel": "Hello Interview",
+                "start": 1434,
+                "end": 3660,
+                "label": "implementation and extensibility"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Asked directly (common at product companies).",
+          "Shows State + Strategy patterns and thread-safe queues together.",
+          "Same shape as any 'scheduler that serves requests on a line': disk scheduling, delivery robots."
+        ],
+        "mistakes": [
+          "First-come-first-served stops — the elevator zig-zags and wastes time.",
+          "One giant class doing dispatch, movement and doors — split Controller, Elevator, Strategy.",
+          "Ignoring that hall calls carry a direction (going up vs down).",
+          "No locking around the stop sets while button presses arrive from other threads."
+        ],
+        "interview_tips": [
+          "Clarify: how many elevators and floors? Capacity/weight? Express or service elevators? Emergency mode?",
+          "Name the patterns: State for the elevator, Strategy for dispatch, Observer for floor displays.",
+          "Mention LOOK vs SCAN: SCAN goes to the last floor before turning; LOOK turns at the last request."
+        ],
+        "quiz": [
+          {
+            "q": "An elevator at floor 2 going up has stops 5, 3, 1. LOOK visits them in the order…",
+            "options": [
+              "5, 3, 1",
+              "3, 5, 1",
+              "1, 3, 5",
+              "3, 1, 5"
+            ],
+            "answer": 1,
+            "why": "Finish everything above in order, then reverse."
+          },
+          {
+            "q": "Which pattern fits 'which elevator answers this hall call'?",
+            "options": [
+              "Singleton",
+              "Strategy",
+              "Decorator",
+              "Adapter"
+            ],
+            "answer": 1,
+            "why": "Dispatch rules change (nearest, least busy, zones); swap them without touching the controller."
+          },
+          {
+            "q": "Why does a hall call need a direction?",
+            "options": [
+              "For the display only",
+              "An elevator going down shouldn't stop for someone going up",
+              "It doesn't",
+              "To pick the door"
+            ],
+            "answer": 1,
+            "why": "Picking up passengers going the other way wastes their time and capacity."
+          },
+          {
+            "q": "Button presses come from many threads. The stop list should be…",
+            "options": [
+              "A plain list",
+              "Protected by a lock / thread-safe queue",
+              "Stored in a file",
+              "Global"
+            ],
+            "answer": 1,
+            "why": "Concurrent adds and removes would corrupt it."
+          }
+        ],
+        "week": "9-10",
+        "dry_run": {
+          "title": "One elevator at floor 2 moving up; stops requested: 5, 3, 1",
+          "input": "LOOK scheduling",
+          "columns": [
+            "Step",
+            "Floor",
+            "Direction",
+            "Stops above",
+            "Stops below",
+            "Action"
+          ],
+          "steps": [
+            [
+              "1",
+              "2",
+              "UP",
+              "{3, 5}",
+              "{1}",
+              "move up"
+            ],
+            [
+              "2",
+              "3",
+              "UP",
+              "{5}",
+              "{1}",
+              "stop, open doors at 3"
+            ],
+            [
+              "3",
+              "5",
+              "UP",
+              "{}",
+              "{1}",
+              "stop at 5; nothing above → reverse"
+            ],
+            [
+              "4",
+              "1",
+              "DOWN",
+              "{}",
+              "{}",
+              "stop at 1 → IDLE ✅"
+            ]
+          ],
+          "takeaway": "Serving 3 and 5 before 1 avoids the zig-zag 2→5→3→1 that first-come-first-served would cause."
+        },
+        "template": {
+          "python": "import threading\nfrom enum import Enum\n\nclass Direction(Enum):\n    UP = 1\n    DOWN = -1\n    IDLE = 0\n\nclass Elevator:\n    def __init__(self, eid: int, floor: int = 0):\n        self.id, self.floor, self.direction = eid, floor, Direction.IDLE\n        self.up_stops: set[int] = set()\n        self.down_stops: set[int] = set()\n        self.lock = threading.Lock()\n\n    def add_stop(self, floor: int) -> None:\n        with self.lock:\n            if floor > self.floor:\n                self.up_stops.add(floor)\n            elif floor < self.floor:\n                self.down_stops.add(floor)\n            if self.direction == Direction.IDLE and floor != self.floor:\n                self.direction = Direction.UP if floor > self.floor else Direction.DOWN\n\n    def step(self) -> int | None:\n        \"\"\"LOOK: go to the next stop in the current direction, else reverse.\"\"\"\n        with self.lock:\n            if self.direction == Direction.UP and not self.up_stops:\n                self.direction = Direction.DOWN if self.down_stops else Direction.IDLE\n            elif self.direction == Direction.DOWN and not self.down_stops:\n                self.direction = Direction.UP if self.up_stops else Direction.IDLE\n            if self.direction == Direction.UP:\n                self.floor = min(self.up_stops); self.up_stops.remove(self.floor)\n            elif self.direction == Direction.DOWN:\n                self.floor = max(self.down_stops); self.down_stops.remove(self.floor)\n            else:\n                return None\n            return self.floor                     # doors open here\n\nclass NearestElevatorDispatch:\n    def choose(self, elevators, floor: int, direction: Direction) -> Elevator:\n        def cost(e):\n            same_way = e.direction in (direction, Direction.IDLE)\n            ahead = (floor - e.floor) * (e.direction.value or 1) >= 0\n            return abs(e.floor - floor) + (0 if same_way and ahead else 100)\n        return min(elevators, key=cost)\n\nclass ElevatorController:\n    def __init__(self, n: int, dispatch=NearestElevatorDispatch()):\n        self.elevators = [Elevator(i) for i in range(n)]\n        self.dispatch = dispatch\n\n    def hall_call(self, floor: int, direction: Direction) -> int:\n        e = self.dispatch.choose(self.elevators, floor, direction)\n        e.add_stop(floor)\n        return e.id\n\n    def car_call(self, eid: int, floor: int) -> None:\n        self.elevators[eid].add_stop(floor)\n\ne = Elevator(0, floor=2); e.direction = Direction.UP\nfor f in (5, 3, 1):\n    e.add_stop(f)\nprint([e.step() for _ in range(4)])   # [3, 5, 1, None]",
+          "javascript": "const Direction = Object.freeze({ UP: 1, DOWN: -1, IDLE: 0 });\n\nclass Elevator {\n  constructor(id, floor = 0) {\n    Object.assign(this, { id, floor, direction: Direction.IDLE });\n    this.up = new Set();\n    this.down = new Set();\n  }\n  addStop(floor) {\n    if (floor > this.floor) this.up.add(floor);\n    else if (floor < this.floor) this.down.add(floor);\n    if (this.direction === Direction.IDLE && floor !== this.floor) {\n      this.direction = floor > this.floor ? Direction.UP : Direction.DOWN;\n    }\n  }\n  step() { // LOOK scheduling\n    if (this.direction === Direction.UP && !this.up.size) this.direction = this.down.size ? Direction.DOWN : Direction.IDLE;\n    else if (this.direction === Direction.DOWN && !this.down.size) this.direction = this.up.size ? Direction.UP : Direction.IDLE;\n    if (this.direction === Direction.IDLE) return null;\n    const stops = this.direction === Direction.UP ? this.up : this.down;\n    this.floor = this.direction === Direction.UP ? Math.min(...stops) : Math.max(...stops);\n    stops.delete(this.floor);\n    return this.floor;\n  }\n}\n\nconst e = new Elevator(0, 2);\ne.direction = Direction.UP;\n[5, 3, 1].forEach((f) => e.addStop(f));\nconsole.log([e.step(), e.step(), e.step(), e.step()]); // [3, 5, 1, null]"
+        },
+        "complexity": "With sets, choosing the next stop is O(k) for k pending stops (O(log k) with two heaps or a sorted container). Dispatch is O(number of elevators).",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Elevator System",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Elevator state: direction, current floor, stops (sorted sets).",
+            "Dispatcher strategy picks the best elevator."
+          ],
+          "explanation": "Schedule multiple elevators to serve floor requests efficiently."
+        },
+        {
+          "title": "Add an emergency / fire mode to the elevator system",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "State pattern: a new EMERGENCY state.",
+            "Controller broadcasts to every elevator (Observer)."
+          ],
+          "explanation": "Add an EMERGENCY state that clears stops, moves to the ground floor and ignores new calls; the controller notifies every elevator.",
+          "answer_md": "- New state `EMERGENCY` (State pattern): `add_stop` is ignored, `step` heads to the ground floor and opens the doors.\n- `ElevatorController.trigger_emergency()` notifies all elevators (Observer).\n- Existing classes barely change — that's the point of using State: new behaviour is a new class, not more `if`s (Open/Closed)."
+        }
+      ]
+    },
+    {
+      "slug": "lld-snake-ladders",
+      "name": "LLD Build: Snake & Ladders",
+      "description": "A playable board game model: board, snakes and ladders, dice strategy, players taking turns and a winner.",
+      "revision_note_md": "## Snake & Ladders — the shape of a good answer\n\n1. Requirements: board size, any number of snakes/ladders, 2+ players, dice count, win on exact 100 or not.\n2. Classes: `Game` (players queue, board, dice, winner), `Board` (size, jumps map), `Dice` (strategy: random / fixed for tests), `Player`.\n3. Snakes and ladders are both just a **jump**: `start → end`; one map handles both.\n4. Turn loop: roll → move → apply jump → check win → next player (queue rotation).",
+      "lesson": {
+        "status": "full",
+        "simple": "A small but complete design: build a game you could actually play in the terminal.\n\nThe neat simplification: **snakes and ladders are the same thing** — a square that sends you somewhere else. A snake goes down, a ladder goes up. So the board just keeps one map: `jumps = {start: end}`.\n\nPlayers take turns from a **queue**: pop the front player, roll, move, apply a jump if they land on one, check for a win, then push them to the back.\n\nMake the **dice a strategy** (an interface), so tests can use a fixed sequence of rolls instead of randomness.",
+        "analogy": "A board game night with a scorekeeper. The scorekeeper doesn't care if a square has a snake or a ladder drawn on it — the rule card just says \"square 17 → square 7\".",
+        "concepts": [
+          {
+            "title": "Entities and the game loop",
+            "body": "```text\nGame   — board, dice, turn queue of players, positions, winner, rules\nBoard  — size, jumps {start: end} (snakes go down, ladders go up)\nDice   — interface: roll() → int (RandomDice, FixedDice for tests, multiple dice)\nPlayer — id, name\n```\n\nThe loop:\n1. Take the player at the **front** of the queue.\n2. Roll, compute the target square.\n3. Apply the rules: past the last square? (stay, or bounce back). Landing on a jump? Move to its end.\n4. Reached the last square → winner. Otherwise put the player at the **back** of the queue.\n\nKeep the board **validated** at construction: no jump starts on square 1 or the last square, no jump points to its own start, no chains that loop forever (a snake ending on a ladder that leads back to it).",
+            "videos": [
+              {
+                "id": "L7hvkK188Ek",
+                "title": "Snakes and Ladders LLD in Java | UML, Extensible Design & Code Explained",
+                "channel": "Shubh Patel",
+                "start": 485,
+                "end": 1535,
+                "label": "requirements, entities and UML"
+              }
+            ]
+          },
+          {
+            "title": "Making rules pluggable",
+            "body": "Different groups play different house rules:\n- exact landing on 100 vs bounce back from 100,\n- extra turn on a 6,\n- three 6s in a row cancel the turn,\n- start only after rolling a 6,\n- two dice instead of one.\n\nPut these behind a `RulesStrategy` (or a few small policy objects) with methods like `next_position(pos, roll)` and `gets_extra_turn(roll, streak)`. The `Game` loop asks the rules instead of hard-coding them. This is the same Open/Closed idea as pricing in the parking lot — and it's what the interviewer is really testing in this \"easy\" question.",
+            "videos": [
+              {
+                "id": "1NJB54UB8nE",
+                "title": "Build Snake and Ladder Game | UML + Code | System Design",
+                "channel": "Coder Army",
+                "start": 222,
+                "end": 2507,
+                "label": "UML for an extensible design"
+              }
+            ]
+          },
+          {
+            "title": "Testability and running many games",
+            "body": "**Determinism:** randomness is the enemy of tests. Inject the dice: `FixedDice([3, 4, 5])` lets you assert exact positions after each turn, including snake and ladder hits and the winning roll. A seeded `random.Random(42)` is the other option.\n\n**Many games on one server** (an online version): each `Game` instance owns its state, so games don't interfere. Store games in a map by id; each request (`roll` for player X in game G) loads that game, checks it's X's turn (reject out-of-turn moves), applies the turn and saves. Concurrency issue to mention: two requests for the same game at once → lock per game or optimistic versioning.",
+            "videos": [
+              {
+                "id": "L7hvkK188Ek",
+                "title": "Snakes and Ladders LLD in Java | UML, Extensible Design & Code Explained",
+                "channel": "Shubh Patel",
+                "start": 1535,
+                "label": "code walk-through"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "Asked as an LLD warm-up or in machine-coding rounds (write a working program in 60–90 minutes).",
+          "Good practice for: clean entities, a game loop, and testability via dependency injection.",
+          "Same shape as other turn-based games: Tic-Tac-Toe, Ludo, chess (more rules)."
+        ],
+        "mistakes": [
+          "Separate Snake and Ladder classes with duplicated logic — one `jumps` map is enough.",
+          "Hard-coding `random.randint` inside Game — impossible to test; inject a Dice.",
+          "Not validating the board: a jump starting on the last square, or snake/ladder loops.",
+          "Forgetting edge rules: exact landing on 100, extra turn on a 6, multiple dice."
+        ],
+        "interview_tips": [
+          "List the rules you're assuming (exact finish? extra turn on 6?) — they're your 'requirements'.",
+          "Show one unit test using FixedDice; it proves the design is testable.",
+          "For the 'concurrency' follow-up: many games run at once on a server → each Game owns its own state; no shared mutable globals."
+        ],
+        "quiz": [
+          {
+            "q": "Simplest way to model both snakes and ladders?",
+            "options": [
+              "Two class hierarchies",
+              "One map of jump start → end",
+              "A 2D grid of objects",
+              "Random"
+            ],
+            "answer": 1,
+            "why": "Both just move you from one square to another."
+          },
+          {
+            "q": "Why make Dice an interface?",
+            "options": [
+              "Faster",
+              "So tests can inject fixed rolls",
+              "Python needs it",
+              "To use two dice only"
+            ],
+            "answer": 1,
+            "why": "Dependency injection makes the game deterministic in tests."
+          },
+          {
+            "q": "Players taking turns in order fits which structure?",
+            "options": [
+              "Stack",
+              "Queue (rotate front to back)",
+              "Heap",
+              "Set"
+            ],
+            "answer": 1,
+            "why": "Pop the front player, push them to the back after their turn."
+          },
+          {
+            "q": "Server hosts 1,000 games at once. What must you avoid?",
+            "options": [
+              "Classes",
+              "Shared global game state",
+              "Queues",
+              "Enums"
+            ],
+            "answer": 1,
+            "why": "Each Game instance owns its own board positions and turn queue."
+          }
+        ],
+        "week": "9-10",
+        "dry_run": {
+          "title": "Board 1–20, ladder 3→12, snake 17→5, players A and B",
+          "input": "rolls (fixed dice): A 3, B 4, A 5, B 6, A 3",
+          "columns": [
+            "Turn",
+            "Player",
+            "Roll",
+            "Move",
+            "Jump?",
+            "Position"
+          ],
+          "steps": [
+            [
+              "1",
+              "A",
+              "3",
+              "0 → 3",
+              "ladder → 12",
+              "A = 12"
+            ],
+            [
+              "2",
+              "B",
+              "4",
+              "0 → 4",
+              "—",
+              "B = 4"
+            ],
+            [
+              "3",
+              "A",
+              "5",
+              "12 → 17",
+              "snake → 5",
+              "A = 5"
+            ],
+            [
+              "4",
+              "B",
+              "6",
+              "4 → 10",
+              "—",
+              "B = 10"
+            ],
+            [
+              "5",
+              "A",
+              "3",
+              "5 → 8",
+              "—",
+              "A = 8 (game goes on)"
+            ]
+          ],
+          "takeaway": "A fixed dice makes this trace repeatable — that's exactly how you'd unit-test the game."
+        },
+        "template": {
+          "python": "import random\nfrom abc import ABC, abstractmethod\nfrom collections import deque\n\nclass Dice(ABC):\n    @abstractmethod\n    def roll(self) -> int: ...\n\nclass RandomDice(Dice):\n    def __init__(self, faces=6, rng=random.Random()):\n        self.faces, self.rng = faces, rng\n    def roll(self): return self.rng.randint(1, self.faces)\n\nclass FixedDice(Dice):                     # for tests\n    def __init__(self, rolls): self.rolls = iter(rolls)\n    def roll(self): return next(self.rolls)\n\nclass Board:\n    def __init__(self, size: int, jumps: dict[int, int]):\n        assert all(1 < s < size and 0 < e <= size for s, e in jumps.items())\n        self.size, self.jumps = size, jumps    # snakes and ladders are both jumps\n\n    def next_position(self, pos: int, roll: int) -> int:\n        target = pos + roll\n        if target > self.size:\n            return pos                         # must land exactly on the last square\n        return self.jumps.get(target, target)\n\nclass Game:\n    def __init__(self, board: Board, players: list[str], dice: Dice):\n        self.board, self.dice = board, dice\n        self.turns = deque(players)\n        self.position = {p: 0 for p in players}\n        self.winner = None\n\n    def play_turn(self) -> str:\n        player = self.turns.popleft()\n        roll = self.dice.roll()\n        self.position[player] = self.board.next_position(self.position[player], roll)\n        if self.position[player] == self.board.size:\n            self.winner = player\n        else:\n            self.turns.append(player)\n        return f\"{player} rolled {roll} → {self.position[player]}\"\n\n    def play(self) -> str:\n        while not self.winner:\n            print(self.play_turn())\n        return self.winner\n\ngame = Game(Board(20, {3: 12, 17: 5}), [\"A\", \"B\"], FixedDice([3, 4, 5, 6, 3]))\nfor _ in range(5):\n    print(game.play_turn())",
+          "javascript": "class FixedDice { constructor(rolls) { this.rolls = rolls; this.i = 0; } roll() { return this.rolls[this.i++]; } }\nclass RandomDice { constructor(faces = 6) { this.faces = faces; } roll() { return 1 + Math.floor(Math.random() * this.faces); } }\n\nclass Board {\n  constructor(size, jumps) { this.size = size; this.jumps = new Map(Object.entries(jumps).map(([s, e]) => [+s, e])); }\n  nextPosition(pos, roll) {\n    const target = pos + roll;\n    if (target > this.size) return pos;       // exact landing rule\n    return this.jumps.get(target) ?? target;  // snake or ladder\n  }\n}\n\nclass Game {\n  constructor(board, players, dice) {\n    Object.assign(this, { board, dice, turns: [...players], winner: null });\n    this.position = Object.fromEntries(players.map((p) => [p, 0]));\n  }\n  playTurn() {\n    const player = this.turns.shift();\n    const roll = this.dice.roll();\n    this.position[player] = this.board.nextPosition(this.position[player], roll);\n    if (this.position[player] === this.board.size) this.winner = player;\n    else this.turns.push(player);\n    return `${player} rolled ${roll} → ${this.position[player]}`;\n  }\n}\n\nconst game = new Game(new Board(20, { 3: 12, 17: 5 }), ['A', 'B'], new FixedDice([3, 4, 5, 6, 3]));\nfor (let i = 0; i < 5; i++) console.log(game.playTurn());"
+        },
+        "complexity": "Each turn is O(1): one dict lookup for the jump. Memory O(players + jumps).",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Snake & Ladders",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Board with jumps map (start → end).",
+            "Dice strategy (normal, crooked)."
+          ],
+          "explanation": "A turn-based board game with players, dice, snakes and ladders."
+        },
+        {
+          "title": "Extend Snake & Ladders: extra turn on a 6, three 6s in a row cancels",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Track consecutive sixes per player.",
+            "Only push the player to the back when their turn ends."
+          ],
+          "explanation": "Keep a consecutive-sixes counter; on a 6 the same player rolls again, on the third 6 their moves this turn are undone.",
+          "answer_md": "- Store `turn_start_position` and `sixes` for the current player.\n- Roll 6 → move, `sixes += 1`, same player again (don't rotate the queue).\n- Third 6 → reset to `turn_start_position`, end the turn.\n- The rule lives in a `TurnPolicy` class, so classic rules and house rules are swappable (Strategy)."
+        }
+      ]
+    },
+    {
+      "slug": "lld-library-management",
+      "name": "LLD Build: Library Management",
+      "description": "Members borrow and return book copies, with due dates, fines and reservations — practise drawing UML before code.",
+      "revision_note_md": "## Library Management — the shape of a good answer\n\n1. Requirements: search catalogue, borrow/return, max books per member, due dates, fines, reservations/holds.\n2. Key split: **Book** (title, author, ISBN — the idea) vs **BookItem** (one physical copy with a barcode and status).\n3. Classes: `Library`, `Catalog` (search), `Member`, `Loan`, `Reservation`, `FinePolicy` (strategy), `NotificationService` (observer).\n4. Rules: can't borrow a copy reserved for someone else; returning a copy with a waiting hold notifies the next member.",
+      "lesson": {
+        "status": "full",
+        "simple": "Members search for books, borrow a copy, return it, and pay a fine if it's late. If all copies are out, they can **reserve** one and get notified when it comes back.\n\nThe one modelling insight interviewers look for: **a Book is not a copy**. *\"Clean Code\"* is a `Book` (title, author, ISBN). The library owns three `BookItem`s of it, each with its own barcode and status (AVAILABLE, LOANED, RESERVED, LOST).\n\nDraw the **UML first**: Library → Catalog → Book → BookItem; Member → Loan → BookItem; Reservation queue per Book; FinePolicy as a strategy.",
+        "analogy": "A movie is not a DVD. The video shop has one entry for the film in its catalogue, and several numbered discs on the shelf — you rent a disc, not the film.",
+        "concepts": [
+          {
+            "title": "Turning requirements into use cases",
+            "body": "Actors: **member**, **librarian**, **system** (scheduled jobs).\n\n| Use case | Actor | Rules |\n|---|---|---|\n| Search catalogue | member | by title, author, ISBN, subject |\n| Borrow a copy | member / librarian | copy available (or reserved for this member); under the loan limit; no unpaid fines over a threshold |\n| Return a copy | librarian | compute fine; hand to the next reservation if any |\n| Reserve a title | member | only when no copy is available; FIFO queue |\n| Renew a loan | member | not if someone has reserved the title |\n| Send reminders | system | due tomorrow, overdue, reservation ready |\n| Add/remove copies, mark lost | librarian | |\n\nListing use cases with their **rules** gives you the methods and the checks before you write a single class.",
+            "videos": [
+              {
+                "id": "fVqv4B8sG1s",
+                "title": "Library Management System LLD - Low Level Design",
+                "channel": "Reactify Labs",
+                "start": 27,
+                "end": 313,
+                "label": "system requirements"
+              }
+            ]
+          },
+          {
+            "title": "Book vs BookItem and the other key entities",
+            "body": "- **Book** — the title as an idea: ISBN, title, authors, subject. Many copies share one Book.\n- **BookItem** — a physical copy: barcode, rack location, status (AVAILABLE, LOANED, RESERVED, LOST, DAMAGED).\n- **Member** — id, type (student, staff — drives limits), active loans, fines owed.\n- **Loan** — BookItem + Member + issue date + due date + return date.\n- **Reservation** — Book (not a copy!) + Member + created time + status. A member waits for *any* copy.\n- **Catalog** — search indexes (title, author, subject).\n- **FinePolicy**, **LoanPolicy** — strategies by member type (staff may borrow 10 books for 30 days).\n- **NotificationService** — email/SMS observers.\n\nReservations attach to **Book** and loans attach to **BookItem** — getting that difference right is the main thing the interviewer checks.",
+            "videos": [
+              {
+                "id": "fVqv4B8sG1s",
+                "title": "Library Management System LLD - Low Level Design",
+                "channel": "Reactify Labs",
+                "start": 313,
+                "end": 855,
+                "label": "core classes: books, library, members"
+              }
+            ]
+          },
+          {
+            "title": "The return flow, where most rules meet",
+            "body": "When a copy comes back:\n1. Find the active loan by barcode; set the return date.\n2. **Fine** = `FinePolicy.fine(due, returned, member_type)`; add it to the member's balance.\n3. Is anyone waiting for this **Book**? If yes, mark the copy **RESERVED for the first member in the queue**, start a pickup deadline (e.g. 3 days), and notify them. If they don't collect it in time, move to the next member.\n4. Otherwise mark it AVAILABLE.\n\nConcurrency: two members at two counters borrowing the last copy → the status change must be atomic (`UPDATE book_items SET status = 'LOANED' WHERE barcode = :b AND status = 'AVAILABLE'`).",
+            "videos": [
+              {
+                "id": "fVqv4B8sG1s",
+                "title": "Library Management System LLD - Low Level Design",
+                "channel": "Reactify Labs",
+                "start": 855,
+                "end": 1123,
+                "label": "reservations, borrowing, fines"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design a library management system\" — classic UML-first LLD question.",
+          "Template for any 'catalogue item vs physical unit' design: inventory, equipment rental, hotel room type vs room.",
+          "Good place to show Strategy (fines) and Observer (notifications)."
+        ],
+        "mistakes": [
+          "One `Book` class with a `copies` integer — you can't track which physical copy is late or lost.",
+          "Putting fine maths inside `Library.return` — use a FinePolicy strategy so rules can change.",
+          "Returning a copy to AVAILABLE when someone has a hold on it.",
+          "Skipping the UML and diving into code — this question is mostly about the model."
+        ],
+        "interview_tips": [
+          "Start with the class diagram and the 4–5 use cases (search, borrow, return, reserve, pay fine).",
+          "Say the Book vs BookItem split early — it signals experience.",
+          "Mention concurrency: two members borrowing the last copy at the same time → atomic status update (row lock or `UPDATE ... WHERE status = 'available'`)."
+        ],
+        "quiz": [
+          {
+            "q": "Why separate Book from BookItem?",
+            "options": [
+              "Less code",
+              "A title has many physical copies, each with its own status",
+              "Required by SQL",
+              "Faster search"
+            ],
+            "answer": 1,
+            "why": "Loans, damage and loss happen to a specific copy."
+          },
+          {
+            "q": "A copy is returned and someone has a hold. Its status becomes…",
+            "options": [
+              "AVAILABLE",
+              "RESERVED for the next member",
+              "LOANED",
+              "LOST"
+            ],
+            "answer": 1,
+            "why": "Otherwise anyone at the desk could take it."
+          },
+          {
+            "q": "Fine rules may change (students vs staff). Use…",
+            "options": [
+              "if/else in Library",
+              "A FinePolicy strategy",
+              "A global constant",
+              "A Singleton"
+            ],
+            "answer": 1,
+            "why": "New rule = new class, no edits to Library (Open/Closed)."
+          },
+          {
+            "q": "Notifying members when a reserved book is ready fits…",
+            "options": [
+              "Observer",
+              "Factory",
+              "Builder",
+              "Adapter"
+            ],
+            "answer": 0,
+            "why": "Members (or a notification service) subscribe to availability events."
+          }
+        ],
+        "week": "13-14",
+        "dry_run": {
+          "title": "Ravi borrows a copy late, Asha is waiting",
+          "input": "Book 'Clean Code' has one copy BC-1; loan period 14 days; fine ₹10/day",
+          "columns": [
+            "Step",
+            "Action",
+            "State"
+          ],
+          "steps": [
+            [
+              "1",
+              "Ravi borrows BC-1 on day 0",
+              "BC-1 LOANED, due day 14"
+            ],
+            [
+              "2",
+              "Asha reserves 'Clean Code'",
+              "holds queue = [Asha]"
+            ],
+            [
+              "3",
+              "Ravi returns on day 17",
+              "3 days late → fine ₹30"
+            ],
+            [
+              "4",
+              "Return sees a waiting hold",
+              "BC-1 RESERVED for Asha; notify Asha"
+            ],
+            [
+              "5",
+              "Ravi tries to borrow BC-1 again",
+              "rejected — reserved for Asha ✅"
+            ]
+          ],
+          "takeaway": "Return is where most rules meet: fine calculation, status change and the next reservation."
+        },
+        "template": {
+          "python": "from collections import deque\nfrom dataclasses import dataclass, field\nfrom datetime import date, timedelta\nfrom enum import Enum\n\nclass Status(Enum):\n    AVAILABLE = 'available'\n    LOANED = 'loaned'\n    RESERVED = 'reserved'\n\n@dataclass\nclass Book:\n    isbn: str\n    title: str\n    holds: deque = field(default_factory=deque)     # members waiting\n\n@dataclass\nclass BookItem:\n    barcode: str\n    book: Book\n    status: Status = Status.AVAILABLE\n    reserved_for: str | None = None\n\n@dataclass\nclass Loan:\n    item: BookItem\n    member: str\n    due: date\n\nclass PerDayFine:\n    def __init__(self, per_day=10): self.per_day = per_day\n    def fine(self, due: date, returned: date) -> int:\n        return max(0, (returned - due).days) * self.per_day\n\nclass Library:\n    LOAN_DAYS, MAX_LOANS = 14, 3\n\n    def __init__(self, fine_policy=PerDayFine(), notify=print):\n        self.items: dict[str, BookItem] = {}\n        self.loans: dict[str, Loan] = {}             # barcode -> loan\n        self.fine_policy, self.notify = fine_policy, notify\n\n    def add_copy(self, item: BookItem): self.items[item.barcode] = item\n\n    def borrow(self, member: str, barcode: str, today: date) -> Loan:\n        item = self.items[barcode]\n        if item.status == Status.LOANED:\n            raise ValueError('copy is out')\n        if item.status == Status.RESERVED and item.reserved_for != member:\n            raise ValueError('reserved for someone else')\n        if sum(l.member == member for l in self.loans.values()) >= self.MAX_LOANS:\n            raise ValueError('loan limit reached')\n        item.status, item.reserved_for = Status.LOANED, None\n        loan = Loan(item, member, today + timedelta(days=self.LOAN_DAYS))\n        self.loans[barcode] = loan\n        return loan\n\n    def reserve(self, member: str, book: Book): book.holds.append(member)\n\n    def give_back(self, barcode: str, today: date) -> int:\n        loan = self.loans.pop(barcode)\n        fee = self.fine_policy.fine(loan.due, today)\n        item = loan.item\n        if item.book.holds:                           # next in line gets it\n            item.status, item.reserved_for = Status.RESERVED, item.book.holds.popleft()\n            self.notify(f'{item.reserved_for}: {item.book.title} is ready')\n        else:\n            item.status = Status.AVAILABLE\n        return fee\n\nlib = Library()\nbook = Book('9780132350884', 'Clean Code')\nlib.add_copy(BookItem('BC-1', book))\nd0 = date(2026, 1, 1)\nlib.borrow('ravi', 'BC-1', d0)\nlib.reserve('asha', book)\nprint(lib.give_back('BC-1', d0 + timedelta(days=17)))   # 30, and Asha is notified",
+          "javascript": "const Status = Object.freeze({ AVAILABLE: 'available', LOANED: 'loaned', RESERVED: 'reserved' });\nconst DAY = 86_400_000;\n\nclass PerDayFine {\n  constructor(perDay = 10) { this.perDay = perDay; }\n  fine(due, returned) { return Math.max(0, Math.floor((returned - due) / DAY)) * this.perDay; }\n}\n\nclass Library {\n  static LOAN_DAYS = 14;\n  constructor(finePolicy = new PerDayFine(), notify = console.log) {\n    Object.assign(this, { finePolicy, notify, items: new Map(), loans: new Map() });\n  }\n  addCopy(item) { this.items.set(item.barcode, { status: Status.AVAILABLE, reservedFor: null, ...item }); }\n  borrow(member, barcode, today) {\n    const item = this.items.get(barcode);\n    if (item.status === Status.LOANED) throw new Error('copy is out');\n    if (item.status === Status.RESERVED && item.reservedFor !== member) throw new Error('reserved for someone else');\n    Object.assign(item, { status: Status.LOANED, reservedFor: null });\n    const loan = { item, member, due: new Date(+today + Library.LOAN_DAYS * DAY) };\n    this.loans.set(barcode, loan);\n    return loan;\n  }\n  reserve(member, book) { book.holds.push(member); }\n  giveBack(barcode, today) {\n    const { item, due } = this.loans.get(barcode);\n    this.loans.delete(barcode);\n    const fee = this.finePolicy.fine(due, today);\n    if (item.book.holds.length) {\n      Object.assign(item, { status: Status.RESERVED, reservedFor: item.book.holds.shift() });\n      this.notify(`${item.reservedFor}: ${item.book.title} is ready`);\n    } else item.status = Status.AVAILABLE;\n    return fee;\n  }\n}"
+        },
+        "complexity": "Borrow/return are O(1) with maps keyed by barcode (the loan-limit check is O(loans) here — keep a per-member count to make it O(1)). Catalogue search needs an index by title/author.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Library Management",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Book vs BookCopy (many copies per title).",
+            "Loan with due date; fine strategy."
+          ],
+          "explanation": "Members borrow and return books with limits and fines."
+        },
+        {
+          "title": "Draw the UML class diagram for a library system",
+          "tier": 2,
+          "url": "",
+          "hints": [
+            "Start from nouns in the requirements.",
+            "Show 1-to-many: Book → BookItem, Member → Loan."
+          ],
+          "explanation": "Library, Catalog, Book, BookItem, Member, Loan, Reservation, FinePolicy, NotificationService with their relationships.",
+          "answer_md": "```text\nLibrary 1──* BookItem *──1 Book\nLibrary 1──1 Catalog (search by title / author / ISBN)\nMember 1──* Loan *──1 BookItem\nBook 1──* Reservation *──1 Member   (FIFO queue)\nLibrary ──> FinePolicy (interface) <|── PerDayFine, CappedFine\nLibrary ──> NotificationService (observer) <|── Email, SMS\n```\n\nEnums: `BookStatus {AVAILABLE, LOANED, RESERVED, LOST}`, `MemberType {STUDENT, STAFF}` (drives loan limits)."
+        }
+      ]
+    },
+    {
+      "slug": "lld-movie-booking",
+      "name": "LLD Build: Movie Booking (BookMyShow)",
+      "description": "Book seats for a show without double booking: shows, seats, temporary seat holds with expiry and payments.",
+      "revision_note_md": "## Movie Booking (BookMyShow) — the shape of a good answer\n\n1. Requirements: browse movies by city → theatre → show; pick seats; pay; cancel.\n2. Classes: `Movie`, `Theatre` → `Screen` → `Seat`; `Show` (movie + screen + time); `ShowSeat` (seat status **per show**); `Booking`; `PaymentService`; `PricingStrategy`.\n3. **Hold → pay → confirm**: selected seats are LOCKED for a few minutes; unpaid holds expire back to AVAILABLE.\n4. Concurrency: locking a set of seats must be all-or-nothing and atomic (lock / DB row locks / `UPDATE ... WHERE status='AVAILABLE'`).",
+      "lesson": {
+        "status": "full",
+        "simple": "Users pick a movie, a show time and seats, then pay. The hard part is the one everybody asks about: **two people clicking the same seat at the same moment**.\n\nThe standard answer is a **two-step booking**:\n1. **Hold** — when you select seats, they're **locked for you for ~5 minutes** (status LOCKED, with an expiry time).\n2. **Confirm** — when payment succeeds, they become BOOKED. If you don't pay in time, the hold **expires** and the seats go back to AVAILABLE.\n\nModelling insight: a `Seat` belongs to a screen forever, but its *status* belongs to a specific **show**. So you need `ShowSeat` (show + seat + status).",
+        "analogy": "Putting clothes on hold at a shop counter. The shopkeeper keeps them aside for you for 15 minutes. Pay in time and they're yours; walk away and they go back on the rack.",
+        "concepts": [
+          {
+            "title": "The domain hierarchy",
+            "body": "```text\nCity ─┬─ Theatre ─┬─ Screen ─── Seat (row, number, type: regular / premium / recliner)\n      │           └─ Show (movie, screen, start time, language, format)\n      └─ Movie (title, duration, languages, rating)\n\nShow ─── ShowSeat (seat, price, status: AVAILABLE / LOCKED / BOOKED, holder, hold_until)\nBooking (user, show, seats, amount, status: PENDING / CONFIRMED / CANCELLED, payment)\n```\n\n**Seat** is permanent furniture; **ShowSeat** is that seat *for one show*. Prices can differ per show and seat type (weekend evening premium), which is a `PricingStrategy` input. Browsing flows: city → movies showing → theatres and times → seat map for a show.",
+            "videos": [
+              {
+                "id": "t2FiaSThCw8",
+                "title": "BookMyShow Low level design with code & Concurrency | Movie Ticket Booking System Design #lld #easy",
+                "channel": "Mrunmai Dahare",
+                "start": 102,
+                "end": 710,
+                "label": "components, requirements and UML"
+              }
+            ]
+          },
+          {
+            "title": "Hold, pay, confirm: the booking lifecycle",
+            "body": "1. **Select seats → hold.** Atomically move all selected ShowSeats from AVAILABLE (or expired LOCKED) to LOCKED for this user with `hold_until = now + 5 min`. All-or-nothing.\n2. **Create a PENDING Booking** with the amount.\n3. **Pay** through the payment gateway with an **idempotency key** (the booking id), outside any lock.\n4. **Confirm.** Re-check that the seats are still LOCKED by this user and the hold hasn't expired; mark them BOOKED and the booking CONFIRMED.\n5. **Failure paths:**\n   - payment fails → release seats (or let them expire), booking CANCELLED;\n   - payment succeeds but the hold expired and someone else booked → **automatic refund**;\n   - user closes the app → hold expires on its own.\n\nA background sweeper can reset expired locks, but treating an expired LOCKED seat as available at read time means correctness doesn't depend on the sweeper running.",
+            "videos": [
+              {
+                "id": "dC-lz_GGTL4",
+                "title": "I Solved BookMyShow Seat Clash! Full LLD + Lock Expiry + Why Redis is Must",
+                "channel": "Shubh Patel",
+                "start": 1556,
+                "end": 2507,
+                "label": "booking flow, concurrency and lock expiry"
+              }
+            ]
+          },
+          {
+            "title": "Concurrency options compared",
+            "body": "| Approach | How | Pros | Cons |\n|---|---|---|---|\n| **In-process lock** per show | `with show.lock:` | simple | only works on one server |\n| **Pessimistic DB lock** | `SELECT … FOR UPDATE` on the seat rows, then update | correct, familiar | holds row locks; deadlock risk if seats are locked in different orders (sort seat ids!) |\n| **Optimistic conditional update** | `UPDATE … WHERE status = 'AVAILABLE'`; check affected rows | no waiting, scales well | caller must handle \"0 rows\" and roll back |\n| **Redis per-seat keys** | `SET seat:{show}:{id} user NX EX 300` | very fast, natural TTL | must keep Redis and DB in sync; multi-seat holds need a Lua script or rollback |\n\nA strong answer: optimistic conditional update inside one transaction for the hold, idempotent payment, and a final conditional update for confirmation.",
+            "videos": [
+              {
+                "id": "t2FiaSThCw8",
+                "title": "BookMyShow Low level design with code & Concurrency | Movie Ticket Booking System Design #lld #easy",
+                "channel": "Mrunmai Dahare",
+                "start": 1687,
+                "label": "pessimistic, optimistic and distributed locks"
+              },
+              {
+                "id": "dC-lz_GGTL4",
+                "title": "I Solved BookMyShow Seat Clash! Full LLD + Lock Expiry + Why Redis is Must",
+                "channel": "Shubh Patel",
+                "start": 2507,
+                "label": "why Redis"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design BookMyShow / movie ticket booking\" — very common in Indian product-company interviews.",
+          "Any 'limited inventory + payment' flow: flight seats, concert tickets, flash sales, doctor appointments.",
+          "The HLD version of the same problem is 'Ticketing / Hotel Reservation'."
+        ],
+        "mistakes": [
+          "Storing seat status on `Seat` — a seat is booked for one *show*, not forever. Use ShowSeat.",
+          "Booking seats one by one and leaving a partial hold when the 3rd seat fails.",
+          "Holding a lock (or DB transaction) open while waiting for the payment gateway.",
+          "No hold expiry — abandoned carts lock seats forever.",
+          "Not handling 'payment succeeded but hold expired' → refund or re-check."
+        ],
+        "interview_tips": [
+          "Draw the hierarchy: City → Theatre → Screen → Seat, and Movie + Screen + time → Show → ShowSeat.",
+          "Say the race condition before they ask, then give the hold-with-expiry solution.",
+          "Mention idempotency keys on payment so retries never double-charge.",
+          "Pricing per seat type / time slot → PricingStrategy."
+        ],
+        "quiz": [
+          {
+            "q": "Where does 'booked' status live?",
+            "options": [
+              "Seat",
+              "ShowSeat (per show)",
+              "Movie",
+              "Theatre"
+            ],
+            "answer": 1,
+            "why": "The same physical seat is free for the 10 PM show even if it's booked at 7 PM."
+          },
+          {
+            "q": "A user selects seats but never pays. What frees them?",
+            "options": [
+              "Nothing",
+              "The hold's expiry time",
+              "The next user",
+              "A daily cron only"
+            ],
+            "answer": 1,
+            "why": "Expired holds count as available (and a sweeper can clean them up)."
+          },
+          {
+            "q": "Requesting [F7, F8] where F7 is taken should…",
+            "options": [
+              "Hold F8 only",
+              "Fail the whole request",
+              "Book F7 anyway",
+              "Retry forever"
+            ],
+            "answer": 1,
+            "why": "Holds are all-or-nothing so users don't get split seats."
+          },
+          {
+            "q": "Why not call the payment gateway inside the seat lock?",
+            "options": [
+              "It's illegal",
+              "It's slow and blocks every other user of that show",
+              "Payments need no lock",
+              "Locks expire"
+            ],
+            "answer": 1,
+            "why": "Keep critical sections short; re-validate the hold after payment."
+          }
+        ],
+        "week": "13-14",
+        "dry_run": {
+          "title": "Asha and Ravi both want seat F7 for the 7 PM show",
+          "input": "F7 is AVAILABLE; hold time 5 minutes",
+          "columns": [
+            "Time",
+            "Who",
+            "Action",
+            "F7 status"
+          ],
+          "steps": [
+            [
+              "7:00:00",
+              "Asha",
+              "hold [F6, F7] — lock acquired",
+              "LOCKED (Asha, until 7:05)"
+            ],
+            [
+              "7:00:01",
+              "Ravi",
+              "hold [F7, F8]",
+              "rejected: F7 not available — F8 untouched"
+            ],
+            [
+              "7:02",
+              "Asha",
+              "pays successfully",
+              "BOOKED (Asha)"
+            ],
+            [
+              "alt 7:05",
+              "Asha",
+              "never pays → hold expires",
+              "AVAILABLE again"
+            ],
+            [
+              "alt 7:06",
+              "Ravi",
+              "hold [F7, F8]",
+              "LOCKED (Ravi) ✅"
+            ]
+          ],
+          "takeaway": "Holds are all-or-nothing: Ravi never ends up with F8 alone after failing on F7."
+        },
+        "template": {
+          "python": "import threading, time, uuid\nfrom enum import Enum\n\nclass SeatStatus(Enum):\n    AVAILABLE = 1\n    LOCKED = 2\n    BOOKED = 3\n\nclass ShowSeat:\n    def __init__(self, seat_id: str, price: int):\n        self.seat_id, self.price = seat_id, price\n        self.status, self.holder, self.hold_until = SeatStatus.AVAILABLE, None, 0.0\n\n    def is_free(self, now: float) -> bool:\n        return self.status == SeatStatus.AVAILABLE or (\n            self.status == SeatStatus.LOCKED and now >= self.hold_until)   # expired hold\n\nclass Show:\n    HOLD_SECONDS = 300\n\n    def __init__(self, show_id: str, seats: dict[str, int], clock=time.time):\n        self.id, self.clock = show_id, clock\n        self.seats = {s: ShowSeat(s, p) for s, p in seats.items()}\n        self.lock = threading.Lock()\n\n    def hold(self, user: str, seat_ids: list[str]) -> str:\n        with self.lock:                                   # all-or-nothing, atomic\n            now = self.clock()\n            chosen = [self.seats[s] for s in seat_ids]\n            if not all(s.is_free(now) for s in chosen):\n                raise ValueError('some seats are no longer available')\n            for s in chosen:\n                s.status, s.holder, s.hold_until = SeatStatus.LOCKED, user, now + self.HOLD_SECONDS\n        return uuid.uuid4().hex[:8]                        # booking id\n\n    def confirm(self, user: str, seat_ids: list[str], pay) -> int:\n        total = sum(self.seats[s].price for s in seat_ids)\n        with self.lock:\n            now = self.clock()\n            for s in seat_ids:\n                seat = self.seats[s]\n                if seat.status != SeatStatus.LOCKED or seat.holder != user or now >= seat.hold_until:\n                    raise ValueError('hold expired')\n        if not pay(user, total):                           # call the gateway outside the lock\n            raise ValueError('payment failed')\n        with self.lock:\n            for s in seat_ids:\n                self.seats[s].status = SeatStatus.BOOKED\n        return total\n\nshow = Show('S1', {'F6': 250, 'F7': 250, 'F8': 250})\nshow.hold('asha', ['F6', 'F7'])\ntry:\n    show.hold('ravi', ['F7', 'F8'])\nexcept ValueError as e:\n    print('ravi:', e)\nprint('asha paid', show.confirm('asha', ['F6', 'F7'], pay=lambda u, amt: True))",
+          "javascript": "// In production the hold is one atomic SQL statement, so it's safe across servers.\n// If the updated row count != number of seats requested → ROLLBACK (all-or-nothing).\nconst HOLD_SQL = `\n  UPDATE show_seats\n     SET status = 'LOCKED', holder = $2, hold_until = now() + interval '5 minutes'\n   WHERE show_id = $1 AND seat_id = ANY($3)\n     AND (status = 'AVAILABLE' OR (status = 'LOCKED' AND hold_until < now()))`;\n\nasync function holdSeats(db, showId, userId, seatIds) {\n  return db.transaction(async (tx) => {\n    const { rowCount } = await tx.query(HOLD_SQL, [showId, userId, seatIds]);\n    if (rowCount !== seatIds.length) throw new Error('some seats are no longer available'); // rolls back\n    return { bookingId: crypto.randomUUID(), expiresInSec: 300 };\n  });\n}\n\nasync function confirmBooking(db, payments, showId, userId, seatIds, amount, idempotencyKey) {\n  await payments.charge({ userId, amount, idempotencyKey }); // safe to retry\n  const { rowCount } = await db.query(\n    `UPDATE show_seats SET status = 'BOOKED'\n      WHERE show_id = $1 AND seat_id = ANY($2) AND holder = $3 AND status = 'LOCKED' AND hold_until > now()`,\n    [showId, seatIds, userId],\n  );\n  if (rowCount !== seatIds.length) await payments.refund({ idempotencyKey }); // hold expired mid-payment\n}"
+        },
+        "complexity": "Hold/confirm are O(k) for k seats. The critical section is tiny — never call the payment gateway while holding the lock.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Movie Booking (BookMyShow)",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Theatre → Screen → Show → Seats.",
+            "Seat lock with expiry while the user pays."
+          ],
+          "explanation": "Book seats for a show without double booking."
+        },
+        {
+          "title": "How do you stop two users booking the same seat across many servers?",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "In-memory locks only work on one machine.",
+            "Conditional UPDATE or SELECT ... FOR UPDATE in one transaction."
+          ],
+          "explanation": "Make the hold one atomic database statement that only succeeds if every seat is still free (or its hold expired), inside a transaction.",
+          "answer_md": "1. `BEGIN`\n2. `UPDATE show_seats SET status='LOCKED', holder=:u, hold_until=now()+5m WHERE show_id=:s AND seat_id IN (:seats) AND (status='AVAILABLE' OR hold_until < now())`\n3. If affected rows ≠ seats requested → `ROLLBACK` (someone else got one).\n4. `COMMIT`.\n\nAlternatives: `SELECT ... FOR UPDATE` (pessimistic), a `version` column (optimistic), or a Redis `SET seat:{show}:{id} user NX EX 300` per seat. Payment uses an idempotency key; the final `BOOKED` update re-checks the holder and expiry."
+        }
+      ]
+    },
+    {
+      "slug": "lld-car-rental",
+      "name": "LLD Build: Car Rental",
+      "description": "Search cars by branch and dates, reserve without overlaps, pick up, return and pay — date-range availability is the core.",
+      "revision_note_md": "## Car Rental — the shape of a good answer\n\n1. Requirements: branches, vehicle types, search by location + date range, reserve, pick-up, return, late fees, add-ons.\n2. Classes: `RentalSystem`, `Branch`, `Vehicle` (type, plate, status), `Reservation` (vehicle, from, to, state), `Customer`, `PricingStrategy`, `Payment`.\n3. Availability = no existing reservation **overlaps** the requested range: `a.start < b.end and b.start < a.end`.\n4. Reservation states: RESERVED → PICKED_UP → RETURNED (or CANCELLED / NO_SHOW).",
+      "lesson": {
+        "status": "full",
+        "simple": "Customers search for a car at a branch for certain dates, reserve it, pick it up, and return it later.\n\nUnlike a parking spot, a car is booked for a **date range**, and the same car can have many future reservations. So \"is this car free?\" becomes: **does any existing reservation overlap the dates I want?**\n\nThe overlap rule is worth memorising: two ranges `[a_start, a_end)` and `[b_start, b_end)` overlap when **`a_start < b_end and b_start < a_end`**.\n\nA `Reservation` moves through **states**: RESERVED → PICKED_UP → RETURNED (or CANCELLED). Pricing (daily rate × days, weekend surcharge, late fee) goes in a **PricingStrategy**.",
+        "analogy": "A hotel room calendar: the same room can be booked by different guests for different weeks. Before saying yes, the receptionist checks the new dates don't cross any existing booking.",
+        "concepts": [
+          {
+            "title": "Availability as interval overlap",
+            "body": "A car is free for `[start, end)` if **no active reservation overlaps** that range. Two half-open ranges overlap exactly when:\n\n```text\na_start < b_end  AND  b_start < a_end\n```\n\nCheck the cases: touching ranges (`[5, 8)` and `[8, 10)`) don't overlap; containment, partial overlap from either side, and identical ranges all do.\n\n**Performance:** checking every reservation is fine for a whiteboard. At scale:\n- a DB index on `(vehicle_id, start_date)` plus the overlap condition,\n- an **interval tree** per vehicle in memory,\n- or Postgres's `daterange` with an **exclusion constraint** so the database itself refuses overlapping bookings — the strongest guarantee.",
+            "videos": [
+              {
+                "id": "H68JE5U7Qvw",
+                "title": "Car Rental System | Low Level Design | UML + Concurrency + Java Code Walkthrough",
+                "channel": "Shubh Patel",
+                "start": 490,
+                "end": 1100,
+                "label": "requirements and entities"
+              }
+            ]
+          },
+          {
+            "title": "Search: from 'which cars?' to 'which car types?'",
+            "body": "Customers usually choose a **type** (hatchback, sedan, SUV), not a specific plate. So search answers: *\"for branch B and dates D, which types have at least one free car, and at what price?\"*\n\nTwo designs:\n1. **Assign a specific car at booking time** — simple; check overlap per car.\n2. **Book a type, assign a car at pickup** — more flexible (maintenance, late returns). Keep a count per (branch, type, date) like hotel inventory: booking increments `reserved` for each day if `reserved < total`. This is exactly the HLD hotel-reservation model.\n\nMention one-way rentals: availability then depends on cars arriving at a branch from returns, which pushes you towards option 2.",
+            "videos": [
+              {
+                "id": "AXa6jCfziRY",
+                "title": "Low Level Designing (LLD -2) - Car Rental System | ZoomCar.com | Revv | Drivezy",
+                "channel": "InterviewWithBunny",
+                "start": 34,
+                "end": 737,
+                "label": "requirements, entities and implementation"
+              }
+            ]
+          },
+          {
+            "title": "Reservation lifecycle and pricing",
+            "body": "```text\nRESERVED ──pickup──▶ PICKED_UP ──return──▶ RETURNED ──pay──▶ CLOSED\n   │                     │\n cancel               no-show (pickup window passed)\n   ▼                     ▼\nCANCELLED             NO_SHOW (fee)\n```\n\nEnforce transitions in one place (a `transition(to)` method that checks allowed moves), so an impossible history (RESERVED → RETURNED) can't happen.\n\n**Pricing** composes nicely with Decorators: `BaseDailyRate → WeekendSurcharge → InsuranceAddOn → LateFee`. Each wraps the previous and adds its part, so new add-ons don't touch existing code. Store the **price quote** on the reservation at booking time; rate changes later shouldn't change what the customer agreed to.",
+            "videos": [
+              {
+                "id": "AXa6jCfziRY",
+                "title": "Low Level Designing (LLD -2) - Car Rental System | ZoomCar.com | Revv | Drivezy",
+                "channel": "InterviewWithBunny",
+                "start": 737,
+                "label": "the reservation system"
+              },
+              {
+                "id": "H68JE5U7Qvw",
+                "title": "Car Rental System | Low Level Design | UML + Concurrency + Java Code Walkthrough",
+                "channel": "Shubh Patel",
+                "start": 2155,
+                "label": "concurrency"
+              }
+            ]
+          }
+        ],
+        "when_to_use": [
+          "\"Design a car rental / Zoomcar / bike rental\" system.",
+          "Any booking of a resource over a time range: meeting rooms, hotel rooms, equipment.",
+          "Practising the UML-first flow with entities, states and a strategy."
+        ],
+        "mistakes": [
+          "Using a single `is_available` flag on the car — it can't represent future bookings.",
+          "Off-by-one on dates: decide closed vs half-open ranges and stick to it.",
+          "Checking availability and inserting the reservation in two separate, unlocked steps.",
+          "Letting a reservation jump from RESERVED to RETURNED — enforce state transitions."
+        ],
+        "interview_tips": [
+          "Clarify: one-way rentals (pick up in Bangalore, drop in Mysore)? Add-ons (GPS, insurance)? Late fees?",
+          "Write the overlap condition on the board and test it with a quick example.",
+          "Mention the DB-level guarantee: a Postgres exclusion constraint on date ranges.",
+          "Use State (reservation lifecycle) and Strategy (pricing) — name them."
+        ],
+        "quiz": [
+          {
+            "q": "Ranges [Jan 5, Jan 8) and [Jan 8, Jan 10) — do they overlap?",
+            "options": [
+              "Yes",
+              "No",
+              "Only on Jan 8",
+              "Depends on time zone"
+            ],
+            "answer": 1,
+            "why": "Half-open: the first ends exactly when the second starts."
+          },
+          {
+            "q": "Correct overlap test for [a1, a2) and [b1, b2)?",
+            "options": [
+              "a1 < b1",
+              "a1 < b2 and b1 < a2",
+              "a2 == b2",
+              "a1 == b1 or a2 == b2"
+            ],
+            "answer": 1,
+            "why": "Each range must start before the other ends."
+          },
+          {
+            "q": "Why not a boolean `available` on Vehicle?",
+            "options": [
+              "Too small",
+              "A car has many future reservations over different dates",
+              "Booleans are slow",
+              "It's fine"
+            ],
+            "answer": 1,
+            "why": "Availability depends on the date range you ask about."
+          },
+          {
+            "q": "Moving a reservation from RESERVED straight to RETURNED should be…",
+            "options": [
+              "Allowed",
+              "Rejected — it must be PICKED_UP first",
+              "Logged only",
+              "Random"
+            ],
+            "answer": 1,
+            "why": "Explicit state transitions prevent impossible histories."
+          }
+        ],
+        "week": "13-14",
+        "dry_run": {
+          "title": "Is car KA-01 free from Jan 10 to Jan 12?",
+          "input": "existing reservations for KA-01: [Jan 5, Jan 8), [Jan 11, Jan 14)",
+          "columns": [
+            "Existing",
+            "start < Jan 12?",
+            "Jan 10 < end?",
+            "Overlap?"
+          ],
+          "steps": [
+            [
+              "[Jan 5, Jan 8)",
+              "yes",
+              "no (Jan 8 ≤ Jan 10)",
+              "no"
+            ],
+            [
+              "[Jan 11, Jan 14)",
+              "yes",
+              "yes",
+              "YES → car not free"
+            ],
+            [
+              "result",
+              "—",
+              "—",
+              "suggest KA-02 or Jan 8–Jan 11 ✅"
+            ]
+          ],
+          "takeaway": "Half-open ranges [start, end) mean a car returned on Jan 8 can go out again on Jan 8."
+        },
+        "template": {
+          "python": "import threading, uuid\nfrom dataclasses import dataclass, field\nfrom datetime import date\nfrom enum import Enum\n\nclass ResState(Enum):\n    RESERVED = 1\n    PICKED_UP = 2\n    RETURNED = 3\n    CANCELLED = 4\n\n@dataclass\nclass Vehicle:\n    plate: str\n    kind: str            # 'hatchback', 'sedan', 'suv'\n    branch: str\n\n@dataclass\nclass Reservation:\n    vehicle: Vehicle\n    customer: str\n    start: date\n    end: date            # exclusive\n    state: ResState = ResState.RESERVED\n    id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])\n\ndef overlaps(a_start, a_end, b_start, b_end) -> bool:\n    return a_start < b_end and b_start < a_end\n\nclass DailyPricing:\n    RATES = {'hatchback': 1500, 'sedan': 2200, 'suv': 3200}\n    def price(self, r: Reservation) -> int:\n        return (r.end - r.start).days * self.RATES[r.vehicle.kind]\n\nclass RentalSystem:\n    def __init__(self, vehicles: list[Vehicle], pricing=DailyPricing()):\n        self.vehicles, self.pricing = vehicles, pricing\n        self.reservations: list[Reservation] = []\n        self.lock = threading.Lock()\n\n    def _is_free(self, v: Vehicle, start: date, end: date) -> bool:\n        return not any(r.vehicle is v and r.state in (ResState.RESERVED, ResState.PICKED_UP)\n                       and overlaps(r.start, r.end, start, end) for r in self.reservations)\n\n    def search(self, branch: str, kind: str, start: date, end: date) -> list[Vehicle]:\n        return [v for v in self.vehicles\n                if v.branch == branch and v.kind == kind and self._is_free(v, start, end)]\n\n    def reserve(self, customer: str, plate: str, start: date, end: date) -> Reservation:\n        if start >= end:\n            raise ValueError('end must be after start')\n        with self.lock:                     # check + insert must be atomic\n            v = next(v for v in self.vehicles if v.plate == plate)\n            if not self._is_free(v, start, end):\n                raise ValueError('car is booked for those dates')\n            r = Reservation(v, customer, start, end)\n            self.reservations.append(r)\n        return r\n\n    def pick_up(self, r: Reservation):\n        assert r.state == ResState.RESERVED\n        r.state = ResState.PICKED_UP\n\n    def return_car(self, r: Reservation) -> int:\n        assert r.state == ResState.PICKED_UP\n        r.state = ResState.RETURNED\n        return self.pricing.price(r)\n\nsystem = RentalSystem([Vehicle('KA-01', 'sedan', 'BLR'), Vehicle('KA-02', 'sedan', 'BLR')])\nsystem.reserve('ravi', 'KA-01', date(2026, 1, 11), date(2026, 1, 14))\nprint([v.plate for v in system.search('BLR', 'sedan', date(2026, 1, 10), date(2026, 1, 12))])  # ['KA-02']",
+          "javascript": "const overlaps = (aStart, aEnd, bStart, bEnd) => aStart < bEnd && bStart < aEnd;\nconst ACTIVE = new Set(['RESERVED', 'PICKED_UP']);\n\nclass RentalSystem {\n  constructor(vehicles, pricing) { Object.assign(this, { vehicles, pricing, reservations: [] }); }\n  isFree(plate, start, end) {\n    return !this.reservations.some((r) => r.plate === plate && ACTIVE.has(r.state) && overlaps(r.start, r.end, start, end));\n  }\n  search(branch, kind, start, end) {\n    return this.vehicles.filter((v) => v.branch === branch && v.kind === kind && this.isFree(v.plate, start, end));\n  }\n  reserve(customer, plate, start, end) {\n    if (start >= end) throw new Error('end must be after start');\n    if (!this.isFree(plate, start, end)) throw new Error('car is booked for those dates');\n    const r = { id: crypto.randomUUID(), customer, plate, start, end, state: 'RESERVED' };\n    this.reservations.push(r);\n    return r;\n  }\n}\n\n// Database version: a Postgres exclusion constraint makes double booking impossible:\n//   EXCLUDE USING gist (vehicle_id WITH =, daterange(start_date, end_date) WITH &&)\n//   WHERE (state IN ('RESERVED', 'PICKED_UP'))"
+        },
+        "complexity": "Checking one car is O(r) for its r reservations (O(log r) with an interval tree or a DB index on (vehicle, dates)). Search is O(cars × reservations) here — index it in a real system.",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Car Rental",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Vehicle inventory per branch.",
+            "Reservation lifecycle (State)."
+          ],
+          "explanation": "Search, reserve and return rental cars across branches."
+        },
+        {
+          "title": "Add late returns and one-way rentals to the car rental design",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Late fee = extra days × rate × penalty multiplier (a pricing rule).",
+            "One-way: the car's branch changes on return."
+          ],
+          "explanation": "Late fees become another PricingStrategy rule; one-way rentals record a drop-off branch and move the vehicle there on return.",
+          "answer_md": "- `Reservation` gets `pickup_branch`, `drop_branch`, `actual_return`.\n- `LateFeePricing` wraps the base pricing (Decorator): extra days × rate × 1.5.\n- On `return_car`, set `vehicle.branch = drop_branch`; a one-way fee is another decorator.\n- Late return blocks the next customer → the system checks reservations starting soon and offers an upgrade or another car (notify via Observer)."
+        }
+      ]
+    },
+    {
+      "slug": "lld-job-scheduler",
+      "name": "LLD Build: Distributed Job Scheduler",
+      "description": "Run jobs at scheduled times with retries.",
+      "revision_note_md": "## Key points\n\n- Job, Schedule (cron/once), Executor, Worker pool.\n- Priority queue by next run time.\n- Retries with backoff; idempotent jobs.\n- Explain locking so two workers don't run the same job.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Run jobs at scheduled times with retries. Start with a UML diagram, build the basic model, then extend and discuss concurrency.",
+        "key_points": [
+          "Job, Schedule (cron/once), Executor, Worker pool.",
+          "Priority queue by next run time.",
+          "Retries with backoff; idempotent jobs.",
+          "Explain locking so two workers don't run the same job."
+        ],
+        "week": "17-18",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Distributed Job Scheduler",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Job, Schedule (cron/once), Executor, Worker pool.",
+            "Priority queue by next run time."
+          ],
+          "explanation": "Run jobs at scheduled times with retries."
+        }
+      ]
+    },
+    {
+      "slug": "lld-inventory-management",
+      "name": "LLD Build: Inventory Management",
+      "description": "Track stock across warehouses with reservations and alerts.",
+      "revision_note_md": "## Key points\n\n- Product, Warehouse, StockItem, Reservation.\n- Observer for low-stock alerts.\n- Strategy for allocation (nearest warehouse).\n- State for order lifecycle; locking on stock updates.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Track stock across warehouses with reservations and alerts. Start with a UML diagram, build the basic model, then extend and discuss concurrency.",
+        "key_points": [
+          "Product, Warehouse, StockItem, Reservation.",
+          "Observer for low-stock alerts.",
+          "Strategy for allocation (nearest warehouse).",
+          "State for order lifecycle; locking on stock updates."
+        ],
+        "week": "17-18",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Inventory Management",
+          "tier": 3,
+          "url": "",
+          "hints": [
+            "Product, Warehouse, StockItem, Reservation.",
+            "Observer for low-stock alerts."
+          ],
+          "explanation": "Track stock across warehouses with reservations and alerts."
+        }
+      ]
+    },
+    {
+      "slug": "lld-ride-sharing",
+      "name": "LLD Build: Ride Sharing App",
+      "description": "Match riders with nearby drivers and manage trips (combined HLD + LLD mock).",
+      "revision_note_md": "## Key points\n\n- Rider, Driver, Trip, Location, Payment.\n- Matching strategy (nearest, rating).\n- Trip states: Requested → Accepted → Started → Completed.\n- Concurrency: one driver can't accept two rides.",
+      "lesson": {
+        "status": "outline",
+        "simple": "Match riders with nearby drivers and manage trips (combined HLD + LLD mock). Start with a UML diagram, build the basic model, then extend and discuss concurrency.",
+        "key_points": [
+          "Rider, Driver, Trip, Location, Payment.",
+          "Matching strategy (nearest, rating).",
+          "Trip states: Requested → Accepted → Started → Completed.",
+          "Concurrency: one driver can't accept two rides."
+        ],
+        "week": "23-24",
+        "resources": [
+          {
+            "label": "Prateek Narang — LLD, Design Patterns & SOLID (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=prateek%20narang%20low%20level%20design"
+          },
+          {
+            "label": "Shrayansh Jain — System Design LLD + HLD (Udemy, search by name)",
+            "url": "https://www.udemy.com/courses/search/?q=shrayansh%20jain%20system%20design"
+          }
+        ]
+      },
+      "items": [
+        {
+          "title": "Design: Ride Sharing App",
+          "tier": 4,
+          "url": "",
+          "hints": [
+            "Rider, Driver, Trip, Location, Payment.",
+            "Matching strategy (nearest, rating)."
+          ],
+          "explanation": "Match riders with nearby drivers and manage trips (combined HLD + LLD mock)."
+        }
+      ]
+    }
+  ]
+}

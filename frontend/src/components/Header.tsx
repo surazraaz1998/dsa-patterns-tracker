@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useTrack, TRACKS } from '../context/TrackContext';
+import { useTrack } from '../context/TrackContext';
 import { TrackSelector } from './TrackSelector';
 import { AuthModal } from './AuthModal';
 import { ProfileModal } from './ProfileModal';
@@ -23,6 +23,7 @@ type HeaderProps = {
     selectedSlug?: string;
     onSelectPattern?: (slug: string) => void;
     isWorkspaceActive?: boolean;
+    showTrackSelector?: boolean;
     onEnterGuestMode?: () => void;
 };
 
@@ -31,10 +32,11 @@ export const Header: React.FC<HeaderProps> = ({
     selectedSlug,
     onSelectPattern,
     isWorkspaceActive = false,
+    showTrackSelector = true,
     onEnterGuestMode,
 }) => {
     const { user, isAuthenticated, solvedCount, logout } = useAuth();
-    const { activeTrack, selectTrack } = useTrack();
+    const { tracks, activeTrack, selectTrack } = useTrack();
 
     const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
     const [authModalTab, setAuthModalTab] = useState<'login' | 'register'>('login');
@@ -78,8 +80,8 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
 
                     {/* Middle: Desktop Track Switcher (Only for Active Workspace) */}
-                    <div className="hidden md:flex flex-1 justify-center max-w-xl px-2">
-                        {isWorkspaceActive && (
+                    <div className="hidden md:flex flex-1 min-w-0 justify-center max-w-2xl px-2">
+                        {isWorkspaceActive && showTrackSelector && (
                             <TrackSelector />
                         )}
                     </div>
@@ -246,7 +248,7 @@ export const Header: React.FC<HeaderProps> = ({
                             <div className="space-y-2">
                                 <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">Learning Track</h4>
                                 <div className="space-y-1.5">
-                                    {TRACKS.map((t) => {
+                                    {tracks.map((t) => {
                                         const isActive = activeTrack.id === t.id;
                                         return (
                                             <button

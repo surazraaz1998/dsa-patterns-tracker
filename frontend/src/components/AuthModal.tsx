@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { api } from '../services/api';
+import { OAuthProvider, startOAuth } from '../services/oauth';
 import { FaGithub, FaGoogle, FaTimes, FaEnvelope, FaLock, FaCode, FaArrowRight, FaCheck } from 'react-icons/fa';
 
 type AuthModalProps = {
@@ -8,9 +8,10 @@ type AuthModalProps = {
     onClose: () => void;
     initialTab?: 'login' | 'register';
     onEnterGuestMode?: () => void;
+    externalError?: string | null;
 };
 
-export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGuestMode }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGuestMode, externalError }) => {
     const { user, unifiedEmailAuth, updateProfile, syncLeetCode } = useAuth();
     const [step, setStep] = useState<'auth' | 'link_profiles'>('auth');
 
@@ -29,10 +30,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
     useEffect(() => {
         if (isOpen) {
             setStep('auth');
-            setError(null);
+            setError(externalError ?? null);
             setIsSubmitting(false);
         }
-    }, [isOpen]);
+    }, [isOpen, externalError]);
 
     // Sync saved handles when user changes or step transitions to profile linking
     useEffect(() => {
@@ -44,39 +45,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
 
     if (!isOpen) return null;
 
-    // Google OAuth Browser Redirect Flow
-    const handleGoogleOAuth = async () => {
+    const handleOAuth = async (provider: OAuthProvider) => {
         setError(null);
         setIsSubmitting(true);
         try {
-            const redirectUri = window.location.origin;
-            const res = await api.getGoogleOAuthUrl(redirectUri).catch(() => null);
-            if (res && res.configured && res.client_id && res.url) {
-                window.location.href = res.url;
-                return;
-            }
-            setError('Google OAuth client ID is not configured in backend .env. Set GOOGLE_CLIENT_ID or continue with Email below.');
+            const notConfigured = await startOAuth(provider);
+            if (notConfigured) setError(notConfigured);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Google authentication failed');
-        } finally {
-            setIsSubmitting(false);
-        }
-    };
-
-    // GitHub OAuth Browser Redirect Flow
-    const handleGitHubOAuth = async () => {
-        setError(null);
-        setIsSubmitting(true);
-        try {
-            const redirectUri = window.location.origin;
-            const res = await api.getGitHubOAuthUrl(redirectUri).catch(() => null);
-            if (res && res.configured && res.client_id && res.url) {
-                window.location.href = res.url;
-                return;
-            }
-            setError('GitHub OAuth client ID is not configured in backend .env. Please set GITHUB_CLIENT_ID & GITHUB_CLIENT_SECRET in backend/.env');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'GitHub authentication failed');
+            setError(err instanceof Error ? err.message : 'Could not reach the server. Please try again.');
         } finally {
             setIsSubmitting(false);
         }
@@ -89,10 +65,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
             setError('Please enter a valid email address');
             return;
         }
+        if (!passwordInput) {
+            setError('Please enter your password');
+            return;
+        }
         setError(null);
         setIsSubmitting(true);
         try {
-            const updatedUser = await unifiedEmailAuth(emailInput.trim(), passwordInput || undefined);
+            const updatedUser = await unifiedEmailAuth(emailInput.trim(), passwordInput);
             if (!updatedUser.leetcode_username) {
                 setStep('link_profiles');
             } else {
@@ -150,7 +130,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                             </div>
                             <h2 className="text-xl font-extrabold text-white tracking-tight">Welcome to AlgoTrack</h2>
                             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                                1-Click OAuth or Email login to track DSA patterns & auto-sync solved questions.
+                                Sign in to save progress across devices and unlock EDITH's AI voice tutor. New email? We'll create your account.
                             </p>
                         </div>
 
@@ -164,7 +144,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                         <div className="space-y-2.5">
                             <button
                                 type="button"
-                                onClick={() => void handleGoogleOAuth()}
+                                onClick={() => void handleOAuth('google')}
                                 disabled={isSubmitting}
                                 className="w-full py-2.5 px-4 rounded-xl bg-white hover:bg-slate-100 text-slate-900 text-xs font-bold flex items-center justify-center gap-2.5 border border-slate-300 shadow-sm transition"
                             >
@@ -174,7 +154,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
 
                             <button
                                 type="button"
-                                onClick={() => void handleGitHubOAuth()}
+                                onClick={() => void handleOAuth('github')}
                                 disabled={isSubmitting}
                                 className="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-750 text-white text-xs font-bold flex items-center justify-center gap-2.5 border border-slate-700 shadow-sm transition"
                             >
@@ -206,9 +186,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                                 <FaLock className="absolute left-3.5 text-slate-500 text-xs" />
                                 <input
                                     type="password"
-                                    placeholder="Password (optional for new accounts)"
+                                    placeholder="Password (min 6 characters for new accounts)"
                                     value={passwordInput}
                                     onChange={(e) => setPasswordInput(e.target.value)}
+                                    required
+                                    autoComplete="current-password"
                                     className="w-full pl-10 pr-3 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs focus:border-blue-500 outline-none"
                                 />
                             </div>
@@ -218,7 +200,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                                 disabled={isSubmitting}
                                 className="w-full py-3 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-xs font-extrabold shadow-lg shadow-blue-500/25 hover:opacity-90 transition flex items-center justify-center gap-1.5"
                             >
-                                <span>{isSubmitting ? 'Authenticating...' : 'Login / Auto-Register with Email'}</span>
+                                <span>{isSubmitting ? 'Signing in...' : 'Sign in / Create account'}</span>
                                 <FaArrowRight size={12} />
                             </button>
                         </form>

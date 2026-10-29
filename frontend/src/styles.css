@@ -60,8 +60,57 @@
   color: #cbd5e1;
 }
 
+.markdown-body ul {
+  list-style: disc;
+}
+
+.markdown-body ol {
+  list-style: decimal;
+}
+
 .markdown-body li {
   margin-bottom: 0.25rem;
+}
+
+.markdown-body strong {
+  color: #f1f5f9;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #6366f1;
+  padding: 0.25rem 0.85rem;
+  margin-bottom: 0.75rem;
+  background: rgba(99, 102, 241, 0.06);
+  border-radius: 0 0.5rem 0.5rem 0;
+}
+
+.markdown-body blockquote p {
+  margin-bottom: 0.25rem;
+}
+
+/* Tables (remark-gfm) scroll inside their own box on narrow screens */
+.markdown-body table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  margin-bottom: 0.75rem;
+  font-size: 0.85em;
+}
+
+.markdown-body th,
+.markdown-body td {
+  border: 1px solid #1e293b;
+  padding: 0.4rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+  color: #cbd5e1;
+}
+
+.markdown-body th {
+  background: #0f172a;
+  color: #e2e8f0;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .markdown-body code {

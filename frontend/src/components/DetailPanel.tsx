@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PatternDetail, ProblemGuide } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { LessonView } from './LessonView';
 import {
     FaCheckCircle,
     FaRegCircle,
@@ -14,14 +15,16 @@ import {
     FaCopy,
     FaCheck,
     FaSave,
-    FaHistory
+    FaHistory,
+    FaMicrophone
 } from 'react-icons/fa';
 
 type DetailPanelProps = {
     selectedPattern: PatternDetail | null;
+    onOpenEdith?: () => void;
 };
 
-export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => {
+export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, onOpenEdith }) => {
     const { getProblemStatus, getProblemProgress, toggleProblemSolved, saveSubmittedCode } = useAuth();
     const [expandedPanels, setExpandedPanels] = useState<Record<string, 'hints' | 'answer' | 'submission' | null>>({});
     const [activeLangTab, setActiveLangTab] = useState<Record<string, 'python' | 'javascript'>>({});
@@ -72,13 +75,26 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
         <section className="w-full bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-xl">
             <div className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-6">
                 {/* Topic Title Header */}
-                <div className="border-b border-slate-800 pb-4">
-                    <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight mb-1">{selectedPattern.name}</h2>
-                    <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedPattern.description}</p>
+                <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div>
+                        <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight mb-1">{selectedPattern.name}</h2>
+                        <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedPattern.description}</p>
+                    </div>
+                    {onOpenEdith && (
+                        <button
+                            type="button"
+                            onClick={onOpenEdith}
+                            className="shrink-0 inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-fuchsia-600 to-indigo-600 text-white text-xs font-bold shadow-lg shadow-fuchsia-500/20 hover:opacity-90 transition"
+                        >
+                            <FaMicrophone size={12} /> Learn & test with EDITH
+                        </button>
+                    )}
                 </div>
 
-                {/* Illustrative Pattern Overview & Solving Strategy */}
-                {selectedPattern.revision_note_md && (
+                {selectedPattern.lesson && <LessonView slug={selectedPattern.slug} lesson={selectedPattern.lesson} />}
+
+                {/* Illustrative Pattern Overview & Solving Strategy (topics without a structured lesson) */}
+                {!selectedPattern.lesson && selectedPattern.revision_note_md && (
                     <div className="bg-gradient-to-br from-slate-950 via-slate-900/90 to-slate-950 border border-blue-500/20 rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
                         {/* Header Badge & Title */}
                         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -88,10 +104,10 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                 </div>
                                 <div>
                                     <h3 className="text-sm md:text-base font-bold text-white tracking-wide">
-                                        Pattern Mental Blueprint & Solving Strategy
+                                        Concept Blueprint & Solving Strategy
                                     </h3>
                                     <p className="text-[11px] text-slate-400">
-                                        Master the intuition, decision triggers, and standard code structure before attempting problems.
+                                        Master the intuition and decision triggers before attempting the questions.
                                     </p>
                                 </div>
                             </div>
@@ -108,6 +124,9 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                 )}
 
                 {/* Problem Tiers */}
+                {selectedPattern.lesson && (
+                    <h3 className="text-base font-extrabold text-white pt-2">Practice — easy to hard</h3>
+                )}
                 <div className="space-y-6">
                     {Object.entries(selectedPattern.problems_by_tier || {}).map(([tier, problems = []]) => {
                         const tierMeta: Record<string, { label: string; badge: string; dot: string }> = {
@@ -132,13 +151,16 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
 
                             <ul className="space-y-3">
                                 {(problems || []).map((problem) => {
-                                    const problemKey = `${problem.title}-${problem.leetcode_number ?? 'na'}`;
+                                    const problemKey = problem.id != null ? String(problem.id) : `${problem.title}-${problem.leetcode_number ?? 'na'}`;
                                     const guide: ProblemGuide = problem.guide ?? {
                                         hints: ['Read the problem statement carefully and identify the core pattern.'],
-                                        explanation: 'Use a structured approach to break the problem into smaller steps before coding the solution.',
-                                        python: '# Add a Python solution here',
-                                        javascript: '// Add a JavaScript solution here',
+                                        explanation: '',
+                                        answer_md: '',
+                                        python: '',
+                                        javascript: '',
                                     };
+                                    const hasCode = Boolean(guide.python || guide.javascript);
+                                    const hasLink = Boolean(problem.leetcode_url && problem.leetcode_url !== '#');
 
                                     const pStatus = getProblemStatus(problem.title);
                                     const pProgress = getProblemProgress(problem.title);
@@ -146,7 +168,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                     const isHintsOpen = expandedPanels[problemKey] === 'hints';
                                     const isAnswerOpen = expandedPanels[problemKey] === 'answer';
                                     const isSubmissionOpen = expandedPanels[problemKey] === 'submission';
-                                    const currentLang = activeLangTab[problemKey] || 'javascript';
+                                    const currentLang = activeLangTab[problemKey] || (guide.javascript ? 'javascript' : 'python');
                                     const savedCode = pProgress?.submitted_code;
                                     const savedLang = pProgress?.submitted_language || 'python';
                                     const savedAt = pProgress?.last_submitted_at;
@@ -176,15 +198,19 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                                         )}
                                                     </button>
 
-                                                    <a
-                                                        href={problem.leetcode_url}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        className="text-xs md:text-sm font-bold text-slate-100 hover:text-blue-400 flex items-center gap-1.5 transition"
-                                                    >
-                                                        <span>{problem.title}</span>
-                                                        <FaExternalLinkAlt className="text-[10px] text-slate-500 shrink-0" />
-                                                    </a>
+                                                    {hasLink ? (
+                                                        <a
+                                                            href={problem.leetcode_url}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="text-xs md:text-sm font-bold text-slate-100 hover:text-blue-400 flex items-center gap-1.5 transition"
+                                                        >
+                                                            <span>{problem.title}</span>
+                                                            <FaExternalLinkAlt className="text-[10px] text-slate-500 shrink-0" />
+                                                        </a>
+                                                    ) : (
+                                                        <span className="text-xs md:text-sm font-bold text-slate-100">{problem.title}</span>
+                                                    )}
                                                 </div>
 
                                                 {/* Action Buttons */}
@@ -209,7 +235,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                                                 : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
                                                         }`}
                                                     >
-                                                        <FaCode size={12} /> {isAnswerOpen ? 'Hide Solution' : 'Solution'}
+                                                        <FaCode size={12} /> {isAnswerOpen ? 'Hide Answer' : hasCode ? 'Solution' : 'Answer'}
                                                     </button>
                                                     <button
                                                         type="button"
@@ -222,7 +248,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                                                 : 'bg-slate-800/80 border-slate-700 text-slate-300 hover:bg-slate-700'
                                                         }`}
                                                     >
-                                                        <FaLaptopCode size={12} /> {isSubmissionOpen ? 'Hide Code' : savedCode ? 'My Code ✓' : 'My Code'}
+                                                        <FaLaptopCode size={12} /> {isSubmissionOpen ? 'Hide' : `${hasCode ? 'My Code' : 'My Notes'}${savedCode ? ' ✓' : ''}`}
                                                     </button>
                                                 </div>
                                             </div>
@@ -245,12 +271,20 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                             {isAnswerOpen && (
                                                 <div className="mt-3 p-3.5 rounded-xl bg-slate-950/80 border border-blue-500/20 text-xs space-y-3">
                                                     <h4 className="font-bold text-blue-400 flex items-center gap-1.5">
-                                                        <FaCode /> Official Solution Strategy
+                                                        <FaCode /> {hasCode ? 'Solution Strategy' : 'Model Answer'}
                                                     </h4>
-                                                    <div className="markdown-body text-slate-300">
-                                                        <ReactMarkdown>{guide.explanation}</ReactMarkdown>
-                                                    </div>
+                                                    {guide.explanation && !guide.answer_md && (
+                                                        <div className="markdown-body text-slate-300">
+                                                            <ReactMarkdown>{guide.explanation}</ReactMarkdown>
+                                                        </div>
+                                                    )}
+                                                    {guide.answer_md && (
+                                                        <div className="markdown-body text-slate-300 space-y-2">
+                                                            <ReactMarkdown>{guide.answer_md}</ReactMarkdown>
+                                                        </div>
+                                                    )}
 
+                                                    {hasCode && (
                                                     <div className="rounded-xl overflow-hidden border border-slate-800">
                                                         <div className="flex bg-slate-900 border-b border-slate-800">
                                                             <button
@@ -284,6 +318,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern }) => 
                                                             )}
                                                         </div>
                                                     </div>
+                                                    )}
                                                 </div>
                                             )}
 

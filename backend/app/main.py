@@ -7,15 +7,9 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from app.db import init_db
-from app.routes import patterns, auth, progress
+from app.db import init_db  # also loads backend/.env
+from app.routes import patterns, auth, progress, voice, learning
 from app.seed_data import seed
-
-from dotenv import load_dotenv
-
-# Automatically load backend/.env variables
-load_dotenv()
-load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("dsa_patterns_tracker")
@@ -63,21 +57,35 @@ app.add_middleware(
 )
 
 
+def _client_ip(request: Request) -> str:
+    """Real client IP behind Render/Vercel proxies; without this every user shares the proxy's bucket."""
+    for header in ("cf-connecting-ip", "true-client-ip"):
+        if request.headers.get(header):
+            return request.headers[header].strip()
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "127.0.0.1"
+
+
 @app.middleware("http")
 async def rate_limiting_middleware(request: Request, call_next):
     # Pass through OPTIONS preflight requests immediately
     if request.method == "OPTIONS":
         return await call_next(request)
 
-    client_ip = request.client.host if request.client else "127.0.0.1"
+    client_ip = _client_ip(request)
     path = request.url.path
     now = time.time()
 
-    limit = AUTH_RATE_LIMIT if path.startswith("/auth/") else GENERAL_RATE_LIMIT
+    # Strict bucket only for credential-submitting calls; /auth/me and OAuth URL lookups use the general one.
+    is_auth_attempt = path.startswith("/auth/") and request.method == "POST"
+    limit = AUTH_RATE_LIMIT if is_auth_attempt else GENERAL_RATE_LIMIT
+    bucket = f"{client_ip}:{'auth' if is_auth_attempt else 'general'}"
 
     # Clean old timestamps outside the sliding window
-    history = [t for t in _REQUEST_HISTORY[client_ip] if now - t < WINDOW_SECONDS]
-    _REQUEST_HISTORY[client_ip] = history
+    history = [t for t in _REQUEST_HISTORY[bucket] if now - t < WINDOW_SECONDS]
+    _REQUEST_HISTORY[bucket] = history
 
     if len(history) >= limit:
         logger.warning("Rate limit exceeded for IP %s on path %s", client_ip, path)
@@ -91,9 +99,9 @@ async def rate_limiting_middleware(request: Request, call_next):
             },
         )
 
-    _REQUEST_HISTORY[client_ip].append(now)
+    _REQUEST_HISTORY[bucket].append(now)
     response = await call_next(request)
-    remaining = max(0, limit - len(_REQUEST_HISTORY[client_ip]))
+    remaining = max(0, limit - len(_REQUEST_HISTORY[bucket]))
     response.headers["X-RateLimit-Limit"] = str(limit)
     response.headers["X-RateLimit-Remaining"] = str(remaining)
     return response
@@ -102,6 +110,10 @@ async def rate_limiting_middleware(request: Request, call_next):
 app.include_router(patterns.router)
 app.include_router(auth.router)
 app.include_router(progress.router)
+app.include_router(patterns.tracks_router)
+app.include_router(patterns.roadmap_router)
+app.include_router(learning.router)
+app.include_router(voice.router)
 
 
 @app.get("/health")
