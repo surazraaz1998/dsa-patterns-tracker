@@ -3,11 +3,12 @@ import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { FaBookOpen, FaLightbulb, FaRoute, FaCode, FaExclamationTriangle, FaUserTie, FaQuestionCircle, FaExternalLinkAlt, FaCheck, FaTimes, FaRedo, FaLayerGroup } from 'react-icons/fa';
 import { useLearning } from '../context/LearningContext';
+import { smooth } from '../services/prefs';
 import { Concept, Lesson, QuizQuestion } from '../types';
 import { VisualFor } from '../visuals';
 import { VideoClips } from './VideoClips';
 
-const Markdown: React.FC<{ children: string }> = ({ children }) => (
+export const Markdown: React.FC<{ children: string }> = ({ children }) => (
     <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
 );
 
@@ -15,13 +16,13 @@ const DeepDive: React.FC<{ concepts: Concept[] }> = ({ concepts }) => {
     const refs = useRef<(HTMLElement | null)[]>([]);
     return (
         <Section icon={<FaLayerGroup />} title="Deep dive" tone="text-indigo-400">
-            <ol className="flex flex-wrap gap-1.5 text-[11px]">
+            <ol className="flex flex-wrap gap-1.5 text-xs">
                 {concepts.map((c, i) => (
                     <li key={c.title}>
                         <button
                             type="button"
-                            onClick={() => refs.current[i]?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                            className="px-2 py-0.5 rounded-lg bg-slate-800 text-slate-300 hover:bg-indigo-600/30 hover:text-white transition"
+                            onClick={() => refs.current[i]?.scrollIntoView({ behavior: smooth(), block: 'start' })}
+                            className="px-2.5 py-1.5 rounded-lg bg-slate-800 text-slate-200 hover:bg-indigo-600/30 hover:text-white transition"
                         >
                             {i + 1}. {c.title}
                             {c.visual && <span className="ml-1" aria-label="has a visualisation">📊</span>}
@@ -32,7 +33,7 @@ const DeepDive: React.FC<{ concepts: Concept[] }> = ({ concepts }) => {
             </ol>
             <div className="space-y-5 pt-1">
                 {concepts.map((c, i) => (
-                    <article key={c.title} ref={(el) => { refs.current[i] = el; }} className="scroll-mt-4">
+                    <article key={c.title} ref={(el) => { refs.current[i] = el; }} data-section={`${i + 1}. ${c.title}`} data-section-level="2" className="scroll-mt-32 md:scroll-mt-4">
                         <h4 className="text-[15px] font-bold text-white mb-2">
                             <span className="text-indigo-400 mr-1.5">{i + 1}.</span>{c.title}
                         </h4>
@@ -50,8 +51,8 @@ const DeepDive: React.FC<{ concepts: Concept[] }> = ({ concepts }) => {
     );
 };
 
-const Section: React.FC<{ icon: React.ReactNode; title: string; tone?: string; children: React.ReactNode }> = ({ icon, title, tone = 'text-blue-400', children }) => (
-    <section className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 md:p-5 space-y-3">
+export const Section: React.FC<{ icon: React.ReactNode; title: string; tone?: string; children: React.ReactNode }> = ({ icon, title, tone = 'text-blue-400', children }) => (
+    <section data-section={title} className="bg-slate-950/60 border border-slate-800 rounded-2xl p-4 md:p-5 space-y-3 scroll-mt-32 md:scroll-mt-4">
         <h3 className={`text-sm font-bold flex items-center gap-2 ${tone}`}>
             {icon} {title}
         </h3>
@@ -59,18 +60,24 @@ const Section: React.FC<{ icon: React.ReactNode; title: string; tone?: string; c
     </section>
 );
 
-const BulletList: React.FC<{ items: string[]; marker?: string }> = ({ items, marker = '•' }) => (
+export const BulletList: React.FC<{ items: string[]; marker?: string }> = ({ items, marker = '•' }) => (
     <ul className="space-y-1.5 text-sm text-slate-300">
         {items.map((text, i) => (
             <li key={i} className="flex gap-2 leading-relaxed">
-                <span className="text-slate-500 shrink-0">{marker}</span>
+                <span className="text-slate-400 shrink-0">{marker}</span>
                 <span className="markdown-inline"><ReactMarkdown>{text}</ReactMarkdown></span>
             </li>
         ))}
     </ul>
 );
 
-const Quiz: React.FC<{ slug: string; questions: QuizQuestion[] }> = ({ slug, questions }) => {
+// recordBest=false for revision recaps (a 3-question recap mustn't replace the full quiz's best score).
+export const Quiz: React.FC<{
+    slug: string;
+    questions: QuizQuestion[];
+    recordBest?: boolean;
+    onFinish?: (score: number, total: number) => void;
+}> = ({ slug, questions, recordBest = true, onFinish }) => {
     const { quizScore, recordQuiz } = useLearning();
     const [picked, setPicked] = useState<(number | null)[]>(() => questions.map(() => null));
     const answered = picked.filter((p) => p !== null).length;
@@ -79,7 +86,9 @@ const Quiz: React.FC<{ slug: string; questions: QuizQuestion[] }> = ({ slug, que
     const best = quizScore(slug);
 
     useEffect(() => {
-        if (finished) recordQuiz(slug, score, questions.length);
+        if (!finished) return;
+        if (recordBest) recordQuiz(slug, score, questions.length);
+        onFinish?.(score, questions.length);
         // record once when the last answer is picked
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [finished]);
@@ -105,7 +114,7 @@ const Quiz: React.FC<{ slug: string; questions: QuizQuestion[] }> = ({ slug, que
                                             state === 'idle' ? 'border-slate-700 bg-slate-900 hover:border-blue-500 text-slate-200'
                                                 : state === 'correct' ? 'border-emerald-500/60 bg-emerald-500/10 text-emerald-200'
                                                 : state === 'wrong' ? 'border-rose-500/60 bg-rose-500/10 text-rose-200'
-                                                : 'border-slate-800 bg-slate-900/50 text-slate-500'
+                                                : 'border-slate-800 bg-slate-900/50 text-slate-400'
                                         }`}
                                     >
                                         <span>{opt}</span>
@@ -126,7 +135,7 @@ const Quiz: React.FC<{ slug: string; questions: QuizQuestion[] }> = ({ slug, que
             <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-slate-800 text-sm">
                 <span className="text-slate-300">
                     {finished ? <>Score: <strong className="text-white">{score} / {questions.length}</strong></> : `${answered} of ${questions.length} answered`}
-                    {best && <span className="text-slate-500"> · best {best.best}/{best.total}</span>}
+                    {recordBest && best && <span className="text-slate-400"> · best {best.best}/{best.total}</span>}
                 </span>
                 {finished && (
                     <button type="button" onClick={() => setPicked(questions.map(() => null))} className="inline-flex items-center gap-1.5 text-xs font-semibold text-blue-400 hover:text-blue-300">
@@ -138,9 +147,37 @@ const Quiz: React.FC<{ slug: string; questions: QuizQuestion[] }> = ({ slug, que
     );
 };
 
+const CompleteCard: React.FC<{ slug: string }> = ({ slug }) => {
+    const { isLessonDone, toggleLessonDone, quizScore } = useLearning();
+    const done = isLessonDone(slug);
+    const score = quizScore(slug);
+    return (
+        <div className={`rounded-2xl border p-4 flex flex-wrap items-center justify-between gap-3 ${done ? 'border-emerald-500/40 bg-emerald-500/10' : 'border-slate-800 bg-slate-950/60'}`}>
+            <div className="text-sm">
+                <p className="font-bold text-white">{done ? 'Lesson completed' : 'Finished this lesson?'}</p>
+                <p className="text-xs text-slate-400">
+                    {score ? `Best quiz score: ${score.best}/${score.total}. ` : done ? '' : 'Try the quiz above first. '}
+                    {done ? 'It shows as done in the topic list.' : 'Mark it complete to track your progress.'}
+                </p>
+            </div>
+            <button
+                type="button"
+                onClick={() => toggleLessonDone(slug)}
+                aria-pressed={done}
+                className={`inline-flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold transition ${
+                    done ? 'bg-transparent border border-emerald-500/50 text-emerald-200 hover:bg-emerald-500/10' : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                }`}
+            >
+                <FaCheck size={12} /> {done ? 'Completed — undo' : 'Mark lesson complete'}
+            </button>
+        </div>
+    );
+};
+
 export const LessonView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug, lesson }) => {
     const [lang, setLang] = useState<'python' | 'javascript'>('python');
     const isOutline = lesson.status === 'outline';
+    const { isLessonDone } = useLearning();
 
     return (
         <div className="space-y-4">
@@ -149,6 +186,9 @@ export const LessonView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug, l
                 <span className={`px-2.5 py-1 rounded-full border font-semibold ${isOutline ? 'bg-slate-800 border-slate-700 text-slate-400' : 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'}`}>
                     {isOutline ? 'Outline · full lesson coming soon' : 'Full lesson'}
                 </span>
+                {isLessonDone(slug) && (
+                    <span className="px-2.5 py-1 rounded-full bg-emerald-500 text-white font-semibold inline-flex items-center gap-1"><FaCheck size={9} /> Completed</span>
+                )}
             </div>
 
             <Section icon={<FaBookOpen />} title="In simple words">
@@ -240,7 +280,7 @@ export const LessonView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug, l
 
             {lesson.resources && lesson.resources.length > 0 && (
                 <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="text-slate-500 py-1">Go deeper:</span>
+                    <span className="text-slate-400 py-1">Go deeper:</span>
                     {lesson.resources.map((r) => r.url ? (
                         <a key={r.label} href={r.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-slate-700 text-slate-300 hover:text-white hover:border-blue-500">
                             {r.label} <FaExternalLinkAlt size={9} />
@@ -250,6 +290,8 @@ export const LessonView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug, l
                     ))}
                 </div>
             )}
+
+            <CompleteCard slug={slug} />
         </div>
     );
 };

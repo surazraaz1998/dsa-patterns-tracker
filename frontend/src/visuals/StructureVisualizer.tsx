@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrayFrame, Frame, GraphFrame, ListFrame, TableFrame, Tone, TreeFrame, VISUALS } from './structures';
 import { ExampleBar, Legend, VisualShell, useStepper } from './player';
+import { smooth } from '../services/prefs';
 
 const CELL: Record<Tone | 'idle', string> = {
     idle: 'bg-slate-800 text-slate-100 border-slate-600',
@@ -48,7 +49,7 @@ const Aux: React.FC<{ aux?: { label: string; value: string }[] }> = ({ aux }) =>
         <dl className="grid grid-cols-[auto,1fr] gap-x-3 gap-y-1 text-[11px] font-mono">
             {aux.map((a) => (
                 <React.Fragment key={a.label}>
-                    <dt className="text-slate-500 text-right">{a.label}</dt>
+                    <dt className="text-slate-400 text-right">{a.label}</dt>
                     <dd className="text-slate-200 break-words min-w-0">{a.value}</dd>
                 </React.Fragment>
             ))}
@@ -64,7 +65,7 @@ function useKeepInView(dep: unknown) {
         if (!box || !el || box.scrollWidth <= box.clientWidth) return;
         const b = box.getBoundingClientRect(), e = el.getBoundingClientRect();
         if (e.left < b.left + 8 || e.right > b.right - 8) {
-            box.scrollTo({ left: box.scrollLeft + (e.left - b.left) - b.width / 2 + e.width / 2, behavior: 'smooth' });
+            box.scrollTo({ left: box.scrollLeft + (e.left - b.left) - b.width / 2 + e.width / 2, behavior: smooth() });
         }
     }, [dep]);
     return ref;
@@ -85,14 +86,14 @@ const ArrayView: React.FC<{ f: ArrayFrame }> = ({ f }) => {
                     const labels = f.pointers.filter((p) => p.index === i).map((p) => p.label);
                     return (
                         <div key={i} data-focus={i === focus} className={`flex flex-col items-center gap-1 transition-opacity ${isEnd || inWindow(i) ? '' : 'opacity-30'}`}>
-                            <span className="text-[9px] text-slate-500 font-mono">{isEnd ? 'end' : i}</span>
+                            <span className="text-[9px] text-slate-400 font-mono">{isEnd ? 'end' : i}</span>
                             {f.bars && !isEnd ? (
-                                <div className="h-28 w-7 flex flex-col justify-end items-center">
+                                <div className="h-28 w-7 [.vis-expanded_&]:h-[40vh] [.vis-expanded_&]:w-10 flex flex-col justify-end items-center">
                                     <span className="text-[10px] text-slate-300 font-mono">{f.items[i]}</span>
                                     <div className={`w-full rounded-t border ${CELL[tone]} ${f.window && inWindow(i) && tone === 'idle' ? 'border-indigo-400' : ''}`} style={{ height: `${Math.max(6, ((f.items[i] as number) / max) * 100)}%` }} />
                                 </div>
                             ) : (
-                                <div className={`w-8 h-8 rounded-md border flex items-center justify-center text-xs font-mono font-semibold transition-colors ${
+                                <div className={`w-8 h-8 [.vis-expanded_&]:w-12 [.vis-expanded_&]:h-12 [.vis-expanded_&]:text-base rounded-md border flex items-center justify-center text-xs font-mono font-semibold transition-colors ${
                                     isEnd ? 'border-dashed border-slate-700 text-slate-600' : CELL[tone]} ${f.window && inWindow(i) && tone === 'idle' && !isEnd ? 'border-indigo-400 bg-indigo-500/20' : ''}`}>
                                     {isEnd ? '·' : f.items[i]}
                                 </div>
@@ -122,7 +123,7 @@ const ListView: React.FC<{ f: ListFrame }> = ({ f }) => {
                     return (
                         <React.Fragment key={i}>
                             <div className="flex flex-col items-center gap-1" data-focus={i === focus}>
-                                <div className={`w-11 rounded-md border text-center transition-colors ${CELL[tone]}`}>
+                                <div className={`w-11 [.vis-expanded_&]:w-16 [.vis-expanded_&]:text-base rounded-md border text-center transition-colors ${CELL[tone]}`}>
                                     <div className="text-sm font-mono font-semibold py-1">{v}</div>
                                     <div className="text-[9px] border-t border-current/20 opacity-80 py-0.5">{f.next[i] === null ? 'next ∅' : `next ${f.values[f.next[i]!]}`}</div>
                                 </div>
@@ -140,7 +141,7 @@ const ListView: React.FC<{ f: ListFrame }> = ({ f }) => {
                 })}
             </div>
             {f.pointers.some((p) => p.index === null) && (
-                <p className="text-[10px] text-slate-500 text-center">{f.pointers.filter((p) => p.index === null).map((p) => `${p.label} = null`).join(' · ')}</p>
+                <p className="text-[10px] text-slate-400 text-center">{f.pointers.filter((p) => p.index === null).map((p) => `${p.label} = null`).join(' · ')}</p>
             )}
         </div>
     );
@@ -156,7 +157,7 @@ const TreeView: React.FC<{ f: TreeFrame }> = ({ f }) => {
     };
     const present = (i: number) => i < f.tree.length && f.tree[i] !== null;
     return (
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-h-64" role="img" aria-label="Binary tree">
+        <svg viewBox={`0 0 ${W} ${H}`} className="w-full max-h-64 [.vis-expanded_&]:max-h-[55vh]" role="img" aria-label="Binary tree">
             {f.tree.map((_, i) => i > 0 && present(i) && present(Math.floor((i - 1) / 2)) ? (
                 <line key={`e${i}`} x1={pos(Math.floor((i - 1) / 2)).x} y1={pos(Math.floor((i - 1) / 2)).y} x2={pos(i).x} y2={pos(i).y} stroke="#334155" strokeWidth={2} />
             ) : null)}
@@ -173,7 +174,7 @@ const TreeView: React.FC<{ f: TreeFrame }> = ({ f }) => {
 const sameEdge = (e: [number, number] | undefined, a: number, b: number) => !!e && ((e[0] === a && e[1] === b) || (e[0] === b && e[1] === a));
 
 const GraphView: React.FC<{ f: GraphFrame }> = ({ f }) => (
-    <svg viewBox="0 0 100 100" className="w-full h-56" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Graph">
+    <svg viewBox="0 0 100 100" className="w-full h-56 [.vis-expanded_&]:h-[55vh]" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Graph">
         {f.graph.edges.map(([a, b]) => {
             const A = f.graph.nodes[a], B = f.graph.nodes[b];
             const active = sameEdge(f.edge, a, b);
@@ -198,7 +199,7 @@ const TableView: React.FC<{ f: TableFrame }> = ({ f }) => {
                 <thead>
                     <tr>
                         <th className="px-2 py-1" />
-                        {f.colHeaders.map((h, i) => <th key={i} className="px-2 py-1 text-slate-500 font-normal">{h}</th>)}
+                        {f.colHeaders.map((h, i) => <th key={i} className="px-2 py-1 text-slate-400 font-normal">{h}</th>)}
                     </tr>
                 </thead>
                 <tbody>
@@ -209,7 +210,7 @@ const TableView: React.FC<{ f: TableFrame }> = ({ f }) => {
                                 const current = f.current?.[0] === r && f.current?.[1] === c;
                                 const dep = isAt(r, c, f.deps);
                                 return (
-                                    <td key={c} data-focus={current} className={`w-9 h-8 text-center border transition-colors ${
+                                    <td key={c} data-focus={current} className={`w-9 h-8 [.vis-expanded_&]:w-12 [.vis-expanded_&]:h-11 [.vis-expanded_&]:text-sm text-center border transition-colors ${
                                         current ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold' : dep ? 'bg-sky-500/80 text-white border-sky-300' : 'border-slate-700 text-slate-200 bg-slate-900'}`}>
                                         {v === null ? <span className="text-slate-700">·</span> : v}
                                     </td>

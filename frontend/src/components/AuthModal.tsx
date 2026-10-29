@@ -168,13 +168,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
 
                         <div className="relative text-center my-2">
                             <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-slate-800" /></div>
-                            <span className="relative bg-slate-900 px-3 text-[11px] text-slate-500 font-medium">or continue with email</span>
+                            <span className="relative bg-slate-900 px-3 text-[11px] text-slate-400 font-medium">or continue with email</span>
                         </div>
 
                         {/* Unified Email Login / Auto-Register Form */}
                         <form onSubmit={(e) => void handleEmailSubmit(e)} className="space-y-3 text-left">
                             <div className="relative flex items-center">
-                                <FaEnvelope className="absolute left-3.5 text-slate-500 text-xs" />
+                                <FaEnvelope className="absolute left-3.5 text-slate-400 text-xs" />
                                 <input
                                     type="email"
                                     placeholder="Enter your email address"
@@ -186,7 +186,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                             </div>
 
                             <div className="relative flex items-center">
-                                <FaLock className="absolute left-3.5 text-slate-500 text-xs" />
+                                <FaLock className="absolute left-3.5 text-slate-400 text-xs" />
                                 <input
                                     type="password"
                                     placeholder="Password (6+ characters)"

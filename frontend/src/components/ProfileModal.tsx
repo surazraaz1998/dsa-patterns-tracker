@@ -188,7 +188,7 @@ export const ProfileModal: React.FC<ProfileModalProps> = ({ isOpen, onClose }) =
                                 disabled={isSyncing || !leetcodeHandle.trim()}
                                 className={`flex-1 py-2 rounded-xl font-bold text-xs transition flex items-center justify-center gap-1.5 ${
                                     isSyncing || !leetcodeHandle.trim()
-                                        ? 'bg-slate-800 text-slate-500 border border-slate-700'
+                                        ? 'bg-slate-800 text-slate-400 border border-slate-700'
                                         : 'bg-emerald-600 hover:bg-emerald-500 text-white shadow-lg shadow-emerald-950/50'
                                 }`}
                             >

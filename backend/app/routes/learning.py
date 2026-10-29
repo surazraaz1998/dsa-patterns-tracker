@@ -1,4 +1,5 @@
-"""Roadmap checkboxes and quiz scores for signed-in users (guests keep them in the browser)."""
+"""Roadmap ticks, completed lessons, quiz scores, study days and revision schedule for signed-in users
+(guests keep them in the browser)."""
 
 import json
 import logging
@@ -15,7 +16,8 @@ from app.routes.auth import get_current_user_from_header
 logger = logging.getLogger("dsa_patterns_tracker")
 router = APIRouter(prefix="/learning", tags=["learning"])
 
-ALLOWED_PREFIXES = ("roadmap:", "quiz:")
+ALLOWED_PREFIXES = ("roadmap:", "quiz:", "lesson:", "activity:", "revision:")
+MAX_VALUE_CHARS = 4000  # e.g. the study-days list; keeps one key from growing without bound
 
 
 class LearningUpdate(BaseModel):
@@ -47,6 +49,8 @@ def update_learning_state(
     for key in req.entries:
         if len(key) > 200 or not key.startswith(ALLOWED_PREFIXES):
             raise HTTPException(status_code=400, detail=f"Invalid key: {key[:50]}")
+        if len(json.dumps(req.entries[key])) > MAX_VALUE_CHARS:
+            raise HTTPException(status_code=400, detail=f"Value too large for {key[:50]}")
 
     existing = {
         row.key: row

@@ -2,6 +2,33 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---------- Theme ----------
+   The UI is designed dark. Light mode inverts the page on the root element (the root is exempt from
+   the "filter creates a containing block" rule, so fixed/sticky bars keep working) and flips media and
+   emoji back so they keep their real colours. */
+html {
+  background-color: #020617;
+}
+html[data-theme='light'] {
+  filter: invert(1) hue-rotate(180deg);
+}
+html[data-theme='light'] img,
+html[data-theme='light'] iframe,
+html[data-theme='light'] video,
+html[data-theme='light'] .keep-colors {
+  filter: invert(1) hue-rotate(180deg);
+}
+
+/* ---------- Reduced motion (system setting or the in-app toggle) ---------- */
+html[data-motion='reduce'] *,
+html[data-motion='reduce'] *::before,
+html[data-motion='reduce'] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 @layer utilities {
   /* Hide scrollbar for Chrome, Safari and Opera */
   .no-scrollbar::-webkit-scrollbar {

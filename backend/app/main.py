@@ -112,6 +112,7 @@ app.include_router(auth.router)
 app.include_router(progress.router)
 app.include_router(patterns.tracks_router)
 app.include_router(patterns.roadmap_router)
+app.include_router(patterns.search_router)
 app.include_router(learning.router)
 app.include_router(voice.router)
 

@@ -1,17 +1,19 @@
-import { useEffect, useRef, useState, Component, ErrorInfo, ReactNode } from 'react';
+import { useEffect, useRef, useState, Component, ErrorInfo, ReactNode, lazy, Suspense } from 'react';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TrackProvider, useTrack } from './context/TrackContext';
 import { LearningProvider } from './context/LearningContext';
+import { BottomNav } from './components/BottomNav';
+import { ServerWakeBanner } from './components/ServerWakeBanner';
+import type { SearchResult } from './services/search';
 import { RoadmapView } from './components/RoadmapView';
 import { PlaybookView } from './components/PlaybookView';
 import { Header } from './components/Header';
 import { Sidebar } from './components/Sidebar';
-import { DetailPanel } from './components/DetailPanel';
+import { DetailPanel, LessonMode } from './components/DetailPanel';
 import { LandingShowcase } from './components/LandingShowcase';
 import { AuthModal } from './components/AuthModal';
 import { api } from './services/api';
 import { consumeOAuthCallback } from './services/oauth';
-import { EdithPanel } from './voice/EdithPanel';
 import { PatternDetail, PatternSummary } from './types';
 import { FaGithub, FaLinkedin, FaInstagram, FaList, FaBookOpen, FaExclamationTriangle, FaRedo } from 'react-icons/fa';
 
@@ -21,11 +23,15 @@ const GITHUB_URL = 'https://github.com/surazraaz1998';
 // EDITH (voice tutor) is paused; build with VITE_EDITH_ENABLED=true (and EDITH_ENABLED=true on the backend) to bring it back.
 const EDITH_ENABLED = import.meta.env.VITE_EDITH_ENABLED === 'true';
 
+// Loaded on demand: search on first open, the paused voice tutor only when enabled.
+const SearchPalette = lazy(() => import('./components/SearchPalette').then((m) => ({ default: m.SearchPalette })));
+const EdithPanel = lazy(() => import('./voice/EdithPanel').then((m) => ({ default: m.EdithPanel })));
+
 type View = 'roadmap' | 'topics' | 'playbook';
-const VIEWS: { id: View; label: string; short: string }[] = [
-    { id: 'roadmap', label: '🗺️ Roadmap', short: '🗺️ Roadmap' },
-    { id: 'topics', label: '📚 Lessons & practice', short: '📚 Lessons' },
-    { id: 'playbook', label: '🎯 Interview playbook', short: '🎯 Playbook' },
+const VIEWS: { id: View; icon: string; label: string; short: string }[] = [
+    { id: 'roadmap', icon: '🗺️', label: 'Roadmap', short: 'Roadmap' },
+    { id: 'topics', icon: '📚', label: 'Lessons & practice', short: 'Lessons' },
+    { id: 'playbook', icon: '🎯', label: 'Interview playbook', short: 'Playbook' },
 ];
 
 interface ErrorBoundaryProps {
@@ -100,6 +106,10 @@ function MainAppContent() {
     const [authError, setAuthError] = useState<string | null>(null);
     const [oauthInProgress, setOauthInProgress] = useState(false);
     const [isEdithOpen, setIsEdithOpen] = useState(false);
+    const [lessonMode, setLessonMode] = useState<LessonMode>('full');
+    const [searchOpen, setSearchOpen] = useState(false);
+    // After a search pick: which lesson section to scroll to once that lesson has rendered.
+    const [focus, setFocus] = useState<{ slug: string; section: string } | null>(null);
 
     const isWorkspaceActive = isAuthenticated || isGuestSession;
 
@@ -179,11 +189,33 @@ function MainAppContent() {
                 setMobileTab('details');
             }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Unable to load pattern details');
+            setError(!navigator.onLine
+                ? "You're offline. Lessons you've opened before still work; this one hasn't been saved on this device yet."
+                : err instanceof Error ? err.message : 'Unable to load pattern details');
         }
     };
 
-    const openLesson = (slug: string, trackId: string) => {
+    // ⌘K / Ctrl+K anywhere, or "/" when not typing, opens search.
+    useEffect(() => {
+        if (!isWorkspaceActive) return;
+        const onKey = (e: KeyboardEvent) => {
+            const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]');
+            if ((e.key === 'k' && (e.metaKey || e.ctrlKey)) || (e.key === '/' && !typing)) {
+                e.preventDefault();
+                setSearchOpen(true);
+            }
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [isWorkspaceActive]);
+
+    const openSearchResult = (r: SearchResult) => {
+        setFocus(r.kind === 'lesson' ? null : { slug: r.slug, section: r.kind === 'problem' ? 'Practice — easy to hard' : r.title });
+        openLesson(r.slug, r.track);
+    };
+
+    const openLesson = (slug: string, trackId: string, mode: LessonMode = 'full') => {
+        setLessonMode(mode);
         const show = () => {
             setView('topics');
             window.scrollTo({ top: 0 });
@@ -201,7 +233,7 @@ function MainAppContent() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans">
+        <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans ${isWorkspaceActive ? 'pb-16 md:pb-0' : ''}`}>
             {/* Header Navbar */}
             <Header
                 patterns={patterns}
@@ -210,11 +242,19 @@ function MainAppContent() {
                 isWorkspaceActive={isWorkspaceActive}
                 showTrackSelector={view === 'topics'}
                 onEnterGuestMode={handleEnterGuestMode}
+                onOpenSearch={() => setSearchOpen(true)}
             />
+            {searchOpen && (
+                <Suspense fallback={null}>
+                    <SearchPalette open onClose={() => setSearchOpen(false)} onPick={openSearchResult} />
+                </Suspense>
+            )}
+
+            <ServerWakeBanner />
 
             {/* If Active Workspace (Authenticated or Guest Mode): Render Practice Workspace */}
             {isWorkspaceActive && (
-                <nav className="max-w-7xl mx-auto px-4 sm:px-6 w-full mt-4 flex gap-2 overflow-x-auto no-scrollbar" aria-label="Sections">
+                <nav className="max-w-7xl mx-auto px-4 sm:px-6 w-full mt-4 hidden md:flex gap-2 overflow-x-auto no-scrollbar" aria-label="Sections">
                     {VIEWS.map((v) => (
                         <button
                             key={v.id}
@@ -226,6 +266,7 @@ function MainAppContent() {
                             }`}
                         >
                             {/* short labels keep all three tabs on screen on phones */}
+                            <span className="keep-colors mr-1" aria-hidden>{v.icon}</span>
                             <span className="sm:hidden">{v.short}</span>
                             <span className="hidden sm:inline">{v.label}</span>
                         </button>
@@ -239,7 +280,7 @@ function MainAppContent() {
                 </main>
             ) : isWorkspaceActive && view === 'playbook' ? (
                 <main className="max-w-6xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-8">
-                    <PlaybookView />
+                    <PlaybookView onOpenRevision={(slug, trackId) => openLesson(slug, trackId, 'revision')} />
                 </main>
             ) : isWorkspaceActive ? (
                 <>
@@ -279,13 +320,13 @@ function MainAppContent() {
                                     selectedPattern={selectedPattern}
                                     loading={loading}
                                     error={error}
-                                    onSelectPattern={(slug) => void fetchPatternDetail(slug, true)}
+                                    onSelectPattern={(slug) => { setLessonMode('full'); void fetchPatternDetail(slug, true); }}
                                 />
                             </div>
 
                             {/* Problem Detail Panel Column */}
                             <div className={`md:col-span-8 lg:col-span-8 ${mobileTab === 'details' ? 'block' : 'hidden md:block'}`}>
-                                <DetailPanel selectedPattern={selectedPattern} loading={loading} onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined} />
+                                <DetailPanel selectedPattern={selectedPattern} loading={loading} mode={lessonMode} onModeChange={setLessonMode} focus={focus} onFocused={() => setFocus(null)} onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined} />
                             </div>
                         </div>
                     </main>
@@ -315,7 +356,14 @@ function MainAppContent() {
                 externalError={authError}
             />
 
-            {EDITH_ENABLED && <EdithPanel isOpen={isEdithOpen} onClose={() => setIsEdithOpen(false)} topic={selectedPattern} />}
+            {EDITH_ENABLED && (
+                <Suspense fallback={null}>
+                    <EdithPanel isOpen={isEdithOpen} onClose={() => setIsEdithOpen(false)} topic={selectedPattern} />
+                </Suspense>
+            )}
+
+            {/* Phones: Roadmap / Lessons / Playbook live in a bottom tab bar (the top tabs are md+ only) */}
+            {isWorkspaceActive && <BottomNav view={view} onChange={(v) => { setView(v); window.scrollTo({ top: 0 }); }} />}
 
             {/* Site Footer */}
             <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 py-6">

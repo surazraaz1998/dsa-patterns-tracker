@@ -3,12 +3,29 @@
 
 <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>AlgoTrack — 6-Month Interview Roadmap: DSA, System Design & Agentic AI</title>
     <meta name="description" content="Free 6-month interview-prep roadmap for DSA, High-Level Design, Low-Level Design and Agentic AI — simple lessons, step-by-step visualisers, in-app video clips and quizzes. No sign-up needed." />
     <meta name="theme-color" content="#080c1a" />
+    <script>
+        // Apply saved theme / motion before first paint (same logic as src/services/prefs.ts).
+        (function () {
+            var p = {};
+            try { p = JSON.parse(localStorage.getItem('algotrack_prefs') || '{}'); } catch (e) {}
+            var mm = function (q) { return window.matchMedia && window.matchMedia(q).matches; };
+            var t = p.theme && p.theme !== 'system' ? p.theme : (mm('(prefers-color-scheme: light)') ? 'light' : 'dark');
+            var m = p.motion && p.motion !== 'system' ? p.motion : (mm('(prefers-reduced-motion: reduce)') ? 'reduce' : 'full');
+            document.documentElement.dataset.theme = t;
+            document.documentElement.dataset.motion = m;
+        })();
+    </script>
     <link rel="canonical" href="https://dsa-pattern-practice.vercel.app/" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="AlgoTrack" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 
     <!-- Link previews (LinkedIn, WhatsApp, Slack, X). Crawlers need absolute URLs. -->
     <meta property="og:type" content="website" />

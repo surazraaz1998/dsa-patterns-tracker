@@ -14,6 +14,7 @@ logger = logging.getLogger("dsa_patterns_tracker")
 router = APIRouter(prefix="/patterns", tags=["patterns"])
 tracks_router = APIRouter(prefix="/tracks", tags=["tracks"])
 roadmap_router = APIRouter(prefix="/roadmap", tags=["roadmap"])
+search_router = APIRouter(prefix="/search-index", tags=["search"])
 
 
 @roadmap_router.get("")
@@ -30,6 +31,24 @@ def _lesson(pattern: Pattern) -> Optional[dict]:
     except ValueError:
         logger.warning("Invalid lesson JSON for pattern %s", pattern.slug)
         return None
+
+
+@search_router.get("")
+def get_search_index(db: Session = Depends(get_db)):
+    """Everything the in-app search needs in one small payload: topics, their lesson sections and problems."""
+    items = []
+    for pattern in db.query(Pattern).order_by(Pattern.track_category, Pattern.display_order).all():
+        lesson = _lesson(pattern) or {}
+        items.append({
+            "slug": pattern.slug,
+            "track": pattern.track_category,
+            "name": pattern.name,
+            "description": pattern.description or "",
+            "status": lesson.get("status"),
+            "sections": [c["title"] for c in lesson.get("concepts") or []],
+            "problems": [p.title for p in sorted(pattern.problems, key=lambda p: (p.tier, p.display_order))],
+        })
+    return {"items": items}
 
 
 @tracks_router.get("")

@@ -45,6 +45,16 @@ def test_learning_state_requires_login_and_round_trips():
 
         assert client.put("/learning", json={"entries": {"evil:key": 1}}, headers=headers).status_code == 400
 
+        # completed lessons sync too
+        res = client.put("/learning", json={"entries": {"lesson:sorting": True}}, headers=headers)
+        assert res.status_code == 200 and res.json()["entries"]["lesson:sorting"] is True
+
+        # study days and revision schedule sync; oversized values are rejected
+        days = ["2026-10-28", "2026-10-29"]
+        res = client.put("/learning", json={"entries": {"activity:days": days, "revision:sorting": {"due": "2026-11-01", "step": 1}}}, headers=headers)
+        assert res.status_code == 200 and res.json()["entries"]["activity:days"] == days
+        assert client.put("/learning", json={"entries": {"activity:days": ["x" * 50] * 100}}, headers=headers).status_code == 400
+
 
 SORTING_VISUALS = {"bubble", "selection", "insertion", "shell", "merge", "quick", "heap", "counting", "radix", "bucket", "cyclic"}
 # must match the visualisers registered in frontend/src/visuals (sorting.ts and structures.ts)
@@ -87,3 +97,14 @@ def test_lesson_videos_and_visuals_are_well_formed():
 
         sorting = client.get("/patterns/sorting").json()["lesson"]
         assert {c["visual"]["algorithm"] for c in sorting["concepts"] if c.get("visual")} == SORTING_VISUALS
+
+
+def test_search_index_covers_topics_sections_and_problems():
+    with TestClient(app) as client:
+        items = client.get("/search-index").json()["items"]
+        by_slug = {i["slug"]: i for i in items}
+        assert len(items) >= 70
+        sorting = by_slug["sorting"]
+        assert sorting["track"] == "dsa" and sorting["status"] == "full"
+        assert "Merge sort" in sorting["sections"] and "Sort Colors" in sorting["problems"]
+        assert all({"slug", "track", "name", "sections", "problems"} <= set(i) for i in items)

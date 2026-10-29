@@ -27,7 +27,7 @@ export const TrackSelector: React.FC = () => {
                                     : 'text-slate-400 hover:text-white hover:bg-slate-800/60 border border-transparent'
                             }`}
                         >
-                            <span className="text-sm">{track.icon}</span>
+                            <span className="text-sm keep-colors">{track.icon}</span>
                             <span>{track.name}</span>
                         </button>
                     );

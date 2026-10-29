@@ -4,6 +4,7 @@ import { useTrack } from '../context/TrackContext';
 import { TrackSelector } from './TrackSelector';
 import { AuthModal } from './AuthModal';
 import { ProfileModal } from './ProfileModal';
+import { SettingsMenu } from './SettingsMenu';
 import { TrackId, PatternSummary } from '../types';
 import {
     FaCode,
@@ -15,7 +16,8 @@ import {
     FaSignOutAlt,
     FaGithub,
     FaLinkedin,
-    FaInstagram
+    FaInstagram,
+    FaSearch
 } from 'react-icons/fa';
 
 type HeaderProps = {
@@ -25,6 +27,7 @@ type HeaderProps = {
     isWorkspaceActive?: boolean;
     showTrackSelector?: boolean;
     onEnterGuestMode?: () => void;
+    onOpenSearch?: () => void;
 };
 
 export const Header: React.FC<HeaderProps> = ({
@@ -34,6 +37,7 @@ export const Header: React.FC<HeaderProps> = ({
     isWorkspaceActive = false,
     showTrackSelector = true,
     onEnterGuestMode,
+    onOpenSearch,
 }) => {
     const { user, isAuthenticated, solvedCount, logout } = useAuth();
     const { tracks, activeTrack, selectTrack } = useTrack();
@@ -88,6 +92,18 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* Right: Solved Badge & Auth (Desktop) */}
                     <div className="hidden md:flex items-center gap-3 shrink-0">
+                        {isWorkspaceActive && onOpenSearch && (
+                            <button
+                                type="button"
+                                onClick={onOpenSearch}
+                                className="inline-flex items-center gap-2 pl-3 pr-2 py-2 rounded-xl border border-slate-800 bg-slate-900/80 text-slate-400 hover:text-white hover:bg-slate-800 text-xs transition"
+                                aria-label="Search lessons and problems"
+                            >
+                                <FaSearch size={12} /> <span className="hidden lg:inline">Search</span>
+                                <kbd className="px-1.5 py-0.5 rounded-md bg-slate-800 border border-slate-700 text-[10px] font-mono text-slate-300">⌘K</kbd>
+                            </button>
+                        )}
+                        <SettingsMenu />
                         {isAuthenticated && (
                             <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
                                 <FaTrophy className="text-emerald-400 text-sm" />
@@ -120,7 +136,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-slate-800/80 border border-slate-700 text-slate-300 text-xs font-semibold">
                                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                     <span>Guest Mode</span>
-                                    <span className="text-slate-500">•</span>
+                                    <span className="text-slate-400">•</span>
                                     <span className="font-bold text-emerald-400">{solvedCount} problems solved</span>
                                 </div>
                                 <button
@@ -155,6 +171,16 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* Mobile Controls (Right): Solved Badge + Hamburger Toggle */}
                     <div className="flex md:hidden items-center gap-2">
+                        {isWorkspaceActive && onOpenSearch && (
+                            <button
+                                type="button"
+                                onClick={onOpenSearch}
+                                className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white"
+                                aria-label="Search lessons and problems"
+                            >
+                                <FaSearch size={16} />
+                            </button>
+                        )}
                         <div
                             className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs"
                             title={`${solvedCount} practice problems solved`}
@@ -167,7 +193,7 @@ export const Header: React.FC<HeaderProps> = ({
                         <button
                             type="button"
                             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                            className="p-2 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white"
+                            className="p-2.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white"
                             aria-label="Toggle Navigation Drawer"
                         >
                             {isMobileMenuOpen ? <FaTimes size={18} /> : <FaBars size={18} />}
@@ -199,7 +225,8 @@ export const Header: React.FC<HeaderProps> = ({
                                 <button
                                     type="button"
                                     onClick={() => setIsMobileMenuOpen(false)}
-                                    className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+                                    aria-label="Close menu"
+                                    className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
                                 >
                                     <FaTimes size={16} />
                                 </button>
@@ -265,7 +292,7 @@ export const Header: React.FC<HeaderProps> = ({
                                                     }`}
                                             >
                                                 <div className="flex items-center gap-2.5">
-                                                    <span className="text-base">{t.icon}</span>
+                                                    <span className="text-base keep-colors">{t.icon}</span>
                                                     <span className="text-xs">{t.name}</span>
                                                 </div>
                                                 {isActive && <FaCheckCircle className="text-blue-400 text-xs" />}
@@ -273,6 +300,12 @@ export const Header: React.FC<HeaderProps> = ({
                                         );
                                     })}
                                 </div>
+                            </div>
+
+                            {/* Display settings */}
+                            <div className="space-y-2">
+                                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400 px-1">Display</h4>
+                                <SettingsMenu inline />
                             </div>
 
                             {/* Mobile Topics List */}

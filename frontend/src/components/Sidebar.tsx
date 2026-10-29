@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { PatternDetail, PatternSummary } from '../types';
 import { useTrack } from '../context/TrackContext';
+import { useLearning } from '../context/LearningContext';
+import { ListSkeleton } from './Skeleton';
 import { FaSearch } from 'react-icons/fa';
 
 type SidebarProps = {
@@ -19,6 +21,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     onSelectPattern,
 }) => {
     const { activeTrack } = useTrack();
+    const { isLessonDone, quizScore } = useLearning();
     const [searchTerm, setSearchTerm] = useState('');
 
     const filteredPatterns = (patterns || []).filter((p) => {
@@ -44,20 +47,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {/* Search Bar */}
             <div className="relative">
-                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs" />
+                <FaSearch className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-xs" />
                 <input
                     type="text"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                     placeholder="Search topics..."
-                    className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
+                    className="w-full pl-8 pr-3 py-2 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 transition"
                 />
             </div>
 
             {loading && (
-                <div className="py-8 text-center text-xs text-slate-400">
-                    <p className="animate-pulse">Loading topics list…</p>
-                </div>
+                <ListSkeleton />
             )}
 
             {error && (
@@ -76,6 +77,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="max-h-[calc(100vh-250px)] overflow-y-auto pr-1 space-y-2.5">
                     {filteredPatterns.map((pattern) => {
                         const isActive = selectedPattern?.slug === pattern.slug;
+                        const done = isLessonDone(pattern.slug);
+                        const score = quizScore(pattern.slug);
 
                         return (
                             <button
@@ -96,8 +99,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
                                 </div>
 
                                 <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed">{pattern.description}</p>
-                                {(pattern.lesson_status || pattern.lesson_week) && (
+                                {(pattern.lesson_status || pattern.lesson_week || done || score) && (
                                     <div className="flex flex-wrap gap-1.5 text-[10px] font-semibold">
+                                        {done && <span className="px-1.5 py-0.5 rounded bg-emerald-500 text-white">✓ Done</span>}
+                                        {score && <span className="px-1.5 py-0.5 rounded bg-fuchsia-500/15 text-fuchsia-200">Quiz {score.best}/{score.total}</span>}
                                         {pattern.lesson_week && <span className="px-1.5 py-0.5 rounded bg-indigo-500/10 text-indigo-300">Weeks {pattern.lesson_week}</span>}
                                         {pattern.lesson_status === 'full' && <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-300">Full lesson</span>}
                                         {pattern.lesson_status === 'outline' && <span className="px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">Outline</span>}

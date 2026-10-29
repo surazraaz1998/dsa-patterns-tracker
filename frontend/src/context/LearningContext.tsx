@@ -1,8 +1,11 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import { api } from '../services/api';
 import { useAuth } from './AuthContext';
+import { countThisWeek, firstReview, afterReview, isDue, RevisionState, streak as streakOf, today } from '../services/studyDates';
 
-// Roadmap checkboxes ("roadmap:<item id>") and best quiz scores ("quiz:<topic slug>").
+// Roadmap ticks ("roadmap:<item id>") and completed lessons ("lesson:<slug>") store the day they happened
+// (older entries store true). Also: best quiz scores ("quiz:<slug>"), study days ("activity:days") and the
+// spaced-revision schedule ("revision:<slug>").
 // Guests keep them in localStorage; on sign-in they are merged into the account.
 
 export type QuizScore = { best: number; total: number };
@@ -13,7 +16,19 @@ type LearningContextType = {
     toggleDone: (roadmapItemId: string) => void;
     quizScore: (slug: string) => QuizScore | null;
     recordQuiz: (slug: string, score: number, total: number) => void;
+    isLessonDone: (slug: string) => boolean;
+    toggleLessonDone: (slug: string) => void;
+    streak: number;
+    weekDone: number;     // roadmap items + lessons completed this week
+    weeklyGoal: number;
+    studiedToday: boolean;
+    dueRevisions: string[]; // slugs whose recap is due
+    revisionState: (slug: string) => RevisionState | null;
+    completeRevision: (slug: string) => void;
 };
+
+export const WEEKLY_GOAL = 3;
+const MAX_DAYS = 120;
 
 const STORAGE_KEY = 'algotrack_learning';
 const LearningContext = createContext<LearningContextType | undefined>(undefined);
@@ -51,7 +66,10 @@ export const LearningProvider: React.FC<{ children: React.ReactNode }> = ({ chil
                 let remote = await api.getLearning();
                 const toUpload: Entries = {};
                 for (const [key, value] of Object.entries(local)) {
-                    if (key.startsWith('quiz:')) {
+                    if (key === 'activity:days') {
+                        const merged = [...new Set([...((remote[key] as string[]) ?? []), ...(value as string[])])].sort().slice(-MAX_DAYS);
+                        if (merged.length !== ((remote[key] as string[]) ?? []).length) toUpload[key] = merged;
+                    } else if (key.startsWith('quiz:')) {
                         const mine = value as QuizScore;
                         const theirs = remote[key] as QuizScore | undefined;
                         if (!theirs || mine.best > theirs.best) toUpload[key] = mine;
@@ -84,16 +102,54 @@ export const LearningProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         }
     }, [signedIn]);
 
-    const isDone = (id: string) => entries[`roadmap:${id}`] === true;
-    const toggleDone = (id: string) => save(`roadmap:${id}`, isDone(id) ? null : true);
+    const days = (entries['activity:days'] as string[] | undefined) ?? [];
+    const markStudied = () => {
+        const day = today();
+        if (!days.includes(day)) save('activity:days', [...days, day].sort().slice(-MAX_DAYS));
+    };
+
+    const isDone = (id: string) => Boolean(entries[`roadmap:${id}`]);
+    const toggleDone = (id: string) => {
+        if (isDone(id)) return save(`roadmap:${id}`, null);
+        save(`roadmap:${id}`, today());
+        markStudied();
+    };
     const quizScore = (slug: string) => (entries[`quiz:${slug}`] as QuizScore | undefined) ?? null;
+    const revisionState = (slug: string) => (entries[`revision:${slug}`] as RevisionState | undefined) ?? null;
     const recordQuiz = (slug: string, score: number, total: number) => {
         const prev = quizScore(slug);
         if (!prev || score > prev.best) save(`quiz:${slug}`, { best: score, total });
+        if (!revisionState(slug)) save(`revision:${slug}`, firstReview()); // first finish → recap in 3 days
+        markStudied();
+    };
+    const completeRevision = (slug: string) => {
+        const state = revisionState(slug) ?? firstReview();
+        save(`revision:${slug}`, afterReview(state));
+        markStudied();
     };
 
+    const isLessonDone = (slug: string) => Boolean(entries[`lesson:${slug}`]);
+    const toggleLessonDone = (slug: string) => {
+        if (isLessonDone(slug)) return save(`lesson:${slug}`, null);
+        save(`lesson:${slug}`, today());
+        markStudied();
+    };
+
+    const completedDates = Object.entries(entries)
+        .filter(([k, v]) => (k.startsWith('roadmap:') || k.startsWith('lesson:')) && typeof v === 'string')
+        .map(([, v]) => v as string);
+    const dueRevisions = Object.entries(entries)
+        .filter(([k, v]) => k.startsWith('revision:') && isDue(v as RevisionState))
+        .map(([k]) => k.slice('revision:'.length));
+
     return (
-        <LearningContext.Provider value={{ isDone, toggleDone, quizScore, recordQuiz }}>
+        <LearningContext.Provider
+            value={{
+                isDone, toggleDone, quizScore, recordQuiz, isLessonDone, toggleLessonDone,
+                streak: streakOf(days), weekDone: countThisWeek(completedDates), weeklyGoal: WEEKLY_GOAL,
+                studiedToday: days.includes(today()), dueRevisions, revisionState, completeRevision,
+            }}
+        >
             {children}
         </LearningContext.Provider>
     );

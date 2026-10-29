@@ -23,7 +23,7 @@ const AuxRows: React.FC<{ frame: Frame }> = ({ frame }) => {
         <div className="space-y-1 text-[11px] font-mono">
             {frame.aux.map((row) => (
                 <div key={row.label} className="flex items-center gap-2 min-w-0">
-                    <span className="w-24 shrink-0 text-right text-slate-500 truncate">{row.label}</span>
+                    <span className="w-24 shrink-0 text-right text-slate-400 truncate">{row.label}</span>
                     <div className="flex flex-wrap gap-1 min-h-[22px]">
                         {row.values.length === 0 && <span className="text-slate-700">—</span>}
                         {row.values.map((v, i) => (
@@ -81,7 +81,7 @@ export const SortingVisualizer: React.FC<{ algorithm: string }> = ({ algorithm }
                 </>
             }
         >
-            <div className="flex items-end gap-[3px] h-40 px-1" role="img" aria-label={`Array: ${frame.array.join(', ')}`}>
+            <div className="flex items-end gap-[3px] h-40 [.vis-expanded_&]:h-[45vh] px-1" role="img" aria-label={`Array: ${frame.array.join(', ')}`}>
                 {frame.array.map((v, i) => (
                     <div key={i} className={`flex-1 min-w-0 flex flex-col items-center justify-end h-full transition-opacity ${inRange(i) ? '' : 'opacity-25'}`}>
                         {showNumbers && <span className="text-[10px] text-slate-300 font-mono mb-0.5">{v}</span>}

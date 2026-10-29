@@ -35,6 +35,11 @@ function getAuthHeaders(token?: string | null): Record<string, string> {
 const patternListCache = new Map<string, PatternSummary[]>();
 const patternDetailCache = new Map<string, PatternDetail>();
 
+let roadmapRequest: Promise<Roadmap> | null = null;
+let searchRequest: Promise<SearchItem[]> | null = null;
+
+export type SearchItem = { slug: string; track: string; name: string; description: string; status?: string | null; sections: string[]; problems: string[] };
+
 export const api = {
     clearCache(): void {
         patternListCache.clear();
@@ -47,10 +52,24 @@ export const api = {
         return response.json();
     },
 
-    async getRoadmap(): Promise<Roadmap> {
-        const response = await fetch(`${API_BASE_URL}/roadmap`);
-        if (!response.ok) throw await errorFrom(response, 'Failed to load the roadmap');
-        return response.json();
+    // The roadmap is static content used by several views, so fetch it once per page load.
+    getRoadmap(): Promise<Roadmap> {
+        roadmapRequest ??= fetch(`${API_BASE_URL}/roadmap`).then(async (response) => {
+            if (!response.ok) throw await errorFrom(response, 'Failed to load the roadmap');
+            return response.json();
+        });
+        roadmapRequest.catch(() => { roadmapRequest = null; }); // allow a retry after a failure
+        return roadmapRequest;
+    },
+
+    // Topics, lesson sections and problem titles for the search palette; fetched once per page load.
+    getSearchIndex(): Promise<SearchItem[]> {
+        searchRequest ??= fetch(`${API_BASE_URL}/search-index`).then(async (response) => {
+            if (!response.ok) throw await errorFrom(response, 'Failed to load search');
+            return (await response.json()).items as SearchItem[];
+        });
+        searchRequest.catch(() => { searchRequest = null; });
+        return searchRequest;
     },
 
     // Learning progress (roadmap checkboxes, quiz scores) for signed-in users

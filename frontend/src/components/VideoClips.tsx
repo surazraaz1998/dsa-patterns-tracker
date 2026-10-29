@@ -78,7 +78,7 @@ export const VideoClips: React.FC<{ clips: VideoClip[]; sectionTitle: string }> 
                         onClick={() => choose(i)}
                         aria-pressed={playing === i}
                         title={`${c.title} — ${c.channel}`}
-                        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] font-semibold transition text-left max-w-full ${
+                        className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition text-left max-w-full ${
                             playing === i
                                 ? 'border-red-500/60 bg-red-500/15 text-red-200'
                                 : 'border-slate-700 bg-slate-900 text-slate-300 hover:border-red-500/50 hover:text-white'
@@ -88,7 +88,7 @@ export const VideoClips: React.FC<{ clips: VideoClip[]; sectionTitle: string }> 
                         <span className="min-w-0">
                             <span>{c.channel}</span>
                             <span className="text-slate-400 font-normal"> — {c.label ?? shortTitle(c.title)}</span>
-                            <span className="text-slate-500 font-normal"> · {clipLabel(c)}</span>
+                            <span className="text-slate-400 font-normal"> · {clipLabel(c)}</span>
                         </span>
                     </button>
                 ))}
