@@ -22,10 +22,10 @@ const GITHUB_URL = 'https://github.com/surazraaz1998';
 const EDITH_ENABLED = import.meta.env.VITE_EDITH_ENABLED === 'true';
 
 type View = 'roadmap' | 'topics' | 'playbook';
-const VIEWS: { id: View; label: string }[] = [
-    { id: 'roadmap', label: '🗺️ Roadmap' },
-    { id: 'topics', label: '📚 Lessons & practice' },
-    { id: 'playbook', label: '🎯 Interview playbook' },
+const VIEWS: { id: View; label: string; short: string }[] = [
+    { id: 'roadmap', label: '🗺️ Roadmap', short: '🗺️ Roadmap' },
+    { id: 'topics', label: '📚 Lessons & practice', short: '📚 Lessons' },
+    { id: 'playbook', label: '🎯 Interview playbook', short: '🎯 Playbook' },
 ];
 
 interface ErrorBoundaryProps {
@@ -184,13 +184,19 @@ function MainAppContent() {
     };
 
     const openLesson = (slug: string, trackId: string) => {
-        setView('topics');
-        window.scrollTo({ top: 0 });
+        const show = () => {
+            setView('topics');
+            window.scrollTo({ top: 0 });
+        };
         if (trackId === activeTrackId) {
-            void fetchPatternDetail(slug, true);
+            // Switch view only once the lesson has loaded, so the previously selected topic doesn't flash.
+            void fetchPatternDetail(slug, true).then(show);
         } else {
+            // Another track: drop the old lesson now; the track's list shows its loading state meanwhile.
+            setSelectedPattern(null);
             pendingSlug.current = slug;
             selectTrack(trackId);
+            show();
         }
     };
 
@@ -214,11 +220,14 @@ function MainAppContent() {
                             key={v.id}
                             type="button"
                             onClick={() => setView(v.id)}
+                            aria-current={view === v.id ? 'page' : undefined}
                             className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition ${
                                 view === v.id ? 'bg-white text-slate-900 border-white' : 'bg-slate-900 border-slate-800 text-slate-300 hover:text-white'
                             }`}
                         >
-                            {v.label}
+                            {/* short labels keep all three tabs on screen on phones */}
+                            <span className="sm:hidden">{v.short}</span>
+                            <span className="hidden sm:inline">{v.label}</span>
                         </button>
                     ))}
                 </nav>
@@ -276,7 +285,7 @@ function MainAppContent() {
 
                             {/* Problem Detail Panel Column */}
                             <div className={`md:col-span-8 lg:col-span-8 ${mobileTab === 'details' ? 'block' : 'hidden md:block'}`}>
-                                <DetailPanel selectedPattern={selectedPattern} onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined} />
+                                <DetailPanel selectedPattern={selectedPattern} loading={loading} onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined} />
                             </div>
                         </div>
                     </main>

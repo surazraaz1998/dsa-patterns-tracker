@@ -3,6 +3,9 @@ import { useAuth } from '../context/AuthContext';
 import { OAuthProvider, startOAuth } from '../services/oauth';
 import { FaGithub, FaGoogle, FaTimes, FaEnvelope, FaLock, FaCode, FaArrowRight, FaCheck } from 'react-icons/fa';
 
+// Only mention EDITH while the voice tutor is switched on (see App.tsx).
+const EDITH_ENABLED = import.meta.env.VITE_EDITH_ENABLED === 'true';
+
 type AuthModalProps = {
     isOpen: boolean;
     onClose: () => void;
@@ -130,7 +133,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                             </div>
                             <h2 className="text-xl font-extrabold text-white tracking-tight">Welcome to AlgoTrack</h2>
                             <p className="text-xs text-slate-400 max-w-xs mx-auto">
-                                Sign in to save progress across devices and unlock EDITH's AI voice tutor. New email? We'll create your account.
+                                Sign in to sync your roadmap, quiz scores and solved problems across devices{EDITH_ENABLED ? ", and to use EDITH, the AI voice tutor" : ''}. New email? We'll create your account.
                             </p>
                         </div>
 
@@ -186,7 +189,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose, onEnterGu
                                 <FaLock className="absolute left-3.5 text-slate-500 text-xs" />
                                 <input
                                     type="password"
-                                    placeholder="Password (min 6 characters for new accounts)"
+                                    placeholder="Password (6+ characters)"
                                     value={passwordInput}
                                     onChange={(e) => setPasswordInput(e.target.value)}
                                     required

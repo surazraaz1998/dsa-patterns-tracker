@@ -93,7 +93,7 @@ export const Header: React.FC<HeaderProps> = ({
                                 <FaTrophy className="text-emerald-400 text-sm" />
                                 <div className="flex items-baseline gap-1">
                                     <span className="font-extrabold text-white text-sm">{solvedCount}</span>
-                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">Solved</span>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-300">problems solved</span>
                                 </div>
                             </div>
                         )}
@@ -121,7 +121,7 @@ export const Header: React.FC<HeaderProps> = ({
                                     <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
                                     <span>Guest Mode</span>
                                     <span className="text-slate-500">•</span>
-                                    <span className="font-bold text-emerald-400">{solvedCount} Solved</span>
+                                    <span className="font-bold text-emerald-400">{solvedCount} problems solved</span>
                                 </div>
                                 <button
                                     type="button"
@@ -155,8 +155,12 @@ export const Header: React.FC<HeaderProps> = ({
 
                     {/* Mobile Controls (Right): Solved Badge + Hamburger Toggle */}
                     <div className="flex md:hidden items-center gap-2">
-                        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs">
-                            <FaTrophy size={12} />
+                        <div
+                            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs"
+                            title={`${solvedCount} practice problems solved`}
+                            aria-label={`${solvedCount} practice problems solved`}
+                        >
+                            <FaTrophy size={12} aria-hidden />
                             <span className="font-extrabold text-white text-xs">{solvedCount}</span>
                         </div>
 
@@ -223,7 +227,7 @@ export const Header: React.FC<HeaderProps> = ({
                                     </div>
                                 ) : (
                                     <div className="space-y-2">
-                                        <p className="text-xs text-slate-400">Log in to sync solved problems across devices.</p>
+                                        <p className="text-xs text-slate-400">Log in to sync your roadmap, quiz scores and solved problems across devices.</p>
                                         <div className="grid grid-cols-2 gap-2">
                                             <button
                                                 type="button"

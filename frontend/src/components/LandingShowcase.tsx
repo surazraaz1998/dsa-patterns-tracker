@@ -1,15 +1,17 @@
 import React from 'react';
 import {
     FaRocket,
-    FaBrain,
+    FaRoute,
+    FaChartBar,
+    FaYoutube,
     FaLaptopCode,
-    FaLayerGroup,
     FaCheckCircle,
     FaArrowRight,
     FaStar,
     FaShieldAlt,
     FaCode,
     FaLightbulb,
+    FaQuestionCircle,
     FaBolt
 } from 'react-icons/fa';
 
@@ -59,10 +61,10 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                 </div>
 
                 {/* Trust Badges */}
-                <div className="flex items-center justify-center gap-6 text-xs text-slate-400 pt-2">
-                    <span className="flex items-center gap-1.5"><FaShieldAlt className="text-emerald-400" /> 100% Free Forever</span>
-                    <span className="flex items-center gap-1.5"><FaStar className="text-amber-400" /> 15 Tiered Patterns</span>
-                    <span className="flex items-center gap-1.5"><FaCheckCircle className="text-blue-400" /> Auto LeetCode Sync</span>
+                <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-xs text-slate-400 pt-2">
+                    <span className="flex items-center gap-1.5"><FaShieldAlt className="text-emerald-400" /> Free · no sign-up needed</span>
+                    <span className="flex items-center gap-1.5"><FaStar className="text-amber-400" /> 41 full lessons · 4 tracks</span>
+                    <span className="flex items-center gap-1.5"><FaCheckCircle className="text-blue-400" /> 29 step-by-step visualisers</span>
                 </div>
             </div>
 
@@ -71,33 +73,33 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                 {/* Feature 1 */}
                 <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl space-y-4 hover:border-blue-500/40 transition">
                     <div className="w-12 h-12 rounded-2xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400 text-xl">
-                        <FaBrain />
+                        <FaRoute />
                     </div>
-                    <h3 className="text-base font-bold text-white">15 Reusable Patterns</h3>
+                    <h3 className="text-base font-bold text-white">A 6-month roadmap</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                        Group questions by underlying algorithmic patterns (Two-Pointer, Sliding Window, Monotonic Stack) to solve new problems effortlessly.
+                        DSA, High-Level Design, Low-Level Design and Agentic AI side by side, in two-week blocks. Tick things off as you go — progress is saved even without an account.
                     </p>
                 </div>
 
                 {/* Feature 2 */}
                 <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl space-y-4 hover:border-indigo-500/40 transition">
                     <div className="w-12 h-12 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 flex items-center justify-center text-indigo-400 text-xl">
-                        <FaLaptopCode />
+                        <FaChartBar />
                     </div>
-                    <h3 className="text-base font-bold text-white">Frontend Machine Coding</h3>
+                    <h3 className="text-base font-bold text-white">Watch algorithms run</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                        Master real UI machine coding rounds: Debounce, Throttle, Custom Promise polyfills, Virtualized lists, and custom React hooks.
+                        Every sorting method, binary search, two pointers, sliding window, linked lists, trees, BFS/DFS and DP tables — play, pause, step through, or type your own input.
                     </p>
                 </div>
 
                 {/* Feature 3 */}
                 <div className="p-6 rounded-3xl bg-slate-900/80 border border-slate-800 backdrop-blur-xl space-y-4 hover:border-purple-500/40 transition">
                     <div className="w-12 h-12 rounded-2xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400 text-xl">
-                        <FaLayerGroup />
+                        <FaYoutube />
                     </div>
-                    <h3 className="text-base font-bold text-white">SDE 1 & System Design</h3>
+                    <h3 className="text-base font-bold text-white">Video clips, only the part you need</h3>
                     <p className="text-xs text-slate-400 leading-relaxed">
-                        Step-by-step guides for LRU Cache, URL Shortener, Low-Level Design (LLD), and fundamental backend architecture concepts.
+                        277 hand-picked clips from Striver, NeetCode, ByteByteGo and more play inside each lesson — starting at the exact part that explains that concept.
                     </p>
                 </div>
             </div>
@@ -112,7 +114,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-800 pb-4">
                         <div>
                             <span className="text-xs font-bold uppercase tracking-wider text-blue-400">Sneak Peek Inside</span>
-                            <h2 className="text-lg md:text-xl font-bold text-white">Structured Practice Workspace</h2>
+                            <h2 className="text-lg md:text-xl font-bold text-white">What a lesson looks like</h2>
                         </div>
                         {onEnterGuestMode && (
                             <button
@@ -120,7 +122,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                                 onClick={onEnterGuestMode}
                                 className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400 text-xs font-bold hover:bg-amber-500/20 transition self-start sm:self-auto"
                             >
-                                <FaBolt size={12} /> Enter Practice Workspace
+                                <FaBolt size={12} /> Open the roadmap
                             </button>
                         )}
                     </div>
@@ -129,46 +131,46 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {/* Sample Card 1 */}
                         <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-bold text-white flex items-center gap-2">
-                                    <FaCode className="text-blue-400" /> Two Pointers — Container With Most Water
+                                    <FaCode className="text-blue-400" /> Sorting — every method
                                 </span>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 font-bold border border-emerald-500/20">
-                                    Tier 1 Easy
+                                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 font-bold border border-indigo-500/30">
+                                    Weeks 1–2
                                 </span>
                             </div>
                             <p className="text-xs text-slate-400">
-                                Use left & right pointers at container boundaries to maximize width and compute area.
+                                Eleven sorting methods, from bubble to radix and cyclic sort — each with a visualiser you can step through and a clip that plays only that method.
                             </p>
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex flex-wrap gap-2 pt-1">
                                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 flex items-center gap-1">
-                                    <FaLightbulb className="text-amber-400" /> Hints Included
+                                    <FaChartBar className="text-amber-400" /> Step-by-step visualiser
                                 </span>
                                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 flex items-center gap-1">
-                                    <FaCode className="text-blue-400" /> JS & Python Solutions
+                                    <FaYoutube className="text-red-500" /> In-app video
                                 </span>
                             </div>
                         </div>
 
                         {/* Sample Card 2 */}
                         <div className="p-4 rounded-2xl bg-slate-950/80 border border-slate-800 space-y-3">
-                            <div className="flex items-center justify-between">
+                            <div className="flex items-center justify-between gap-2">
                                 <span className="text-xs font-bold text-white flex items-center gap-2">
-                                    <FaLaptopCode className="text-indigo-400" /> Debounce & Throttle Polyfill
+                                    <FaLaptopCode className="text-indigo-400" /> LLD: Movie Booking (BookMyShow)
                                 </span>
-                                <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-400 font-bold border border-amber-500/20">
-                                    Tier 2 Medium
+                                <span className="shrink-0 text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 font-bold border border-indigo-500/30">
+                                    Weeks 13–14
                                 </span>
                             </div>
                             <p className="text-xs text-slate-400">
-                                Implement production-grade rate limiters handling trailing calls & leading execution.
+                                Hold, pay, confirm — and four ways to stop two people booking the same seat, with the trade-offs interviewers ask about.
                             </p>
-                            <div className="flex gap-2 pt-1">
+                            <div className="flex flex-wrap gap-2 pt-1">
                                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 flex items-center gap-1">
-                                    <FaLightbulb className="text-amber-400" /> Closure & Timer Hints
+                                    <FaLightbulb className="text-amber-400" /> Dry run + template
                                 </span>
                                 <span className="text-[11px] px-2.5 py-1 rounded-full bg-slate-800 text-slate-300 flex items-center gap-1">
-                                    <FaCode className="text-blue-400" /> Production Code
+                                    <FaQuestionCircle className="text-blue-400" /> Quiz + interview tips
                                 </span>
                             </div>
                         </div>
@@ -178,7 +180,7 @@ export const LandingShowcase: React.FC<LandingShowcaseProps> = ({ onOpenAuth, on
                     <div className="p-5 rounded-2xl bg-gradient-to-r from-blue-950/40 via-slate-900 to-indigo-950/40 border border-slate-800 flex flex-col sm:flex-row items-center justify-between gap-4">
                         <div className="text-left">
                             <h4 className="text-sm font-bold text-white">Ready to start practicing?</h4>
-                            <p className="text-xs text-slate-400">Practice instantly as a guest or sign in to sync your LeetCode profile.</p>
+                            <p className="text-xs text-slate-400">Start as a guest — progress stays in this browser. Sign in any time to sync it across devices.</p>
                         </div>
                         <div className="flex items-center gap-3 shrink-0">
                             {onEnterGuestMode && (

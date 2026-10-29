@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import { PatternDetail, ProblemGuide } from '../types';
 import { useAuth } from '../context/AuthContext';
@@ -16,15 +16,17 @@ import {
     FaCheck,
     FaSave,
     FaHistory,
-    FaMicrophone
+    FaMicrophone,
+    FaArrowUp
 } from 'react-icons/fa';
 
 type DetailPanelProps = {
     selectedPattern: PatternDetail | null;
+    loading?: boolean;
     onOpenEdith?: () => void;
 };
 
-export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, onOpenEdith }) => {
+export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loading, onOpenEdith }) => {
     const { getProblemStatus, getProblemProgress, toggleProblemSolved, saveSubmittedCode } = useAuth();
     const [expandedPanels, setExpandedPanels] = useState<Record<string, 'hints' | 'answer' | 'submission' | null>>({});
     const [activeLangTab, setActiveLangTab] = useState<Record<string, 'python' | 'javascript'>>({});
@@ -32,6 +34,37 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, onOpe
     const [userLangInput, setUserLangInput] = useState<Record<string, string>>({});
     const [copiedKey, setCopiedKey] = useState<string | null>(null);
     const [saveSuccessKey, setSaveSuccessKey] = useState<string | null>(null);
+    // On md+ the lesson scrolls inside this box; on phones the page scrolls. Track both for "back to top".
+    const scrollRef = useRef<HTMLDivElement>(null);
+    const [showTop, setShowTop] = useState(false);
+    const slug = selectedPattern?.slug;
+
+    useEffect(() => {
+        scrollRef.current?.scrollTo({ top: 0 });
+        const box = scrollRef.current;
+        const update = () => setShowTop(window.scrollY > 900 || (box?.scrollTop ?? 0) > 900);
+        update();
+        window.addEventListener('scroll', update, { passive: true });
+        box?.addEventListener('scroll', update, { passive: true });
+        return () => {
+            window.removeEventListener('scroll', update);
+            box?.removeEventListener('scroll', update);
+        };
+    }, [slug]);
+
+    const backToTop = () => {
+        scrollRef.current?.scrollTo({ top: 0, behavior: 'smooth' });
+        const top = (scrollRef.current?.getBoundingClientRect().top ?? 0) + window.scrollY - 140;
+        if (window.scrollY > top) window.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    };
+
+    if (!selectedPattern && loading) {
+        return (
+            <section className="w-full bg-slate-900/80 border border-slate-800 rounded-3xl p-8 shadow-xl backdrop-blur-xl text-center text-sm text-slate-400 animate-pulse">
+                Loading lesson…
+            </section>
+        );
+    }
 
     if (!selectedPattern) {
         return (
@@ -72,8 +105,9 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, onOpe
     };
 
     return (
+        <>
         <section className="w-full bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-xl">
-            <div className="max-h-[calc(100vh-200px)] overflow-y-auto pr-1 space-y-6">
+            <div ref={scrollRef} className="md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:pr-1 space-y-6">
                 {/* Topic Title Header */}
                 <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                     <div>
@@ -437,5 +471,16 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, onOpe
                 </div>
             </div>
         </section>
+        {/* Outside the section: its backdrop-blur would make a fixed child position relative to the card. */}
+        {showTop && (
+            <button
+                type="button"
+                onClick={backToTop}
+                className="fixed bottom-5 right-5 z-30 inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-900/50"
+            >
+                <FaArrowUp size={11} /> Back to top
+            </button>
+        )}
+        </>
     );
 };

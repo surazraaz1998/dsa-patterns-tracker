@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrayFrame, Frame, GraphFrame, ListFrame, TableFrame, Tone, TreeFrame, VISUALS } from './structures';
 import { ExampleBar, Legend, VisualShell, useStepper } from './player';
 
@@ -55,19 +55,36 @@ const Aux: React.FC<{ aux?: { label: string; value: string }[] }> = ({ aux }) =>
         </dl>
     ) : null;
 
+/** Scroll a horizontally overflowing row so the element marked data-focus stays visible (never scrolls the page). */
+function useKeepInView(dep: unknown) {
+    const ref = useRef<HTMLDivElement>(null);
+    useEffect(() => {
+        const box = ref.current;
+        const el = box?.querySelector<HTMLElement>('[data-focus="true"]');
+        if (!box || !el || box.scrollWidth <= box.clientWidth) return;
+        const b = box.getBoundingClientRect(), e = el.getBoundingClientRect();
+        if (e.left < b.left + 8 || e.right > b.right - 8) {
+            box.scrollTo({ left: box.scrollLeft + (e.left - b.left) - b.width / 2 + e.width / 2, behavior: 'smooth' });
+        }
+    }, [dep]);
+    return ref;
+}
+
 const ArrayView: React.FC<{ f: ArrayFrame }> = ({ f }) => {
     const slots = f.pointers.some((p) => p.index >= f.items.length) ? f.items.length + 1 : f.items.length;
     const inWindow = (i: number) => !f.window || (i >= f.window[0] && i <= f.window[1]);
     const max = f.bars ? Math.max(...(f.items as number[]), 1) : 1;
+    const focus = f.pointers.length ? f.pointers[f.pointers.length - 1].index : -1;
+    const ref = useKeepInView(f);
     return (
-        <div className="overflow-x-auto">
+        <div ref={ref} className="overflow-x-auto">
             <div className="flex gap-1 min-w-max mx-auto w-fit px-1">
                 {Array.from({ length: slots }, (_, i) => {
                     const isEnd = i === f.items.length;
                     const tone = f.tones?.[i] ?? 'idle';
                     const labels = f.pointers.filter((p) => p.index === i).map((p) => p.label);
                     return (
-                        <div key={i} className={`flex flex-col items-center gap-1 transition-opacity ${isEnd || inWindow(i) ? '' : 'opacity-30'}`}>
+                        <div key={i} data-focus={i === focus} className={`flex flex-col items-center gap-1 transition-opacity ${isEnd || inWindow(i) ? '' : 'opacity-30'}`}>
                             <span className="text-[9px] text-slate-500 font-mono">{isEnd ? 'end' : i}</span>
                             {f.bars && !isEnd ? (
                                 <div className="h-28 w-7 flex flex-col justify-end items-center">
@@ -91,39 +108,43 @@ const ArrayView: React.FC<{ f: ArrayFrame }> = ({ f }) => {
     );
 };
 
-const ListView: React.FC<{ f: ListFrame }> = ({ f }) => (
-    <div className="overflow-x-auto">
-        <div className="flex items-start min-w-max mx-auto w-fit px-1 py-1">
-            {f.values.map((v, i) => {
-                const labels = f.pointers.filter((p) => p.index === i).map((p) => p.label);
-                const tone = f.tones?.[i] ?? 'idle';
-                const right = f.next[i] === i + 1;
-                const left = i + 1 < f.values.length && f.next[i + 1] === i;
-                return (
-                    <React.Fragment key={i}>
-                        <div className="flex flex-col items-center gap-1">
-                            <div className={`w-11 rounded-md border text-center transition-colors ${CELL[tone]}`}>
-                                <div className="text-sm font-mono font-semibold py-1">{v}</div>
-                                <div className="text-[9px] border-t border-current/20 opacity-80 py-0.5">{f.next[i] === null ? 'next ∅' : `next ${f.values[f.next[i]!]}`}</div>
+const ListView: React.FC<{ f: ListFrame }> = ({ f }) => {
+    const focus = f.pointers.find((p) => p.index !== null)?.index ?? -1;
+    const ref = useKeepInView(f);
+    return (
+        <div ref={ref} className="overflow-x-auto">
+            <div className="flex items-start min-w-max mx-auto w-fit px-1 py-1">
+                {f.values.map((v, i) => {
+                    const labels = f.pointers.filter((p) => p.index === i).map((p) => p.label);
+                    const tone = f.tones?.[i] ?? 'idle';
+                    const right = f.next[i] === i + 1;
+                    const left = i + 1 < f.values.length && f.next[i + 1] === i;
+                    return (
+                        <React.Fragment key={i}>
+                            <div className="flex flex-col items-center gap-1" data-focus={i === focus}>
+                                <div className={`w-11 rounded-md border text-center transition-colors ${CELL[tone]}`}>
+                                    <div className="text-sm font-mono font-semibold py-1">{v}</div>
+                                    <div className="text-[9px] border-t border-current/20 opacity-80 py-0.5">{f.next[i] === null ? 'next ∅' : `next ${f.values[f.next[i]!]}`}</div>
+                                </div>
+                                <div className="min-h-[28px] flex flex-col items-center">
+                                    {labels.map((l) => <span key={l} className="text-[10px] font-bold text-indigo-300 leading-tight">↑{l}</span>)}
+                                </div>
                             </div>
-                            <div className="min-h-[28px] flex flex-col items-center">
-                                {labels.map((l) => <span key={l} className="text-[10px] font-bold text-indigo-300 leading-tight">↑{l}</span>)}
-                            </div>
-                        </div>
-                        {i + 1 < f.values.length && (
-                            <div className="w-6 h-9 flex items-center justify-center text-base text-slate-400" aria-hidden>
-                                {right ? '→' : left ? '←' : ' '}
-                            </div>
-                        )}
-                    </React.Fragment>
-                );
-            })}
+                            {i + 1 < f.values.length && (
+                                <div className="w-6 h-9 flex items-center justify-center text-base text-slate-400" aria-hidden>
+                                    {right ? '→' : left ? '←' : ' '}
+                                </div>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
+            </div>
+            {f.pointers.some((p) => p.index === null) && (
+                <p className="text-[10px] text-slate-500 text-center">{f.pointers.filter((p) => p.index === null).map((p) => `${p.label} = null`).join(' · ')}</p>
+            )}
         </div>
-        {f.pointers.some((p) => p.index === null) && (
-            <p className="text-[10px] text-slate-500 text-center">{f.pointers.filter((p) => p.index === null).map((p) => `${p.label} = null`).join(' · ')}</p>
-        )}
-    </div>
-);
+    );
+};
 
 const TreeView: React.FC<{ f: TreeFrame }> = ({ f }) => {
     const depth = Math.max(1, Math.floor(Math.log2(f.tree.length)) + 1);
@@ -170,8 +191,9 @@ const GraphView: React.FC<{ f: GraphFrame }> = ({ f }) => (
 
 const TableView: React.FC<{ f: TableFrame }> = ({ f }) => {
     const isAt = (r: number, c: number, cells?: [number, number][]) => !!cells?.some(([x, y]) => x === r && y === c);
+    const ref = useKeepInView(f);
     return (
-        <div className="overflow-x-auto">
+        <div ref={ref} className="overflow-x-auto">
             <table className="mx-auto text-xs font-mono border-collapse">
                 <thead>
                     <tr>
@@ -187,7 +209,7 @@ const TableView: React.FC<{ f: TableFrame }> = ({ f }) => {
                                 const current = f.current?.[0] === r && f.current?.[1] === c;
                                 const dep = isAt(r, c, f.deps);
                                 return (
-                                    <td key={c} className={`w-9 h-8 text-center border transition-colors ${
+                                    <td key={c} data-focus={current} className={`w-9 h-8 text-center border transition-colors ${
                                         current ? 'bg-amber-400 text-slate-950 border-amber-300 font-bold' : dep ? 'bg-sky-500/80 text-white border-sky-300' : 'border-slate-700 text-slate-200 bg-slate-900'}`}>
                                         {v === null ? <span className="text-slate-700">·</span> : v}
                                     </td>
