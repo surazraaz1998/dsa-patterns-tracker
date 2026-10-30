@@ -12,6 +12,26 @@ export const Markdown: React.FC<{ children: string }> = ({ children }) => (
     <ReactMarkdown remarkPlugins={[remarkGfm]}>{children}</ReactMarkdown>
 );
 
+// Active recall: every couple of sections, explain what you just read before peeking. Retrieval beats re-reading.
+const RecallCheck: React.FC<{ concept: Concept; onReread: () => void }> = ({ concept, onReread }) => {
+    const [open, setOpen] = useState(false);
+    return (
+        <div className="rounded-xl border border-dashed border-fuchsia-500/40 bg-fuchsia-500/5 p-3 text-sm">
+            <p className="text-fuchsia-100"><span className="keep-colors" aria-hidden>🧠</span> <strong>Pause.</strong> Explain “{concept.title}” out loud in one or two sentences — then check.</p>
+            {open ? (
+                <div className="mt-2 space-y-2">
+                    <div className="markdown-body text-slate-200 leading-relaxed"><Markdown>{concept.body.split(/\n\s*\n/)[0]}</Markdown></div>
+                    <button type="button" onClick={onReread} className="text-xs font-semibold text-fuchsia-300 hover:text-white">Missed something? Re-read this part ↑</button>
+                </div>
+            ) : (
+                <button type="button" onClick={() => setOpen(true)} className="mt-2 px-3 py-1.5 rounded-lg bg-fuchsia-600/30 border border-fuchsia-500/40 text-xs font-semibold text-fuchsia-100 hover:bg-fuchsia-600/50">
+                    Check my answer
+                </button>
+            )}
+        </div>
+    );
+};
+
 const DeepDive: React.FC<{ concepts: Concept[] }> = ({ concepts }) => {
     const refs = useRef<(HTMLElement | null)[]>([]);
     return (
@@ -44,6 +64,11 @@ const DeepDive: React.FC<{ concepts: Concept[] }> = ({ concepts }) => {
                             <Markdown>{c.body}</Markdown>
                         </div>
                         {c.visual && <div className="mt-3"><VisualFor visual={c.visual} /></div>}
+                        {i % 2 === 1 && (
+                            <div className="mt-4">
+                                <RecallCheck concept={c} onReread={() => refs.current[i]?.scrollIntoView({ behavior: smooth(), block: 'start' })} />
+                            </div>
+                        )}
                     </article>
                 ))}
             </div>

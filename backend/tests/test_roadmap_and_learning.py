@@ -1,3 +1,6 @@
+import re
+from pathlib import Path
+
 from fastapi.testclient import TestClient
 
 from app.main import app
@@ -56,6 +59,9 @@ def test_learning_state_requires_login_and_round_trips():
         assert client.put("/learning", json={"entries": {"activity:days": ["x" * 50] * 100}}, headers=headers).status_code == 400
 
 
+# keys of DIAGRAMS in frontend/src/visuals/diagrams.ts (4-space-indented "'id': {" / "id: {" lines)
+DIAGRAMS_TS = Path(__file__).resolve().parents[2] / "frontend" / "src" / "visuals" / "diagrams.ts"
+DIAGRAM_IDS = set(re.findall(r"^    '?([a-z0-9-]+)'?: \{$", DIAGRAMS_TS.read_text(), re.M))
 SORTING_VISUALS = {"bubble", "selection", "insertion", "shell", "merge", "quick", "heap", "counting", "radix", "bucket", "cyclic"}
 # must match the visualisers registered in frontend/src/visuals (sorting.ts and structures.ts)
 VISUALS = {
@@ -67,6 +73,7 @@ VISUALS = {
     "tree": {"preorder", "inorder", "postorder", "levelorder", "bst-search"},
     "graph": {"bfs", "dfs"},
     "dp": {"climbing-stairs", "house-robber", "coin-change", "lcs"},
+    "diagram": DIAGRAM_IDS,
 }
 
 

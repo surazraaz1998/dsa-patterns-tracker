@@ -1,8 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { FaBolt, FaCode, FaExclamationTriangle, FaLightbulb, FaQuestionCircle, FaUserTie } from 'react-icons/fa';
+import { FaBolt, FaClipboardList, FaCode, FaDrawPolygon, FaExclamationTriangle, FaLightbulb, FaQuestionCircle, FaUserTie } from 'react-icons/fa';
 import { useLearning } from '../context/LearningContext';
 import { isDue, today } from '../services/studyDates';
 import { Lesson, QuizQuestion } from '../types';
+import { VisualFor } from '../visuals';
 import { BulletList, Markdown, Quiz, Section } from './LessonView';
 
 // Same 3 questions all day (so a reload doesn't reshuffle), different ones on other days.
@@ -14,12 +15,14 @@ function pickRecap(slug: string, questions: QuizQuestion[], n = 3): QuizQuestion
 
 const firstParagraph = (md: string) => md.split(/\n\s*\n/)[0];
 
-/** One-page summary of a lesson for the night before an interview, plus the spaced-revision recap. */
-export const RevisionView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug, lesson }) => {
+/** One-page summary of a topic for the night before an interview, plus the spaced-revision recap.
+ *  `lesson` is missing for older topics; `note` is the topic's cheat sheet (revision_note_md). */
+export const RevisionView: React.FC<{ slug: string; lesson?: Lesson | null; note?: string }> = ({ slug, lesson, note }) => {
     const { revisionState, completeRevision } = useLearning();
     const state = revisionState(slug);
     const due = isDue(state ?? undefined);
-    const recap = useMemo(() => pickRecap(slug, lesson.quiz ?? []), [slug, lesson.quiz]);
+    const recap = useMemo(() => (lesson?.status === 'full' ? pickRecap(slug, lesson.quiz ?? []) : []), [slug, lesson]);
+    const diagrams = (lesson?.concepts ?? []).filter((c) => c.visual?.type === 'diagram');
     const [result, setResult] = useState<string | null>(null);
 
     const onFinish = (score: number, total: number) => {
@@ -44,6 +47,7 @@ export const RevisionView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug,
                 </p>
             </div>
 
+            {lesson && (
             <Section icon={<FaLightbulb />} title="In one line" tone="text-amber-400">
                 <div className="markdown-body text-sm text-slate-200 leading-relaxed"><Markdown>{firstParagraph(lesson.simple)}</Markdown></div>
                 {lesson.concepts && lesson.concepts.length > 0 && (
@@ -54,14 +58,28 @@ export const RevisionView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug,
                 )}
                 {lesson.key_points && <BulletList items={lesson.key_points} />}
             </Section>
+            )}
 
-            {lesson.when_to_use && lesson.when_to_use.length > 0 && (
+            {note && (
+                <Section icon={<FaClipboardList />} title="Cheat sheet" tone="text-sky-400">
+                    <div className="markdown-body text-sm text-slate-200 leading-relaxed space-y-2"><Markdown>{note}</Markdown></div>
+                </Section>
+            )}
+
+            {diagrams.length > 0 && (
+                <Section icon={<FaDrawPolygon />} title="Diagram to redraw" tone="text-indigo-400">
+                    <p className="text-xs text-slate-400">Draw it on paper from memory first (boxes, then arrows), then step through to check what you missed — that's exactly what the interviewer will ask you to do.</p>
+                    {diagrams.map((c) => <VisualFor key={c.title} visual={c.visual!} />)}
+                </Section>
+            )}
+
+            {lesson?.when_to_use && lesson.when_to_use.length > 0 && (
                 <Section icon={<FaLightbulb />} title="Spot it" tone="text-amber-400">
                     <BulletList items={lesson.when_to_use} marker="→" />
                 </Section>
             )}
 
-            {(lesson.template?.python || lesson.complexity) && (
+            {lesson && (lesson.template?.python || lesson.complexity) && (
                 <Section icon={<FaCode />} title="Template & complexity" tone="text-violet-400">
                     {lesson.complexity && <p className="text-sm text-slate-200"><strong className="text-slate-100">Complexity: </strong>{lesson.complexity}</p>}
                     {lesson.template?.python && (
@@ -70,12 +88,12 @@ export const RevisionView: React.FC<{ slug: string; lesson: Lesson }> = ({ slug,
                 </Section>
             )}
 
-            {(lesson.mistakes?.length || lesson.interview_tips?.length) ? (
+            {(lesson?.mistakes?.length || lesson?.interview_tips?.length) ? (
                 <div className="grid md:grid-cols-2 gap-4">
-                    {lesson.mistakes && lesson.mistakes.length > 0 && (
+                    {lesson?.mistakes && lesson.mistakes.length > 0 && (
                         <Section icon={<FaExclamationTriangle />} title="Avoid" tone="text-rose-400"><BulletList items={lesson.mistakes} marker="✗" /></Section>
                     )}
-                    {lesson.interview_tips && lesson.interview_tips.length > 0 && (
+                    {lesson?.interview_tips && lesson.interview_tips.length > 0 && (
                         <Section icon={<FaUserTie />} title="Say in the interview" tone="text-emerald-400"><BulletList items={lesson.interview_tips} marker="✓" /></Section>
                     )}
                 </div>

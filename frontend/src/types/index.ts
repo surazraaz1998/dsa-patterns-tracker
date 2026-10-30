@@ -45,8 +45,8 @@ export type VideoClip = { id: string; title: string; channel: string; start?: nu
 
 // An interactive visualisation rendered by a registered visualiser (see src/visuals).
 export type Visual = {
-    type: 'sorting' | 'binary-search' | 'two-pointers' | 'sliding-window' | 'linked-list' | 'tree' | 'graph' | 'dp';
-    algorithm: string;
+    type: 'sorting' | 'binary-search' | 'two-pointers' | 'sliding-window' | 'linked-list' | 'tree' | 'graph' | 'dp' | 'diagram';
+    algorithm: string; // for 'diagram': a key of DIAGRAMS (visuals/diagrams.ts)
     options?: string[]; // other algorithms of the same type the viewer can switch to
 };
 

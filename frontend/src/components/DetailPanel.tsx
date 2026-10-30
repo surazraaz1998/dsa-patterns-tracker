@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
-import { PatternDetail, ProblemGuide } from '../types';
+import { PatternDetail, PatternSummary, ProblemGuide } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { LessonView } from './LessonView';
 import { LessonSkeleton } from './Skeleton';
 import { RevisionView } from './RevisionView';
+import { useVideoPlayer } from './VideoPlayer';
 import { useTrack } from '../context/TrackContext';
 import { getSpot, saveSpot, setLastLesson, SavedSpot } from '../services/recent';
 import { smooth } from '../services/prefs';
@@ -24,7 +25,9 @@ import {
     FaMicrophone,
     FaArrowUp,
     FaListUl,
-    FaTimes
+    FaTimes,
+    FaExpand,
+    FaArrowRight
 } from 'react-icons/fa';
 
 export type LessonMode = 'full' | 'revision';
@@ -37,9 +40,13 @@ type DetailPanelProps = {
     focus?: { slug: string; section: string } | null; // scroll here once the lesson is on screen
     onFocused?: () => void;
     onOpenEdith?: () => void;
+    focusMode?: boolean; // only the lesson on screen; the page (not a box) scrolls
+    onToggleFocus?: (on: boolean) => void;
+    nextLesson?: PatternSummary | null;
+    onOpenNext?: (slug: string) => void;
 };
 
-export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loading, mode = 'full', onModeChange, focus, onFocused, onOpenEdith }) => {
+export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loading, mode = 'full', onModeChange, focus, onFocused, onOpenEdith, focusMode = false, onToggleFocus, nextLesson, onOpenNext }) => {
     const { getProblemStatus, getProblemProgress, toggleProblemSolved, saveSubmittedCode } = useAuth();
     const [expandedPanels, setExpandedPanels] = useState<Record<string, 'hints' | 'answer' | 'submission' | null>>({});
     const [activeLangTab, setActiveLangTab] = useState<Record<string, 'python' | 'javascript'>>({});
@@ -51,6 +58,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
     const scrollRef = useRef<HTMLDivElement>(null);
     const [showTop, setShowTop] = useState(false);
     const { activeTrackId } = useTrack();
+    const video = useVideoPlayer(); // the corner player sits bottom-right, so "back to top" moves left while it's open
     const slug = selectedPattern?.slug;
     // Lesson navigation: section list, the section on screen, the phone "Sections" sheet, and "resume".
     const [sections, setSections] = useState<{ title: string; level: number }[]>([]);
@@ -59,15 +67,22 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
     const [sheetOpen, setSheetOpen] = useState(false);
     const [resume, setResume] = useState<SavedSpot | null>(null);
     const [headerH, setHeaderH] = useState(64);
+    const [progress, setProgress] = useState(0); // 0–1, how far through the lesson
+    const [readMin, setReadMin] = useState(0);
+    const [breakDue, setBreakDue] = useState(false);
 
     useEffect(() => {
         if (!slug || !selectedPattern) return;
         setLastLesson({ slug, trackId: selectedPattern.track_category ?? activeTrackId, name: selectedPattern.name });
         const spot = getSpot(slug);
         setResume(spot && spot.y > 600 ? spot : null);
-        setHeaderH(document.querySelector('header')?.getBoundingClientRect().height ?? 64);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [slug]);
+
+    useEffect(() => {
+        // focus mode swaps the site header for the slimmer focus bar
+        setHeaderH(document.querySelector('header')?.getBoundingClientRect().height ?? 64);
+    }, [slug, focusMode]);
 
     useEffect(() => {
         scrollRef.current?.scrollTo({ top: 0 });
@@ -76,10 +91,15 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
         const els = () => [...box.querySelectorAll<HTMLElement>('[data-section]')];
         setSections(els().map((el) => ({ title: el.dataset.section!, level: el.dataset.sectionLevel ? Number(el.dataset.sectionLevel) : 1 })));
         setSectionsFor(`${slug}:${mode}`);
+        // ~200 words a minute, ignoring the practice problems below the lesson
+        const words = (box.querySelector<HTMLElement>('[data-lesson-body]')?.innerText ?? '').split(/\s+/).length;
+        setReadMin(Math.max(1, Math.round(words / 200)));
         let saveTimer = 0;
         const update = () => {
             const boxMode = box.scrollHeight > box.clientHeight + 1; // md+: the box scrolls; phones: the page does
             const offset = boxMode ? box.scrollTop : Math.max(0, window.scrollY - (box.getBoundingClientRect().top + window.scrollY));
+            const room = boxMode ? box.scrollHeight - box.clientHeight : box.scrollHeight - window.innerHeight + 200;
+            setProgress(room > 0 ? Math.min(1, offset / room) : 0);
             setShowTop(offset > 900);
             const line = boxMode ? box.getBoundingClientRect().top + 24 : 150;
             const here = els().filter((el) => el.getBoundingClientRect().top <= line).pop()?.dataset.section ?? '';
@@ -92,12 +112,25 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
         };
         window.addEventListener('scroll', update, { passive: true });
         box.addEventListener('scroll', update, { passive: true });
+        update();
         return () => {
             window.clearTimeout(saveTimer);
             window.removeEventListener('scroll', update);
             box.removeEventListener('scroll', update);
         };
-    }, [slug, mode]);
+    }, [slug, mode, focusMode]);
+
+    // Attention drops after ~25 minutes of reading: suggest a short break, then the quiz (only time the tab is visible counts).
+    useEffect(() => {
+        setBreakDue(false);
+        let seconds = 0;
+        const t = window.setInterval(() => {
+            if (document.visibilityState !== 'visible') return;
+            seconds += 30;
+            if (seconds === 25 * 60) setBreakDue(true);
+        }, 30000);
+        return () => window.clearInterval(t);
+    }, [slug]);
 
     useEffect(() => {
         if (!sheetOpen) return;
@@ -179,11 +212,11 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
 
     return (
         <>
-        <section className="w-full bg-slate-900/80 border border-slate-800 rounded-3xl p-5 md:p-6 shadow-xl backdrop-blur-xl">
-            {/* Phones: a sticky bar with the section on screen and a button for the section list */}
+        <section className={`w-full rounded-3xl ${focusMode ? 'p-5 md:p-8 bg-slate-900/40 border border-slate-800/60' : 'bg-slate-900/80 border border-slate-800 p-5 md:p-6 shadow-xl backdrop-blur-xl'}`}>
+            {/* Phones (and focus mode below xl): a sticky bar with the section on screen and a button for the section list */}
             {sections.length > 2 && (
                 <div
-                    className="md:hidden sticky z-20 -mx-5 -mt-5 mb-4 px-4 py-2 rounded-t-3xl bg-slate-950/95 backdrop-blur border-b border-slate-800 flex items-center gap-2"
+                    className={`${focusMode ? 'xl:hidden md:-mx-8 md:-mt-8 md:mb-6' : 'md:hidden'} sticky z-20 -mx-5 -mt-5 mb-4 px-4 py-2 rounded-t-3xl bg-slate-950/95 backdrop-blur border-b border-slate-800 flex items-center gap-2`}
                     style={{ top: headerH }}
                 >
                     <p className="flex-1 min-w-0 text-[11px] text-slate-400 truncate">
@@ -200,14 +233,28 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
                     </button>
                 </div>
             )}
-            <div ref={scrollRef} className="md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:pr-1 xl:flex xl:gap-6 xl:items-start">
+            <div ref={scrollRef} className={`${focusMode ? '' : 'md:max-h-[calc(100vh-200px)] md:overflow-y-auto md:pr-1'} xl:flex xl:gap-6 xl:items-start`}>
                 <div className="min-w-0 flex-1 space-y-6 xl:max-w-3xl">
                     {/* Topic Title Header */}
                     <div className="border-b border-slate-800 pb-4 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
                         <div>
-                            <h2 className="text-xl md:text-2xl font-extrabold text-white tracking-tight mb-1">{selectedPattern.name}</h2>
+                            <h2 className={`${focusMode ? 'text-2xl md:text-3xl' : 'text-xl md:text-2xl'} font-extrabold text-white tracking-tight mb-1`}>{selectedPattern.name}</h2>
                             <p className="text-xs md:text-sm text-slate-300 leading-relaxed">{selectedPattern.description}</p>
+                            {selectedPattern.lesson && mode === 'full' && sections.length > 2 && (
+                                <p className="mt-2 text-[11px] text-slate-400">~{readMin} min read · {sections.filter((sec) => sec.level === 1).length} sections</p>
+                            )}
                         </div>
+                        {/* in focus mode the way out is in the focus bar */}
+                        {onToggleFocus && !focusMode && (
+                            <button
+                                type="button"
+                                onClick={() => onToggleFocus(true)}
+                                title="Hide everything but this lesson"
+                                className="shrink-0 self-start inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-800 border border-slate-700 text-xs font-semibold text-slate-100 hover:bg-slate-700"
+                            >
+                                <FaExpand size={11} /> Focus mode
+                            </button>
+                        )}
                         {onOpenEdith && (
                             <button
                                 type="button"
@@ -219,7 +266,7 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
                         )}
                     </div>
 
-                    {selectedPattern.lesson?.status === 'full' && onModeChange && (
+                    {(selectedPattern.lesson || selectedPattern.revision_note_md) && onModeChange && (
                         <div className="inline-flex p-1 rounded-xl bg-slate-950 border border-slate-800" role="tablist" aria-label="Lesson view">
                             {(['full', 'revision'] as const).map((m) => (
                                 <button
@@ -247,12 +294,14 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
                         </button>
                     )}
 
-                    {selectedPattern.lesson && (mode === 'revision' && selectedPattern.lesson.status === 'full'
-                        ? <RevisionView slug={selectedPattern.slug} lesson={selectedPattern.lesson} />
-                        : <LessonView slug={selectedPattern.slug} lesson={selectedPattern.lesson} />)}
+                    <div data-lesson-body>
+                    {mode === 'revision'
+                        ? <RevisionView slug={selectedPattern.slug} lesson={selectedPattern.lesson} note={selectedPattern.revision_note_md} />
+                        : selectedPattern.lesson && <LessonView slug={selectedPattern.slug} lesson={selectedPattern.lesson} />}
+                    </div>
 
                     {/* Illustrative Pattern Overview & Solving Strategy (topics without a structured lesson) */}
-                    {!selectedPattern.lesson && selectedPattern.revision_note_md && (
+                    {!selectedPattern.lesson && selectedPattern.revision_note_md && mode === 'full' && (
                         <div className="bg-gradient-to-br from-slate-950 via-slate-900/90 to-slate-950 border border-blue-500/20 rounded-2xl p-5 md:p-6 shadow-2xl space-y-4">
                             {/* Header Badge & Title */}
                             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
@@ -593,11 +642,26 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
                         );
                     })}
                     </div>
+
+                    {nextLesson && onOpenNext && (
+                        <button
+                            type="button"
+                            onClick={() => onOpenNext(nextLesson.slug)}
+                            className="w-full flex items-center justify-between gap-3 p-4 rounded-2xl bg-gradient-to-r from-indigo-600/20 to-fuchsia-600/10 border border-indigo-500/30 text-left hover:border-indigo-400 transition"
+                        >
+                            <span className="min-w-0">
+                                <span className="block text-[11px] font-bold uppercase tracking-wider text-indigo-300">Up next</span>
+                                <span className="block text-sm font-bold text-white truncate">{nextLesson.name}</span>
+                                <span className="block text-xs text-slate-400 truncate">{nextLesson.description}</span>
+                            </span>
+                            <FaArrowRight className="shrink-0 text-indigo-300" />
+                        </button>
+                    )}
                 </div>
 
                 {/* Wide screens: "On this page" rail; text column stays at a comfortable reading width */}
                 {sections.length > 2 && (
-                    <nav aria-label="On this page" className="hidden xl:block w-52 shrink-0 sticky top-0 self-start max-h-[calc(100vh-220px)] overflow-y-auto py-1">
+                    <nav aria-label="On this page" className={`hidden xl:block w-52 shrink-0 sticky self-start overflow-y-auto py-1 ${focusMode ? 'top-16 max-h-[calc(100vh-5rem)]' : 'top-0 max-h-[calc(100vh-220px)]'}`}>
                         <p className="px-2 pb-2 text-[11px] font-bold uppercase tracking-wider text-slate-400">On this page</p>
                         {sections.map((sec) => (
                             <button
@@ -617,11 +681,23 @@ export const DetailPanel: React.FC<DetailPanelProps> = ({ selectedPattern, loadi
             </div>
         </section>
         {/* Outside the section: its backdrop-blur would make a fixed child position relative to the card. */}
+        {selectedPattern.lesson && progress > 0.01 && (
+            <div className="fixed left-0 right-0 z-40 h-0.5 bg-slate-800/60 pointer-events-none" style={{ top: headerH }} aria-hidden>
+                <div className="h-full bg-gradient-to-r from-indigo-400 to-fuchsia-400 origin-left" style={{ transform: `scaleX(${progress})` }} />
+            </div>
+        )}
+        {breakDue && (
+            <div role="status" className={`fixed left-4 right-4 sm:left-auto sm:right-5 sm:w-80 ${focusMode ? 'bottom-5' : 'bottom-20 md:bottom-5'} z-40 p-4 rounded-2xl bg-slate-900 border border-emerald-500/40 shadow-2xl text-sm text-slate-200`}>
+                <p className="font-bold text-emerald-300"><span className="keep-colors" aria-hidden>☕</span> 25 minutes in — nice focus.</p>
+                <p className="mt-1 text-xs text-slate-400">Stand up for 5 minutes. When you're back, do the quiz before reading on: recalling it is what makes it stick.</p>
+                <button type="button" onClick={() => setBreakDue(false)} className="mt-3 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold">OK</button>
+            </div>
+        )}
         {showTop && (
             <button
                 type="button"
                 onClick={backToTop}
-                className="fixed bottom-20 md:bottom-5 right-5 z-30 inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-900/50"
+                className={`fixed ${focusMode ? 'bottom-5' : 'bottom-20 md:bottom-5'} ${video.now ? 'left-5' : 'right-5'} z-30 inline-flex items-center gap-1.5 px-3.5 py-2.5 rounded-full bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow-lg shadow-indigo-900/50`}
             >
                 <FaArrowUp size={11} /> Back to top
             </button>

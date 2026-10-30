@@ -1,5 +1,6 @@
 import React from 'react';
 import { Visual } from '../types';
+import { DiagramVisualizer } from './DiagramVisualizer';
 import { SortingVisualizer } from './SortingVisualizer';
 import { StructureVisualizer } from './StructureVisualizer';
 
@@ -7,4 +8,6 @@ import { StructureVisualizer } from './StructureVisualizer';
 export const VisualFor: React.FC<{ visual: Visual }> = ({ visual }) =>
     visual.type === 'sorting'
         ? <SortingVisualizer algorithm={visual.algorithm} />
+        : visual.type === 'diagram'
+        ? <DiagramVisualizer id={visual.algorithm} />
         : <StructureVisualizer type={visual.type} algorithm={visual.algorithm} options={visual.options} />;

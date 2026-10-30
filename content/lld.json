@@ -85,7 +85,11 @@
                 "end": 2688,
                 "label": "class diagrams and relationships"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "uml-basics"
+            }
           }
         ],
         "when_to_use": [
@@ -256,7 +260,11 @@
                 "title": "2. Strategy Design Pattern explanation (Hindi) | LLD System Design  | Design pattern in Java",
                 "channel": "Concept && Coding - by Shrayansh"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "strategy-pattern"
+            }
           },
           {
             "title": "Observer: notify many listeners when something happens",
@@ -272,7 +280,11 @@
                 "title": "Observer Design Pattern Explained | Real-Life Use Case + Code Example",
                 "channel": "Coder Army"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "observer-pattern"
+            }
           },
           {
             "title": "Factory and Singleton: controlling creation",
@@ -582,7 +594,11 @@
                 "end": 1195,
                 "label": "core entities and patterns"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "parking-lot-classes"
+            }
           },
           {
             "title": "Concurrency: two gates, one spot",
@@ -764,7 +780,11 @@
                 "end": 1577,
                 "label": "complete state machine diagram"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "vending-states"
+            }
           },
           {
             "title": "Why the State pattern beats if/else here",
@@ -961,7 +981,11 @@
                 "end": 695,
                 "label": "requirements and UML"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "rate-limiter-classes"
+            }
           },
           {
             "title": "Thread safety in one process",
@@ -1166,7 +1190,11 @@
                 "end": 1434,
                 "label": "requirements, entities and class design"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "elevator-classes"
+            }
           },
           {
             "title": "Scheduling one elevator: FCFS, SCAN and LOOK",
@@ -1383,7 +1411,11 @@
                 "end": 1535,
                 "label": "requirements, entities and UML"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "snakes-classes"
+            }
           },
           {
             "title": "Making rules pluggable",
@@ -1607,7 +1639,11 @@
                 "end": 855,
                 "label": "core classes: books, library, members"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "library-classes"
+            }
           },
           {
             "title": "The return flow, where most rules meet",
@@ -1786,7 +1822,11 @@
                 "end": 710,
                 "label": "components, requirements and UML"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "movie-domain"
+            }
           },
           {
             "title": "Hold, pay, confirm: the booking lifecycle",
@@ -1800,7 +1840,11 @@
                 "end": 2507,
                 "label": "booking flow, concurrency and lock expiry"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "seat-lifecycle"
+            }
           },
           {
             "title": "Concurrency options compared",
@@ -2027,7 +2071,11 @@
                 "start": 2155,
                 "label": "concurrency"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "rental-lifecycle"
+            }
           }
         ],
         "when_to_use": [

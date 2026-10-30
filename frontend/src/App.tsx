@@ -2,12 +2,14 @@ import { useEffect, useRef, useState, Component, ErrorInfo, ReactNode, lazy, Sus
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { TrackProvider, useTrack } from './context/TrackContext';
 import { LearningProvider } from './context/LearningContext';
+import { VideoPlayerProvider } from './components/VideoPlayer';
 import { BottomNav } from './components/BottomNav';
 import { ServerWakeBanner } from './components/ServerWakeBanner';
 import type { SearchResult } from './services/search';
 import { RoadmapView } from './components/RoadmapView';
 import { PlaybookView } from './components/PlaybookView';
 import { Header } from './components/Header';
+import { FocusBar } from './components/FocusBar';
 import { Sidebar } from './components/Sidebar';
 import { DetailPanel, LessonMode } from './components/DetailPanel';
 import { LandingShowcase } from './components/LandingShowcase';
@@ -110,8 +112,32 @@ function MainAppContent() {
     const [searchOpen, setSearchOpen] = useState(false);
     // After a search pick: which lesson section to scroll to once that lesson has rendered.
     const [focus, setFocus] = useState<{ slug: string; section: string } | null>(null);
+    // Focus mode: only the lesson on screen (no header, topic list, tabs or footer). Remembered on this device.
+    const [focusMode, setFocusMode] = useState(() => {
+        try { return localStorage.getItem('algotrack_focus') === '1'; } catch { return false; }
+    });
 
     const isWorkspaceActive = isAuthenticated || isGuestSession;
+    const inFocus = focusMode && isWorkspaceActive && view === 'topics' && !!selectedPattern;
+    const nextIdx = selectedPattern ? patterns.findIndex((p) => p.slug === selectedPattern.slug) + 1 : 0;
+    const nextLesson = nextIdx > 0 && nextIdx < patterns.length ? patterns[nextIdx] : null;
+
+    const toggleFocus = (on: boolean) => {
+        setFocusMode(on);
+        try { localStorage.setItem('algotrack_focus', on ? '1' : '0'); } catch { /* private mode */ }
+    };
+
+    // Esc leaves focus mode, unless it's closing something else first (a dialog, full-screen visual or video).
+    useEffect(() => {
+        if (!inFocus) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key !== 'Escape' || e.defaultPrevented) return;
+            if (document.querySelector('[role="dialog"], .vis-expanded, [data-theater]')) return;
+            toggleFocus(false);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [inFocus]);
 
     const openAuthModal = (tab: 'login' | 'register') => {
         setAuthModalTab(tab);
@@ -233,8 +259,11 @@ function MainAppContent() {
     };
 
     return (
-        <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans ${isWorkspaceActive ? 'pb-16 md:pb-0' : ''}`}>
+        <div className={`min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans ${isWorkspaceActive && !inFocus ? 'pb-16 md:pb-0' : ''}`}>
             {/* Header Navbar */}
+            {inFocus ? (
+                <FocusBar title={selectedPattern.name} onExit={() => toggleFocus(false)} onOpenSearch={() => setSearchOpen(true)} />
+            ) : (
             <Header
                 patterns={patterns}
                 selectedSlug={selectedPattern?.slug}
@@ -244,6 +273,7 @@ function MainAppContent() {
                 onEnterGuestMode={handleEnterGuestMode}
                 onOpenSearch={() => setSearchOpen(true)}
             />
+            )}
             {searchOpen && (
                 <Suspense fallback={null}>
                     <SearchPalette open onClose={() => setSearchOpen(false)} onPick={openSearchResult} />
@@ -253,7 +283,7 @@ function MainAppContent() {
             <ServerWakeBanner />
 
             {/* If Active Workspace (Authenticated or Guest Mode): Render Practice Workspace */}
-            {isWorkspaceActive && (
+            {isWorkspaceActive && !inFocus && (
                 <nav className="max-w-7xl mx-auto px-4 sm:px-6 w-full mt-4 hidden md:flex gap-2 overflow-x-auto no-scrollbar" aria-label="Sections">
                     {VIEWS.map((v) => (
                         <button
@@ -281,6 +311,21 @@ function MainAppContent() {
             ) : isWorkspaceActive && view === 'playbook' ? (
                 <main className="max-w-6xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-8">
                     <PlaybookView onOpenRevision={(slug, trackId) => openLesson(slug, trackId, 'revision')} />
+                </main>
+            ) : inFocus ? (
+                <main className="max-w-5xl mx-auto px-4 sm:px-6 w-full flex-1 mt-4 mb-10">
+                    <DetailPanel
+                        selectedPattern={selectedPattern}
+                        loading={loading}
+                        mode={lessonMode}
+                        onModeChange={setLessonMode}
+                        focus={focus}
+                        onFocused={() => setFocus(null)}
+                        focusMode
+                        onToggleFocus={toggleFocus}
+                        nextLesson={nextLesson}
+                        onOpenNext={(slug) => { setLessonMode('full'); void fetchPatternDetail(slug, true).then(() => window.scrollTo({ top: 0 })); }}
+                    />
                 </main>
             ) : isWorkspaceActive ? (
                 <>
@@ -326,7 +371,18 @@ function MainAppContent() {
 
                             {/* Problem Detail Panel Column */}
                             <div className={`md:col-span-8 lg:col-span-8 ${mobileTab === 'details' ? 'block' : 'hidden md:block'}`}>
-                                <DetailPanel selectedPattern={selectedPattern} loading={loading} mode={lessonMode} onModeChange={setLessonMode} focus={focus} onFocused={() => setFocus(null)} onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined} />
+                                <DetailPanel
+                                    selectedPattern={selectedPattern}
+                                    loading={loading}
+                                    mode={lessonMode}
+                                    onModeChange={setLessonMode}
+                                    focus={focus}
+                                    onFocused={() => setFocus(null)}
+                                    onToggleFocus={toggleFocus}
+                                    nextLesson={nextLesson}
+                                    onOpenNext={(slug) => { setLessonMode('full'); void fetchPatternDetail(slug, true); }}
+                                    onOpenEdith={EDITH_ENABLED ? () => setIsEdithOpen(true) : undefined}
+                                />
                             </div>
                         </div>
                     </main>
@@ -363,9 +419,10 @@ function MainAppContent() {
             )}
 
             {/* Phones: Roadmap / Lessons / Playbook live in a bottom tab bar (the top tabs are md+ only) */}
-            {isWorkspaceActive && <BottomNav view={view} onChange={(v) => { setView(v); window.scrollTo({ top: 0 }); }} />}
+            {isWorkspaceActive && !inFocus && <BottomNav view={view} onChange={(v) => { setView(v); window.scrollTo({ top: 0 }); }} />}
 
             {/* Site Footer */}
+            {!inFocus && (
             <footer className="mt-auto border-t border-slate-800/80 bg-slate-950 py-6">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400 text-xs">
                     <p>Built with 💻 & ☕ by Suraj Raj</p>
@@ -382,6 +439,7 @@ function MainAppContent() {
                     </div>
                 </div>
             </footer>
+            )}
         </div>
     );
 }
@@ -392,7 +450,9 @@ function App() {
             <AuthProvider>
                 <TrackProvider>
                     <LearningProvider>
-                        <MainAppContent />
+                        <VideoPlayerProvider>
+                            <MainAppContent />
+                        </VideoPlayerProvider>
                     </LearningProvider>
                 </TrackProvider>
             </AuthProvider>

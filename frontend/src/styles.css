@@ -165,3 +165,11 @@ html[data-motion='reduce'] *::after {
   padding: 0;
   color: #e2e8f0;
 }
+/* Step-through diagrams: the highlighted arrow "flows" toward its target. */
+.dia-flow {
+    stroke-dasharray: 7 5;
+    animation: dia-dash 0.9s linear infinite;
+}
+@keyframes dia-dash {
+    to { stroke-dashoffset: -12; }
+}

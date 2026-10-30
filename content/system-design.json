@@ -94,7 +94,11 @@
                 "end": 1861,
                 "label": "servers, databases, scaling, load balancing"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "sd-blocks"
+            }
           },
           {
             "title": "Scaling patterns and trade-offs to discuss",
@@ -342,7 +346,11 @@
                 "end": 1913,
                 "label": "high-level design"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "chat-message-path"
+            }
           },
           {
             "title": "Storage, ordering and groups",
@@ -558,7 +566,11 @@
                 "end": 3490,
                 "label": "deep dives"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "booking-hold"
+            }
           },
           {
             "title": "Idempotency, holds and payments",
@@ -780,7 +792,11 @@
                 "end": 1548,
                 "label": "news feed deep dives"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "feed-fanout"
+            }
           },
           {
             "title": "Read path, caching and pagination",
@@ -979,7 +995,11 @@
                 "title": "What is the Saga Microservices Pattern? | Saga Pattern Explained in 3 Minutes",
                 "channel": "Java Guides"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "saga-orchestration"
+            }
           },
           {
             "title": "The outbox pattern and exactly-once effects",
@@ -995,7 +1015,11 @@
                 "title": "The Outbox Pattern is seriously underrated...",
                 "channel": "Software Developer Diaries"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "outbox"
+            }
           },
           {
             "title": "Inventory and flash sales",
@@ -1202,7 +1226,11 @@
                 "title": "GeoSpatial Indexes - Why You Need Them | Systems Design Interview 0 to 1 with Ex-Google SWE",
                 "channel": "Jordan has no life"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "geohash-cells"
+            }
           },
           {
             "title": "Alternatives: quadtree, S2 and PostGIS",
@@ -1242,7 +1270,11 @@
                 "start": 1320,
                 "label": "scaling and caching"
               }
-            ]
+            ],
+            "visual": {
+              "type": "diagram",
+              "algorithm": "proximity-arch"
+            }
           }
         ],
         "when_to_use": [
